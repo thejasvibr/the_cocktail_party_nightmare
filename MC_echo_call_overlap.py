@@ -127,7 +127,7 @@ def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5)
 
             call_start = random.choice(actual_timeline)
 
-            call_end = call_start + calldurn_steps
+            call_end = call_start + calldurn_steps -1
 
             if call_end > len(timeline):
                 raise Exception('call_end is beyond current timeline')

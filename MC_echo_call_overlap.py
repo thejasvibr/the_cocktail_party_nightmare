@@ -140,9 +140,134 @@ def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5)
 
 
 
+class simulate_jamming_experiment():
+
+    def __init__(self,pi_durn,time_res,echo_durn,num_echoes,call_density,num_replicates):
+
+        self.num_replicates = num_replicates
+
+        self.pi_durn = pi_durn
+        self.time_res = time_res # 10**-4 ## based on the minimum double-echo separation bats can detect [Simmons et al. XXXX]
+        self.call_densities = call_density
+
+        self.num_bins = int(self.pi_durn/self.time_res)
+        self.pi_as_bins = range(self.num_bins)
+
+        self.echo_durn = echo_durn
+        self.echo_numbins = int(self.echo_durn/self.time_res)
+        self.num_echoes = num_echoes
+
+        self.echo_times = np.linspace(self.pi_durn,self.pi_durn-0.02,self.num_echoes) # the start times of the echos
+
+        if min(self.echo_times) < 0:
+            raise ValueError('echoes cannot be placed in negative time')
+
+
+        self.echo_bins = np.int64(self.echo_times/self.time_res)
+
+        self.echo_positions = [ [thisecho_start, thisecho_start+self.echo_numbins-1] for thisecho_start in self.echo_bins]
+
+
+        self.fwd_masking_bins = None
+
+        self.bkwd_masking_bins = None
+
+
+
+    def compile_all_steps(self):
+
+        self.sim_random_call_arrival()
+        self.analyse_masking()
+
+
+
+    def sim_random_call_arrival(self):
+        self.all_calls_containter = []
+        print('here we are')
+        for this_calldensity in self.call_densities:
+            print('calls being generated at ',this_calldensity,' per pulse interval')
+            self.all_calls_containter.append( generate_calls_randomly(self.pi_as_bins,self.echo_numbins,this_calldensity,self.num_replicates) )
+
+
+    def analyse_masking(self):
+
+        self.heardechoes_calldens = []
+
+        if self.fwd_masking_bins == None or self.bkwd_masking_bins == None:
+            raise ValueError('Need to define fwd and/or bkwd masking conditions')
+
+
+        i = 0
+        for each_calldensity in self.all_calls_containter:
+                print('analysing masking at:',self.call_densities[i],' density')
+                i += 1
+                self.unmaskedechoes = []
+
+                for each_replicate in each_calldensity:
+
+
+                    echoes_masked = [ check_masking( each_echo, each_replicate,[self.fwd_masking_bins,self.bkwd_masking_bins] ) for each_echo in self.echo_positions ]
+
+                    num_masked = sum(echoes_masked)
+
+                    self.num_free = self.num_echoes - num_masked
+
+                    self.unmaskedechoes.append(self.num_free)
+
+
+                self.heardechoes_calldens.append(self.unmaskedechoes)
+
+        self.p_numechoesheard = [  each_density.count(numberofechoes)  for each_density in self.heardechoes_calldens  for numberofechoes in range(self.num_echoes) ]
+
+        self.num_unmaskedechoes = []
+
+        for each_density in self.heardechoes_calldens:
+
+            self.unmasked_thisdensity = []
+
+            for numberofechoes in range(self.num_echoes+1):
+
+                self.unmasked_thisdensity.append(  each_density.count(numberofechoes)/float(self.num_replicates) )
+
+            self.num_unmaskedechoes.append(self.unmasked_thisdensity)
+
+
+        self.prob_unmaskedechoes = np.array(self.num_unmaskedechoes)
+
+
+    def convert_to_P_nechoes(self):
+        '''
+        Converts the number of echoes based probability array
+        to a P( 1,2>= number of echoes heard) value at each call density
+
+        '''
+        print('converting...')
+        self.geq_1echo = []
+        self.geq_2echoes = []
+        self.geq_3echoes = []
+
+        if self.num_echoes > 2 :
+            morethan2echoes = True
+
+
+        self.num_rows = self.prob_unmaskedechoes.shape[0]
+        for each_row in range(self.num_rows):
+            try:
+                self.geq_1echo.append( np.sum(self.prob_unmaskedechoes[each_row,1:]))
+                self.geq_2echoes.append( np.sum(self.prob_unmaskedechoes[each_row,2:]))
+
+                if morethan2echoes:
+                    self.geq_3echoes.append( np.sum(self.prob_unmaskedechoes[each_row,3:]))
+
+
+            except:
+                raise IndexError('P(>=Nechoes) being calculated for more echoes than actually present')
+
+
 
 
 if __name__ == '__main__':
+
     timeres = 10**-4
     length_timeline = 0.07
     timeline = range(int(length_timeline/timeres))
@@ -175,8 +300,13 @@ if __name__ == '__main__':
 
         num_ovlps.append( sum(ovlps) )
 
-    plt.plot(call_densities,np.array(num_ovlps)/num_replicates,'*-')
-    plt.ylim(0,1)
+#    plt.plot(call_densities,np.array(num_ovlps)/num_replicates,'*-')
+#    plt.ylim(0,1)
+
+    b = simulate_jamming_experiment(0.1,0.0001,0.003,3,[10,5,6],10)
+    b.fwd_masking_bins = 0;b.bkwd_masking_bins = 0
+    b.compile_all_steps()
+    b.convert_to_P_nechoes()
 
 
 

@@ -157,7 +157,7 @@ class simulate_jamming_experiment():
         self.echo_numbins = int(self.echo_durn/self.time_res)
         self.num_echoes = num_echoes
 
-        self.echo_times = np.linspace(self.pi_durn,self.pi_durn-0.02,self.num_echoes) # the start times of the echos
+        self.echo_times = np.linspace(0,self.pi_durn-0.02,self.num_echoes) # the start times of the echos
 
         if min(self.echo_times) < 0:
             raise ValueError('echoes cannot be placed in negative time')

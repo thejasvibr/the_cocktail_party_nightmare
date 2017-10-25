@@ -97,9 +97,11 @@ def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5)
     Inputs:
 
     timeline: list. range object with iteration numbers ranging from 0 to the
-             the number of iterations the pulse interval is parametrised to
+             the number of iterations the inter pulse interval consists of
+
     calldurn_steps : integer. the length of the calls which are arriving in the
               pulse interval
+
     Ncalls : integer. number of calls to generate per pulse interval.
     replicates: integer. number of times to generate Ncalls in the pulse interval
 
@@ -113,7 +115,7 @@ def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5)
 
     # Achtung: I actually assume a right truncated timeline here
     # because I want to ensure the full length of the call is always
-    # assigned
+    # assigned within the inter-pulse interval
 
     actual_timeline = timeline[:-calldurn_steps]
 
@@ -126,12 +128,14 @@ def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5)
         for every_call in range(Ncalls):
 
             call_start = random.choice(actual_timeline)
-
             call_end = call_start + calldurn_steps -1
 
             if call_end > len(timeline):
+
                 raise Exception('call_end is beyond current timeline')
+
             else:
+
                this_replicate.append([call_start,call_end])
 
         multi_replicate_calls.append(this_replicate)

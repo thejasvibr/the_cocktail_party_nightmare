@@ -20,17 +20,20 @@ import random
 import scipy.misc as misc
 import matplotlib.pyplot as plt
 
-random.seed(111)
 
 def check_masking(echo_range,calls,masking_region=[0,0]):
     '''
     Checks if the target echo has been overlapped or forward masked
+
+    Inputs:
 
     echo_range : list with 2 integers. with the indices of the echo's location in the timeline
     calls : list with sublists. container list with multiple calls
     masking_region: list with 2 integers. Number of iterations over which forward masking
                 and backward masking occurs.
                 Default is [0,0], which means no forward or backward masking.
+    Output:
+    1/0 : returns 1 if there is masking and 0 if not.
     '''
 
 
@@ -72,38 +75,6 @@ def check_masking(echo_range,calls,masking_region=[0,0]):
 
         return(0)
 
-
-def check_spatial_unmasking(echo_angle, call_arrivalangles,sp_unmask_func):
-    '''
-    Checks if the echo and a call could have possibly been heard because of
-    spatial release from masking , or spatial unmasking.
-
-    It does this by comparing the difference in angles of arrival (deltaAOA) of the
-    echo and the masking call. If the deltaAOA is more than what is expected for
-    an angle of arrival (AOA) - then the echo could have been heard.
-
-    Inputs:
-        echo_angle :0<=float<=2pi. AOA of the incoming focal echo in degrees.
-                    Zero-degrees begins at 3'o clock and the angles increase ccw
-
-        call_arrivalangles: list with float values. Container list with AOAs of
-                        the masking calls
-
-        sp_unmask_func : dictionary.
-                        The spatial unmasking function  describes how deltaAOA
-                        varies with the AOA. The top row has the AOA bins and
-                        the bottom row is the deltaAOA.
-
-
-    '''
-
-    for each_call in call_arrivalangles:
-        pass
-
-
-
-
-    pass
 
 
 def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5):
@@ -161,39 +132,40 @@ def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5)
 
 
 
-def generate_arrival_angles(angle_range,angular_resolution,num_calls):
-    '''
-    Simulate the arrival angles of masking calls
-
-    Inputs:
-        angle_range : tuple. Angular range within which the masking calls arrive
-                      . Angles are defined in ccw direction, with 3 'o clock being
-                      0 degrees.
-        angular_resolution: float. The 'fineness' with which the arrival angles
-                            are generated
-        num_calls : integer. number of calls for which angles need to be assigned
-
-    Outputs:
-        call_arrivalangles : 1 x num_calls numpy array
-
-    '''
-
-    if angle_range[0] > angle_range[1]:
-        raise ValueError('The first value in angle_range must be lesser than the seconds')
-
-
-    all_angles = np.arange(angle_range[0],angle_range[1]+angular_resolution,angular_resolution)
-
-    arrival_angles = np.random.choice(all_angles,num_calls)
-
-    return(arrival_angles)
-
-
-
-
-
 
 class simulate_jamming_experiment():
+    '''Quantifies the probability of a given number of echoes being heard
+    at various call densities. Call density is the number of calls per pulse
+    interval that a bat can hear.
+
+    It does this by setting up a 'replicate' with a pulse interval
+    and then inserting conspecific calls randomly into it.The target echoes -
+    which are distributed equally across the pulse interval are then checked if
+    they are masked or not for each replicate. Many such replicates are run for
+    each call density - and the total number of echoes heard at a call density
+    can be calculated. Similarly, this is repeated for multiple call densities.
+
+    __init__ :
+
+    Parameters:
+
+    pi_durn : float. pulse interval duration in seconds.
+
+    time_res: float. duration of one time step in the simulations
+
+    echo_durn : float. duration of the echo in seconds
+
+    num_echoes : integer. number of echoes to be placed in the pulse interval
+
+    call_density: list with integer number of calls to be placed in the pulse
+                                                                       interval
+
+    num_replicates: integer. total number of replicates to be run for each call
+                                                                        density
+
+
+
+    '''
 
     def __init__(self,pi_durn,time_res,echo_durn,num_echoes,call_density,num_replicates):
 
@@ -235,6 +207,11 @@ class simulate_jamming_experiment():
 
 
     def sim_random_call_arrival(self):
+        '''Simulates random call arrival in the pulse interval for a list with
+        values of call density. It generates num_replicates number of replicates
+        per call density into a list.
+
+        '''
         self.all_calls_containter = []
         print('here we are')
         for this_calldensity in self.call_densities:
@@ -253,10 +230,10 @@ class simulate_jamming_experiment():
             raise ValueError('Need to define fwd and/or bkwd masking conditions')
 
 
-        i = 0
-        for each_calldensity in self.all_calls_containter:
+
+        for i,each_calldensity in enumerate(self.all_calls_containter):
                 print('analysing masking at:',self.call_densities[i],' density')
-                i += 1
+
                 self.unmaskedechoes = []
 
                 for each_replicate in each_calldensity:
@@ -359,20 +336,8 @@ if __name__ == '__main__':
 #    plt.plot(call_densities,np.array(num_ovlps)/num_replicates,'*-')
 #    plt.ylim(0,1)
 
-    b = simulate_jamming_experiment(0.1,0.0001,0.003,3,[10,5,6],10)
+    b = simulate_jamming_experiment(0.1,0.0001,0.003,3,[10,5,6],10000)
     b.fwd_masking_bins = 0;b.bkwd_masking_bins = 0
     b.compile_all_steps()
     b.convert_to_P_nechoes()
 
-
-
-#    nrow = 0
-#    plt.figure(1)
-#    for each_call in rand_calls[0]:
-#        plt.plot(each_call,[nrow]*2)
-#        nrow +=1
-#
-#
-#    echo_x = echo_range
-#    echo_y = [nrow+1]*2
-#    plt.plot(echo_x,echo_y,'k')

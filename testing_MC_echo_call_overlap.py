@@ -41,24 +41,6 @@ class TestMCcalloverlap(unittest.TestCase):
         self.fwd_bkwd_masking = [self.forward_masker,self.backward_masker]
 
 
-    def test_simultaneousmasking(self):
-        '''
-        checks for a set of cases where simultaneous masking occurs, and
-        doesn't
-        '''
-
-        self.assertEqual( check_simultaneous_masking(self.echo_range, self.overlap_call )  , 1 )
-
-        self.assertEqual( check_simultaneous_masking(self.echo_range, self.nonoverlap_call )  , 0 )
-
-        self.assertEqual( check_simultaneous_masking(self.echo_range, self.overlap_subcall )  , 0 )
-
-        self.assertEqual( check_simultaneous_masking(self.echo_range, self.short_call )  , 0 )
-
-        self.assertEqual( check_simultaneous_masking(self.echo_range, self.rightedge_touching )  , 0 )
-
-        self.assertEqual( check_simultaneous_masking(self.echo_range, self.leftedge_touching )  , 0 )
-
 
     def test_check_masking(self):
 

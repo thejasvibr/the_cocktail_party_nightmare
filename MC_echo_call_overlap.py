@@ -22,28 +22,13 @@ import matplotlib.pyplot as plt
 
 random.seed(111)
 
-def check_simultaneous_masking(echo_range,call_range):
-    '''
-
-    '''
-    simult_ovlps = 0
-    for each_call in call_range:
-
-        overlap_occured = each_call == echo_range
-
-        if  overlap_occured :
-
-            simult_ovlps += 1
-
-    return(simult_ovlps)
-
 def check_masking(echo_range,calls,masking_region=[0,0]):
     '''
     Checks if the target echo has been overlapped or forward masked
 
     echo_range : list with 2 integers. with the indices of the echo's location in the timeline
     calls : list with sublists. container list with multiple calls
-    fwd_masking: list with 2 integers. Number of iterations over which forward masking
+    masking_region: list with 2 integers. Number of iterations over which forward masking
                 and backward masking occurs.
                 Default is [0,0], which means no forward or backward masking.
     '''
@@ -87,6 +72,38 @@ def check_masking(echo_range,calls,masking_region=[0,0]):
 
         return(0)
 
+
+def check_spatial_unmasking(echo_angle, call_arrivalangles,sp_unmask_func):
+    '''
+    Checks if the echo and a call could have possibly been heard because of
+    spatial release from masking , or spatial unmasking.
+
+    It does this by comparing the difference in angles of arrival (deltaAOA) of the
+    echo and the masking call. If the deltaAOA is more than what is expected for
+    an angle of arrival (AOA) - then the echo could have been heard.
+
+    Inputs:
+        echo_angle :0<=float<=2pi. AOA of the incoming focal echo in degrees.
+                    Zero-degrees begins at 3'o clock and the angles increase ccw
+
+        call_arrivalangles: list with float values. Container list with AOAs of
+                        the masking calls
+
+        sp_unmask_func : dictionary.
+                        The spatial unmasking function  describes how deltaAOA
+                        varies with the AOA. The top row has the AOA bins and
+                        the bottom row is the deltaAOA.
+
+
+    '''
+
+    for each_call in call_arrivalangles:
+        pass
+
+
+
+
+    pass
 
 
 def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5):
@@ -144,6 +161,38 @@ def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5)
 
 
 
+def generate_arrival_angles(angle_range,angular_resolution,num_calls):
+    '''
+    Simulate the arrival angles of masking calls
+
+    Inputs:
+        angle_range : tuple. Angular range within which the masking calls arrive
+                      . Angles are defined in ccw direction, with 3 'o clock being
+                      0 degrees.
+        angular_resolution: float. The 'fineness' with which the arrival angles
+                            are generated
+        num_calls : integer. number of calls for which angles need to be assigned
+
+    Outputs:
+        call_arrivalangles : 1 x num_calls numpy array
+
+    '''
+
+    if angle_range[0] > angle_range[1]:
+        raise ValueError('The first value in angle_range must be lesser than the seconds')
+
+
+    all_angles = np.arange(angle_range[0],angle_range[1]+angular_resolution,angular_resolution)
+
+    arrival_angles = np.random.choice(all_angles,num_calls)
+
+    return(arrival_angles)
+
+
+
+
+
+
 class simulate_jamming_experiment():
 
     def __init__(self,pi_durn,time_res,echo_durn,num_echoes,call_density,num_replicates):
@@ -190,7 +239,10 @@ class simulate_jamming_experiment():
         print('here we are')
         for this_calldensity in self.call_densities:
             print('calls being generated at ',this_calldensity,' per pulse interval')
-            self.all_calls_containter.append( generate_calls_randomly(self.pi_as_bins,self.echo_numbins,this_calldensity,self.num_replicates) )
+            self.all_calls_containter.append( generate_calls_randomly(self.pi_as_bins,
+                                                                      self.echo_numbins,
+                                                                      this_calldensity,
+                                                                      self.num_replicates) )
 
 
     def analyse_masking(self):

@@ -52,9 +52,6 @@ def calc_pechoesheard(call_density,numreplicates=10**5,**kwargs):
     '''
     # repeat one_density many times
 
-
-
-
     pheard_cumulative = None
     return(pheard_cumulative)
 
@@ -178,7 +175,7 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
     given their time gap and the angular separation.
 
     Parameters:
-    echo : 1 x 4 pd.DataFrame row.
+    echo : 1 x 4 pd.DataFrame
 
     call : 1 x 4 pd.DataFrame.
 
@@ -228,7 +225,7 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
     angular_separation = calc_angular_separation(echo['theta'],call['theta'])
     spatial_release = calc_spatial_release(angular_separation, spatialrelease_fn)
 
-    if echocall_deltadB > float(colloc_deltadB - spatial_release):
+    if echocall_deltadB > float(colloc_deltadB + spatial_release):
             return(True)
     else:
             return(False)
@@ -274,7 +271,28 @@ def quantify_temporalmasking(echo,call):
 
 
 def which_masking(call,echo):
-    '''
+    '''Decides which kind of masking is occuring and how much timegap there is
+    between the call and echo.
+
+    If the timegap is >0 then it is forward masking, if timegap<0, then it is
+    backward masking, if it is 0 -then it is simultaneous masking.
+
+    Parameters:
+
+    call: dictionary with (at least the) following keys:
+        start: simulation index of call start
+        stop:  simulation index of call stop
+
+    echo: same as above.
+
+
+    Returns:
+
+    timegap : integer. number of iterations length of forward/backward masking
+
+
+
+
     '''
 
     fwd_nonoverlap = (call['stop'] < echo['start']) & (call['start'] < echo['start'])
@@ -331,9 +349,25 @@ def get_collocalised_deltadB(timegap_ms, temp_mask_fn):
 
 
 def calc_angular_separation(angle1,angle2):
-    '''
-    Avoid silly subtraction errors because of the circular nature of
-    angles !!
+    '''Calculates the minimum separation between two angles, the 'inner' angle.
+
+    Parameters:
+
+        angle1: float. degrees
+
+        angle2: float. degrees
+
+    Returns:
+
+        diff_angle. float.
+
+    Example:
+
+    If there are two angles given, eg. 90deg and 350deg. The diff angle will be
+    100deg and not 260 deg.
+
+    calc_angular_separation(90,350) --> 100
+
     '''
     diff_angle = abs(float(angle1-angle2))
     if diff_angle > 180:
@@ -352,6 +386,28 @@ def calc_spatial_release(angular_separation,spatial_release):
                     The 0'th column has the angular separations
                     and the 1st column has the spatial release value:
                     |deltatheta|dB_release|
+
+    Returns:
+
+    dB_release: float. Amount of spatial release due to spatial unmasking in dB
+
+    Example:
+
+    let's say we have a spatial release functio with this data :
+    theta  spatial release
+    0      -10
+    5      -20
+    10     -30
+
+    and the angular separation we give is 2 degrees.
+
+    calc_spatial_release(2,spatial_release) --> -10
+
+    if angular separation is 7.5 , then the function returns the first index which
+    is close to 7.5.
+
+    calc_spatial_release(3,spatial_release) --> -20
+
 
     '''
     if angular_separation > np.max(spatial_release['deltatheta']):

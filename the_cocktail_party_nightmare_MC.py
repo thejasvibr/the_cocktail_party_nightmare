@@ -12,28 +12,7 @@ import pandas as pd
 from MC_echo_call_overlap import generate_calls_randomly
 
 
-
-
-
-def pechoesheard_multipledensities(call_densities,**kwargs):
-    ''' For a given set of echoes to be heard, vary the call density
-    and provide the cumulative probabilities of 0,1,2..N echoes being
-    heard per pulse interval.
-
-
-    '''
-    pechoes = []
-    for call_density in call_densities:
-        pechoes.append(calc_pechoesheard(call_density,**kwargs))
-
-    pechoes_heard = pd.DataFrame(pechoes)
-
-    return(pechoes_heard)
-
-
-
-
-def calc_pechoesheard(call_density,numreplicates=10**5,**kwargs):
+def calc_pechoesheard(num_echoes_heard, total_echoes):
     '''Calculates the cumulative probabilities of 1,2,3,...N echoes
     being heard in the midst of a given number of calls in the pulse
     interval acting as maskers
@@ -41,26 +20,39 @@ def calc_pechoesheard(call_density,numreplicates=10**5,**kwargs):
 
     Parameters:
 
-
+    num_echoes_heard : array like. Entries are the number of echoes heard.
+    total_echoes : integer. Total number of echoes placed in the interpulse
+                                                                    interval
 
     Returns:
 
-    pheard_cumulative : 1 x (Nechoes + 1) np.array
-    with P_heard(0echoes), P_heard(1>= echoes),P_heard(2>= echoes)...
-                                    ...P_heard(N>=echoes)
+    heard_probs : 1 x (Nechoes+1). Probability of hearing 0,1,2,..N echoes
 
+    pheard_cumulative : 1 x (Nechoes + 1) np.array with probabilities
+                        of hearing 0, <=1, <=2 ..<=N echoes.
+
+
+    Example:
+
+    numechoesheard = [0,2,3,4,2,2]
+
+    calc_pechoesheard(numechoesheard,3) --> heardprobs, p_heardcumul
+
+    where:
+        heardprobs : array([0.16666667, 0., 0.5, 0.16666667, 0.16666667,  0.])
+        p_heardcumul: array([ 0.16666667, 0.16666667, 0.66666667, 0.83333333, 1.
+                                                     ,  1. ])
     '''
-    # repeat one_density many times
 
-    pheard_cumulative = None
-    return(pheard_cumulative)
+    occurence = np.bincount(num_echoes_heard, minlength = total_echoes+1)
+
+    heard_probs = occurence/float(sum(occurence))
+
+    cumulative_prob = np.cumsum(heard_probs)
 
 
-def run_one_pulse_interval():
-    calls = populate_sounds()
-    echoes = populate_sounds
+    return(heard_probs, cumulative_prob)
 
-    calculate_num_heardechoes # run this function along each row
 
 
 
@@ -144,6 +136,11 @@ def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn)
 
     spatial_release_fn : pandas.DataFrame
 
+
+    Returns:
+
+    num_echoes: integer. number of echoes that are heard.
+
     '''
 
     echoes_heard = []
@@ -153,12 +150,14 @@ def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn)
 
         for callindex,each_call in calls.iterrows():
 
-
-            heard = check_if_echo_heard(each_echo,each_call,temporalmasking_fn,spatialrelease_fn)
+            heard = check_if_echo_heard(each_echo,each_call,temporalmasking_fn,
+                                                          spatialrelease_fn)
             if heard:
-                this_echoheard =True
+                this_echoheard = True
+
 
         echoes_heard.append(this_echoheard)
+
     num_echoes = sum(echoes_heard)
     return(num_echoes)
 
@@ -291,7 +290,13 @@ def which_masking(call,echo):
     timegap : integer. number of iterations length of forward/backward masking
 
 
+    Example :
 
+    eg_call, eg_echo, where eg_call edge is 10ms from the eg_echo in a case
+    of potential forward masking
+
+    which_masking(eg_call, eg_echo) --> 100 # iterations, with time resolution
+                                        of 10**-4 seconds per iteration.
 
     '''
 

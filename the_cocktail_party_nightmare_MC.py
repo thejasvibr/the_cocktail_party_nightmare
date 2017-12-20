@@ -148,22 +148,22 @@ def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn)
 
         this_echoheard = False
 
+        call_doesnotmask = []
+        num_calls,ncol = calls.shape
+
         for callindex,each_call in calls.iterrows():
 
             heard = check_if_echo_heard(each_echo,each_call,temporalmasking_fn,
                                                           spatialrelease_fn)
-            if heard:
-                this_echoheard = True
+            call_doesnotmask.append(heard)
 
+        #The echo is heard only if all calls do not mask it
+        this_echoheard = num_calls ==  sum(call_doesnotmask)
 
         echoes_heard.append(this_echoheard)
 
     num_echoes = sum(echoes_heard)
     return(num_echoes)
-
-
-
-
 
 
 
@@ -301,14 +301,7 @@ def which_masking(call,echo):
     '''
 
     fwd_nonoverlap = (call['stop'] < echo['start']) & (call['start'] < echo['start'])
-
-    fwd_overlap = (call['stop'] >= echo['start']) & (call['start'] < echo['start'])
-
-    bkwd_nonoverlap = (call['start'] < echo['stop']) & (call['stop'] > echo['stop'])
-
-    bkwd_overlap = (call['start'] > echo['start']) & (call['stop'] > echo['stop'])
-
-
+    # to do:  refactor to avoid the multiple try except clauses
     try:
         if fwd_nonoverlap.bool():
             timegap = echo['start'] - call['stop']
@@ -318,6 +311,8 @@ def which_masking(call,echo):
             timegap = echo['start'] - call['stop']
             return(timegap)
 
+
+    fwd_overlap = (call['stop'] >= echo['start']) & (call['start'] < echo['start'])
 
     try:
         if fwd_overlap.bool():
@@ -331,6 +326,12 @@ def which_masking(call,echo):
             # conservatively as if it were simultaneous masking.
             timegap = 0
             return(timegap)
+
+
+    bkwd_nonoverlap = (call['start'] < echo['stop']) & (call['stop'] > echo['stop'])
+
+    bkwd_overlap = (call['start'] > echo['start']) & (call['stop'] > echo['stop'])
+
     try:
 
         if bkwd_nonoverlap.bool() or bkwd_overlap.bool():
@@ -424,6 +425,123 @@ def calc_spatial_release(angular_separation,spatial_release):
         return(dB_release)
 
 
+def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
+                  spatial_unmasking=True,**kwargs):
+    '''
+    Runs one trial with/out spatial unmasking.
+
+    Parameters:
+
+    call_density : array-like. Entries indicate the number of calls per
+                    interpulse interval
+
+    temporal_masking_fn : Npointsx2 pd.DataFrame. The first column has the
+                          the time delay in MILLISECONDS. The second column has
+                          the required deltadB levels between echo and masker.
+
+    spatial_release_fn : Npointsx2 pd.DataFrame. The first column has the
+                         angular separation in degrees. The second column has
+                         the amount of spatial release obtained by this angular
+                         separation in dB.
+
+    spatial_unmasking : Boolean. If False, then the second
+                        spatial column of the release function is replaced by
+                        zeros, to indicate no spatial unmasking.
+
+
+    **kwargs
+        num_echoes : integer. number of echoes to be placed in the interpulse interval
+                     Defaults to 5 echoes.
+
+        call_level_range : 1x2 array like. the minimum and maximum values of
+                           the arriving masking calls.
+                           Defaults to 100-106 dB SPl re 20muPa
+
+        echo_level_range : 1x2 array like. The minimum and maximum values of the
+                            the arriving target echoes.
+                            Defaults to 60-82 dB SPL re 20 muPa
+
+        echo_arrival_angles : 1x2 array like. Minimum and maximum angles of arrival
+                             of echoes.
+                             Defaults to a 30 degree cone in the front between
+                             75-105 degrees (0 degrees is set to 3 o'clock)
+        call_arrival_angles : 1x2 array like. Minimum and maximum angles of arrival
+                             of masking calls.
+                             Defaults to 0,360 -  which implies calls can arrive
+                             from any direction
+
+        interpulse_interval : float. duration of the interpulse interval in
+                             seconds.
+                             Defaults to 0.1 secondss
+
+        call_durn : float. duration of the call in seconds. The duration of the
+                    echoes is the same as the calls.
+                    Defaults to 3 milliseconds.
+
+
+    Returns:
+
+    num_echoesheard : 0<=integer<=num_echoes. Number of echoes that were heard in this one
+                      simulation run.
+
+
+    Example:
+
+    run_one_trial(.....with all the arguments) --> 4
+
+    '''
+
+
+    num_echoes = 5
+    call_level_range = (100,106)
+    echo_level_range = (60,82)
+    echo_arrival_angles = (75,105) # treating 0 degrees as 3'oclock
+    call_arrival_angles = (0,360)
+
+    timeresolution = 10**-4
+    interpulse_interval = 0.1
+    call_durn = 3*10**-3
+
+    # assign the non-default values to the variable names in the kwargs
+    if len(kwargs.keys())>0:
+        for key in kwargs.keys():
+            exec('%s=%s'%(key,kwargs[key]))
+
+
+    pi_timesteps = np.arange(0,int(interpulse_interval/timeresolution))
+
+    call_steps = int(call_durn/timeresolution)
+
+
+    calls = populate_sounds(pi_timesteps,call_steps,call_level_range,
+                                              call_arrival_angles,call_density)
+    # re-assign the echo start and stop points to avoid echo-echo overlap and keep them at the beggining 1.2
+    # of the pulse interval
+    echoes = populate_sounds(pi_timesteps,call_steps,echo_level_range,
+                                               echo_arrival_angles,num_echoes)
+    echo_starts = np.int16(np.linspace(0,interpulse_interval/2.0,5)/timeresolution)
+    echo_ends = echo_starts + call_steps -1
+    echoes['start'] = echo_starts
+    echoes['stop'] = echo_ends
+
+
+
+    if spatial_unmasking:
+
+        num_echoesheard = calculate_num_heardechoes(echoes,calls,temporal_masking_fn,spatial_release_fn)
+    else :
+
+        # with NO spatial release
+        spl_rel_fn = spatial_release_fn.copy()
+
+        spl_rel_fn.iloc[:,1] = 0
+
+        num_echoesheard = calculate_num_heardechoes(echoes,calls,temporal_masking_fn, spl_rel_fn)
+
+    return(num_echoesheard)
+
+
+
 
 if __name__ == '__main__':
 
@@ -439,4 +557,26 @@ if __name__ == '__main__':
     echo['level'] = 65; call['level'] = 80
 
     fwdmask_nonovlp = quantify_temporalmasking(echo,call)
-    print fwdmask_nonovlp
+
+    temp_masking = pd.DataFrame(index=range(50),columns=['timegap_ms','dB'])
+    temp_masking['timegap_ms'] = np.linspace(10,-1,50)
+    temp_masking['dB'] = np.linspace(-30,10,50)
+    spl_release = temp_masking.copy()
+    spl_release.columns = ['deltatheta','dB_release']
+
+    num = run_one_trial(5,temp_masking,spl_release,False)
+
+    call_ds = np.array([10,20,40])
+    num_replicates = 50
+    p_leq3= {'wsum':[],'wosum':[]}
+
+    for calldens in call_ds:
+        w_sum = [ run_one_trial(calldens,temp_masking,spl_release,True,echo_level_range=(80,92)) for k in range(num_replicates)]
+        wo_sum = [ run_one_trial(calldens,temp_masking,spl_release,False,echo_level_range=(80,92)) for k in range(num_replicates)]
+        probs,cum_probs = calc_pechoesheard(w_sum,5)
+        probs_wo, cum_probs_wo = calc_pechoesheard(wo_sum,5)
+
+        p_leq3['wsum'].append(sum(probs[1:]))
+        p_leq3['wosum'].append(sum(probs_wo[1:]))
+
+    p_leq3

@@ -331,6 +331,97 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
 
 
+class TestingPopulateSounds(unittest.TestCase):
+    '''Checks if the various switches for call directionality
+    and spatial arrangement are running correctly at the original function
+    and at upper functions like run_one_trial
+    '''
+    def setUp(self):
+        num_sounds = 4
+        self.A = 7.3
+        self.sound_df = pd.DataFrame()
+
+        self.sound_df['start'] = np.random.random_integers(0,10,num_sounds)
+        self.sound_df['stop'] = self.sound_df['start'] + 3
+        self.sound_df['level'] = [100,96,90,84]
+        self.sound_df['theta'] = [0,90,180,270]
+
+        # temporal masking and spatial unmasking functions :
+        timegap_ms = np.arange(10,-3,-1)
+        fwd_masking_deltadB = np.linspace(-10,-1,10)
+        bkwd_masking_deltadB = np.linspace(0,-2,3)
+        deltadB = np.concatenate( (fwd_masking_deltadB,bkwd_masking_deltadB ))
+        temp_masking = np.column_stack((timegap_ms,deltadB))
+        self.temporalmasking_fn = pd.DataFrame(temp_masking)
+        self.temporalmasking_fn.columns = ['timegap_ms','deltadB']
+
+        # spatial release function - make everything linear
+
+        deltatheta = np.linspace(0,25)
+        release_dB = np.linspace(0,-25,deltatheta.size)
+        self.spatialrelease_fn = pd.DataFrame(index = range(deltatheta.size) )
+        self.spatialrelease_fn['deltatheta'] = deltatheta
+        self.spatialrelease_fn['dB_release'] = release_dB
+
+    def test_implementcalldirectionality(self):
+        '''check fi the call directionality switch works as expected
+        '''
+        original_levels = np.copy(self.sound_df['level'])
+        emsn_angle = np.pi - np.deg2rad(self.sound_df['theta'])
+        cd_factor = []
+
+        for angle in emsn_angle:
+            cd_factor.append(call_directionality_factor(self.A,angle))
+
+        implement_call_directionality(self.sound_df,self.A)
+        expected = original_levels + cd_factor
+
+        self.assertTrue(np.all(expected==self.sound_df['level']))
+
+    def test_populatesounds_withcalldirectionalityswitch(self):
+        '''Implement the call directionality switch in the
+        test populate sounds
+        '''
+        common_seednumber = 11
+        np.random.seed(common_seednumber)
+        timerange = np.arange(200)
+        duration = 3
+        intensityrange = (90,100)
+        arrivalangles = (0,90)
+        numsounds = 4
+
+        calldirn = {'A':7.0}
+
+        dirnl_output = populate_sounds(timerange,duration,intensityrange,
+                                                    arrivalangles,numsounds,
+                                                    with_dirnlcall=calldirn)
+        # run populate_sound with the previous parameters without call
+        # directionality
+        np.random.seed(common_seednumber)
+
+        wodirnl_output = populate_sounds(timerange,duration,intensityrange,
+                                             arrivalangles,numsounds)
+        # and now implement call directionality
+        implement_call_directionality(wodirnl_output,calldirn['A'])
+
+        levels_aresame = wodirnl_output['level'] == dirnl_output['level']
+        self.assertTrue(np.all(levels_aresame))
+
+    def test_runonetrialworkswithcalldirectionalityswitch(self):
+        '''Run run_one_trial with call directionality and check if expected
+        outcome is produced
+        '''
+
+        numheard = run_one_trial(2,  self.temporalmasking_fn,
+                                 self.spatialrelease_fn,spatial_unmasking=True,
+                                 with_dirnlcall={'A':self.A})
+        self.assertTrue(numheard<5)
+
+
+
+
+
+
 
 
 

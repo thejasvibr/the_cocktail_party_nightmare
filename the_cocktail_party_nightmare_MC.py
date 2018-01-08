@@ -2,6 +2,9 @@
 """ A clean approach to making Monte-Carlo simulations of
 the cocktail party nightmare
 
+TODO :
+1) implement the effect of spatial arrangement on the cocktail party nightmare
+
 Created on Tue Dec 12 21:55:48 2017
 
 @author: tbeleyur
@@ -56,15 +59,15 @@ def calc_pechoesheard(num_echoes_heard, total_echoes):
 
 
 
-def populate_sounds(sound_range, sound_duration,
+def populate_sounds(time_range, sound_duration,
                     sound_intensityrange, sound_arrivalangles,
-                    num_sounds = 1):
+                    num_sounds = 1,**kwargs):
     '''Creates properties for a set of sounds (echo/call) given the
     limits in kwargs. The output is considered a 'sound' DataFrame
 
     Parameters:
 
-    sound_range : np.array with integer numbers of the discretised timesteps
+    time_range : np.array with integer numbers of the discretised timesteps
                 of the pulse interval.
     sound_duration: integer. number of time steps that the call occupies.
     sound_intensityrange : tuple with lower value in first index. minimum and maximum intensitiy that the sounds
@@ -74,6 +77,17 @@ def populate_sounds(sound_range, sound_duration,
                         arrive with in degrees.
 
     num_sounds: integer. number of sounds to generate
+
+    There are optional keyword arguments to include call directionality
+    with particular assumptions (please refer to the other notebooks or
+    the published paper for the assumptions with which call directionality is
+    implemented)
+
+    kwargs:
+        with_dirnlcall: with directional call. dictionary with the following keys.
+                A : float>0. Asymmetry parameter of Giuggioli et al. 2015
+
+
 
     Returns:
 
@@ -88,7 +102,7 @@ def populate_sounds(sound_range, sound_duration,
 
     # generate the start and stop times of the sounds :
     # [0] index required to avoid sublisting behaviour of generate_calls_randomly
-    start_stop = generate_calls_randomly(sound_range,sound_duration,num_sounds,
+    start_stop = generate_calls_randomly(time_range,sound_duration,num_sounds,
                                                                             1)[0]
     startstop_array = np.asarray(start_stop)
 
@@ -99,10 +113,41 @@ def populate_sounds(sound_range, sound_duration,
     all_sounds['theta'] = np.random.random_integers(angle1,angle2,num_sounds)
 
     level1, level2 = sound_intensityrange
+
     all_sounds['level'] = np.random.random_integers(level1,level2,num_sounds)
 
+    if 'with_dirnlcall' in kwargs.keys():
+        implement_call_directionality(all_sounds,
+                                                 kwargs['with_dirnlcall']['A'])
 
     return(all_sounds)
+
+def implement_call_directionality(sound_df,A):
+    '''Calculates the received level of a conspecific call
+    given a set of received levels, angles
+
+    This function assumes all bats are flying in the same direction.
+
+    Parameters:
+        sound_df: pandas dataframe with the following column names :
+                |start|stop|theta|level|
+                (ref. populate_sounds documentation for more details)
+
+        A : float>0. Asymmetry parameter from Giuggioli et al. 2015 The higher
+            this value, the more drop there is off-axis.
+    Returns:
+        sound_df : returns the input dataframe with altered level values post
+                incorporation of call directionality factor.
+
+    '''
+
+    emission_angles = np.pi - np.deg2rad(sound_df['theta'])
+    cd_factor = np.array([call_directionality_factor(A,em_angle)
+                            for em_angle  in emission_angles])
+
+    sound_df['level'] += cd_factor
+
+    return(sound_df)
 
 
 def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn):
@@ -144,6 +189,7 @@ def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn)
     '''
 
     echoes_heard = []
+
     for echoindex,each_echo in echoes.iterrows():
 
         this_echoheard = False
@@ -193,14 +239,12 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
     else :
         simtime_resoln = kwargs['simtime_resoln']
 
-
     time_gap = quantify_temporalmasking(echo,call)
 
     # if there's a lot of time gap between the echo and call then there's no problem hearing
     call_muchb4_echo = time_gap*simtime_resoln > np.max(temporalmasking_fn['timegap_ms'])
     call_muchafter_echo = time_gap*simtime_resoln < np.min(temporalmasking_fn['timegap_ms'])
 
-    #print call_muchafter_echo.bool() , call_muchb4_echo.bool()
 
     try:
         if call_muchafter_echo.bool() or call_muchb4_echo.bool():
@@ -252,8 +296,14 @@ def quantify_temporalmasking(echo,call):
             timegap : integer delay in integers.
     '''
 
-    echo_range = set(range(echo['start'],echo['stop']+1))
-    call_range = set(range(call['start'],call['stop']+1))
+    try:
+        echo_range = set(range(echo['start'],echo['stop']+1))
+        call_range = set(range(call['start'],call['stop']+1))
+    except :
+        # because pd.iterrows() converts the whole row into a float if there
+        # is even a single float value in the midst of int entries
+        echo_range = set(range(int(echo['start']),int(echo['stop']+1)))
+        call_range = set(range(int(call['start']),int(call['stop']+1)))
 
     # Check for overlap :
     overlap = echo_range & call_range
@@ -449,7 +499,10 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
                         zeros, to indicate no spatial unmasking.
 
 
-    **kwargs
+    **kwargs:
+    The list of parameters below will re-write the default values of the
+    following echolocation variables.
+
         num_echoes : integer. number of echoes to be placed in the interpulse interval
                      Defaults to 5 echoes.
 
@@ -477,6 +530,13 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
         call_durn : float. duration of the call in seconds. The duration of the
                     echoes is the same as the calls.
                     Defaults to 3 milliseconds.
+
+    On inclusion the parameters below activate additional switches such as call
+    directionality and spatial arrangement of the conspecifics emitting the calls.
+
+        with_dirnlcall : dictionary with one key:
+            A : float >0. Asymmetry parameter of Giuggioli et al. 2015
+
 
 
     Returns:
@@ -514,7 +574,9 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
 
 
     calls = populate_sounds(pi_timesteps,call_steps,call_level_range,
-                                              call_arrival_angles,call_density)
+                                              call_arrival_angles,call_density,
+                                              **kwargs)
+
     # re-assign the echo start and stop points to avoid echo-echo overlap and keep them at the beggining 1.2
     # of the pulse interval
     echoes = populate_sounds(pi_timesteps,call_steps,echo_level_range,
@@ -524,11 +586,10 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
     echoes['start'] = echo_starts
     echoes['stop'] = echo_ends
 
-
-
     if spatial_unmasking:
-
-        num_echoesheard = calculate_num_heardechoes(echoes,calls,temporal_masking_fn,spatial_release_fn)
+        num_echoesheard = calculate_num_heardechoes(echoes,calls,
+                                                    temporal_masking_fn,
+                                                    spatial_release_fn)
     else :
 
         # with NO spatial release
@@ -536,11 +597,64 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
 
         spl_rel_fn.iloc[:,1] = 0
 
-        num_echoesheard = calculate_num_heardechoes(echoes,calls,temporal_masking_fn, spl_rel_fn)
+        num_echoesheard = calculate_num_heardechoes(echoes,calls,
+                                                    temporal_masking_fn,
+                                                    spl_rel_fn)
 
     return(num_echoesheard)
 
 
+def calculate_directionalcall_level(call_params, receiver_distance):
+    '''Calculates the received level of a call according to a given emission angle,
+    on-axis source level and distane to the receiver
+
+    Note. This calculation DOES NOT include atmospheric attenuation !
+    - and is therefore an overly pessimistic calculation
+
+    Parameters:
+
+    call_params: dictioanry with following keys:
+            A : float>0. Asymmetry parameter
+            source_level: float>0. On-axis source level of a call at 1 metre in dB SPL re 20 microPa
+            emission_angle : value between -pi and pi radians.
+
+    receiver_distance: float>0. Distance of the receiving bat from the emitting bat
+                in metres.
+
+    Returns :
+    received_level : float. Intensity of sound heard by the receiver in dB SPL
+                    re 20 microPa
+    '''
+    off_axis_factor = call_directionality_factor(call_params['A'],
+                                                 call_params['emission_angle'])
+    directional_call_level = call_params['source_level'] + off_axis_factor
+    received_level = directional_call_level -20*np.log10(receiver_distance/1.0)
+
+    return(received_level)
+
+
+def call_directionality_factor(A,theta):
+    '''Calculates the drop in source level as the angle
+    increases from on-axis.
+
+    The function calculates the drop using the third term
+    in equation 11 of Giuggioli et al. 2015
+
+    Parameters:
+    A : float >0. Asymmetry parameter
+    theta : float. Angle at which the call directionality factor is
+            to be calculated in radians. 0 radians is on-axis.
+    Returns:
+
+    call_dirn : float <=0. The amount of drop in dB which occurs when the call
+                is measured off-axis.
+    '''
+    if A <=0 :
+        raise ValueError('A should be >0 ! ')
+
+    call_dirn = A*(np.cos(theta)-1)
+
+    return(call_dirn)
 
 
 if __name__ == '__main__':

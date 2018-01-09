@@ -9,10 +9,8 @@ Created on Tue Dec 12 21:55:48 2017
 
 @author: tbeleyur
 """
-import random
 import numpy as np
 import pandas as pd
-from MC_echo_call_overlap import generate_calls_randomly
 
 def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5):
     '''
@@ -52,7 +50,7 @@ def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5)
 
         for every_call in range(Ncalls):
 
-            call_start = random.choice(actual_timeline)
+            call_start = np.random.choice(actual_timeline)
             call_end = call_start + calldurn_steps -1
 
             if call_end > len(timeline):

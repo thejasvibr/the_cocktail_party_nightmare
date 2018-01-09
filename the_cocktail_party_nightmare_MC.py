@@ -47,7 +47,11 @@ def calc_pechoesheard(num_echoes_heard, total_echoes):
                                                      ,  1. ])
     '''
 
-    occurence = np.bincount(num_echoes_heard, minlength = total_echoes+1)
+    try:
+        occurence = np.bincount(num_echoes_heard, minlength = total_echoes+1)
+    except TypeError:
+        occurence = np.bincount(num_echoes_heard.astype('int64'),
+                                            minlength = total_echoes+1)
 
     heard_probs = occurence/float(sum(occurence))
 
@@ -56,6 +60,92 @@ def calc_pechoesheard(num_echoes_heard, total_echoes):
 
     return(heard_probs, cumulative_prob)
 
+def calc_echoes2Pgeqechoes(many_heardechoes, num_echoes, geqN):
+    '''Calculates P of hearing >= Nechoes for multiple heard_echo objects
+    laid row on row
+
+    Parameters:
+
+    many_heardechoes : ncases x Ntrials np.array. Each row contains an integer
+                    number of values with the echoes heard for each trial.
+
+    num_echoes : integer. Number of target echoes placed in the inter-pulse
+                interval.
+
+    geqN : integer. The probability of hearing at least or more than geqN echoes
+            will be calculated for each row.
+
+
+    Returns :
+
+    PgeqNechoes : ncases x 1 np.array with probability of hearing at least geqN
+                  for each simulation case.
+
+
+    Examples :
+    input_heardechoes = [ [0,1,1,2,3],
+                         [1,1,1,1,1] ]
+    geq = 1
+
+    calc_multiple_PgeqNechoes(input_heardechoes,geq ) --> [0.8, 1.0]
+
+    '''
+    cols = None
+    try:
+        rows, cols = many_heardechoes.shape
+    except ValueError:
+        rows = many_heardechoes.shape[0] # for 1 row case
+
+    PgeqNechoes = np.zeros((rows,1))
+
+    if cols is None :
+        probs, cum_prob = calc_pechoesheard(many_heardechoes, num_echoes)
+        PgeqNechoes = calc_PgeqNechoes(probs,geqN)
+
+    else :
+
+        for rownum, each_case in enumerate(many_heardechoes):
+            probs, cum_prob = calc_pechoesheard(each_case, num_echoes)
+            PgeqNechoes[rownum] = calc_PgeqNechoes(probs,geqN)
+
+    return(PgeqNechoes)
+
+
+
+
+
+
+
+
+
+def calc_PgeqNechoes(heard_probs,geqN):
+    '''Calculates probability of at least >=N echoes being heard.
+
+    Parameters:
+
+    heard_probs : 1 x (Nechoes+1 ) array-like. Contains probabilities of hearing
+                 0,1,....Nechoes in that order.
+
+    geqN : integer. The number of echoes or greater for which the probability
+            is required.
+
+    Returns :
+
+    p_geqN : 0<=float<=1. Probability of hearing at least N echoes in the inter
+            pulse interval.
+
+    Example:
+
+    calc_PgeqNechoes( [0.1, 0.05, 0.55, 0.25, 0.05] ,  2 ) --> 0.85
+
+    '''
+
+    if not np.isclose(sum(heard_probs),1):
+        raise ValueError('The input probabilities do not sum to 1')
+
+    p_geqN = sum(heard_probs[geqN:])
+
+    return(p_geqN)
 
 
 
@@ -131,7 +221,7 @@ def implement_call_directionality(sound_df,A):
     Parameters:
         sound_df: pandas dataframe with the following column names :
                 |start|stop|theta|level|
-                (ref. populate_sounds documentation for more details)
+                (see populate_sounds documentation for more details)
 
         A : float>0. Asymmetry parameter from Giuggioli et al. 2015 The higher
             this value, the more drop there is off-axis.
@@ -259,7 +349,7 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
 
     echocall_deltadB = float(echo['level'] - call['level'])
 
-    if echocall_deltadB > colloc_deltadB:
+    if echocall_deltadB >= colloc_deltadB:
         return(True)
 
     # if the time gap between the call and echo is within the
@@ -268,7 +358,7 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
     angular_separation = calc_angular_separation(echo['theta'],call['theta'])
     spatial_release = calc_spatial_release(angular_separation, spatialrelease_fn)
 
-    if echocall_deltadB > float(colloc_deltadB + spatial_release):
+    if echocall_deltadB >= float(colloc_deltadB + spatial_release):
             return(True)
     else:
             return(False)
@@ -475,6 +565,46 @@ def calc_spatial_release(angular_separation,spatial_release):
         return(dB_release)
 
 
+def run_multiple_trials(num_trials, call_densities, temporal_masking_fn,
+                        spatial_release_fn, spatial_unmasking=True,**kwargs):
+    '''Wrapper function which runs each call density num_trials number of times.
+    See run_one_trial for more information on all parameters except num_trials
+
+
+    Parameters :
+
+
+    num_trials: integer. Number of replicates of run_one_trial to run
+
+    call_densities : list with integers. Contains the call densities which need
+            to be simulated in the inter-pulse interval.
+
+    temporal_masking_fn : see run_one_trial
+
+    spatial_release_fn : see run_one_trial
+
+    spatial_unmasking : see run_one_trial
+
+    **kwargs : see run_one_trial
+
+    Returns :
+
+    all_echoes_heard : len(call_densities)xnum_trials np.array with number of
+                    echoes heard for each trial in every call density.
+
+    '''
+    all_echoes_heard = np.zeros((len(call_densities),num_trials))
+
+    for row_num, call_density in enumerate(call_densities):
+
+        echoes_heard = [ run_one_trial(call_density, temporal_masking_fn,
+                                    spatial_release_fn, spatial_unmasking,
+                                    **kwargs) for a_trial in range(num_trials)]
+        all_echoes_heard[row_num,:] = echoes_heard
+
+    return(all_echoes_heard)
+
+
 def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
                   spatial_unmasking=True,**kwargs):
     '''
@@ -655,6 +785,9 @@ def call_directionality_factor(A,theta):
     call_dirn = A*(np.cos(theta)-1)
 
     return(call_dirn)
+
+
+
 
 
 if __name__ == '__main__':

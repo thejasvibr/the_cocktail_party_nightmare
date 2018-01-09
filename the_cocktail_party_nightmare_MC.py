@@ -14,6 +14,59 @@ import numpy as np
 import pandas as pd
 from MC_echo_call_overlap import generate_calls_randomly
 
+def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5):
+    '''
+    Function which does a Monte Carlo simulation of call arrival in the pulse
+    interval
+
+    Inputs:
+
+    timeline: list. range object with iteration numbers ranging from 0 to the
+             the number of iterations the inter pulse interval consists of
+
+    calldurn_steps : integer. the length of the calls which are arriving in the
+              pulse interval
+
+    Ncalls : integer. number of calls to generate per pulse interval.
+    replicates: integer. number of times to generate Ncalls in the pulse interval
+
+    Outputs:
+
+    calls : list with sublists. The 1st sublist layer contains calls from multiple
+            replicates. The 2nd layer contains the multiple calls within each replicate
+
+
+    '''
+
+    # Achtung: I actually assume a right truncated timeline here
+    # because I want to ensure the full length of the call is always
+    # assigned within the inter-pulse interval
+
+    actual_timeline = timeline[:-calldurn_steps]
+
+    multi_replicate_calls =[]
+
+    for each_replicate in range(replicates):
+
+        this_replicate = []
+
+        for every_call in range(Ncalls):
+
+            call_start = random.choice(actual_timeline)
+            call_end = call_start + calldurn_steps -1
+
+            if call_end > len(timeline):
+
+                raise Exception('call_end is beyond current timeline')
+
+            else:
+
+               this_replicate.append([call_start,call_end])
+
+        multi_replicate_calls.append(this_replicate)
+
+    return(multi_replicate_calls)
+
 
 def calc_pechoesheard(num_echoes_heard, total_echoes):
     '''Calculates the cumulative probabilities of 1,2,3,...N echoes
@@ -556,7 +609,7 @@ def calc_spatial_release(angular_separation,spatial_release):
 
 
     '''
-    if angular_separation > np.max(spatial_release['deltatheta']):
+    if angular_separation >= np.max(spatial_release['deltatheta']):
         return(np.min(spatial_release['dB_release']))
 
     else:
@@ -730,7 +783,8 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
         num_echoesheard = calculate_num_heardechoes(echoes,calls,
                                                     temporal_masking_fn,
                                                     spl_rel_fn)
-
+    print('echoes',echoes)
+    print('calls',calls)
     return(num_echoesheard)
 
 

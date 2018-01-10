@@ -386,6 +386,7 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
     call_muchb4_echo = time_gap*simtime_resoln > np.max(temporalmasking_fn['timegap_ms'])
     call_muchafter_echo = time_gap*simtime_resoln < np.min(temporalmasking_fn['timegap_ms'])
 
+    print('enter fn')
 
     try:
         if call_muchafter_echo.bool() or call_muchb4_echo.bool():
@@ -396,10 +397,11 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
 
 
     timegap_inms = time_gap*simtime_resoln
-    colloc_deltadB = get_collocalised_deltadB(timegap_inms,temporalmasking_fn)
+    print('function timegap',timegap_inms)
+    colloc_deltadB = get_collocalised_deltadB(float(timegap_inms),temporalmasking_fn)
 
     echocall_deltadB = float(echo['level'] - call['level'])
-
+    print('colloc deltadB',colloc_deltadB)
     if echocall_deltadB >= colloc_deltadB:
         return(True)
 
@@ -408,7 +410,8 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
 
     angular_separation = calc_angular_separation(echo['theta'],call['theta'])
     spatial_release = calc_spatial_release(angular_separation, spatialrelease_fn)
-
+    print('in function spatial release',spatial_release)
+    print('in function combined release ',float(colloc_deltadB + spatial_release))
     if echocall_deltadB >= float(colloc_deltadB + spatial_release):
             return(True)
     else:

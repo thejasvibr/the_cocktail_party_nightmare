@@ -10,6 +10,7 @@ import multiprocessing as mp
 from multiprocessing import Pool
 import time
 import copy
+import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
 np.random.seed(1)
@@ -25,7 +26,7 @@ print('loaded tempmasking')
 spatialrelease_fn = pd.read_csv('data//spatial_release_fn.csv').iloc[:,1:]
 
 # set up simulation parameters
-numtrials = 10
+numtrials = 1000
 #call_densities = 5*np.arange(1,8)
 call_densities = np.insert( np.arange(1,7)*5,0,1)
 echorange = (60,82)
@@ -64,6 +65,7 @@ scenario_dict = {
 print('function dictionary set ')
 
 def run_each_scenario(scenario_name):
+    print(scenario_name)
     heardechoes = scenario_dict[scenario_name]()
     return(heardechoes,scenario_name)
 print('3',time.time()-st)
@@ -75,9 +77,9 @@ if __name__== '__main__':
                                                       'with_SUm_CallDirn']
     print('Calculations started')
 
-    start = time.time()
-    serial_echoesheard  = map(run_each_scenario, scenarios_2bcalculated)
-    print('serial :', time.time()-start)
+#    start = time.time()
+#    serial_echoesheard  = map(run_each_scenario, scenarios_2bcalculated)
+#    print('serial :', time.time()-start)
 
     print('parallel starting:')
     start_pll = time.time()
@@ -94,16 +96,24 @@ if __name__== '__main__':
     column_names = copy.deepcopy(scenarios_2bcalculated)
     column_names.append('call_density')
 
-    pgeq3 = pd.DataFrame(index= range(call_densities.size),
+    pgeq3_data = pd.DataFrame(index= range(call_densities.size),
                                          columns = column_names)
-    pgeq3['call_density'] = call_densities
+    pgeq3_data['call_density'] = call_densities
 
     for each_scenariodata in pgeq3:
         each_scenario, scenario_name = each_scenariodata
+        pgeq3_data[scenario_name] = each_scenario
 
         plt.plot(call_densities,each_scenario,'*-',label=scenario_name)
 
     plt.legend(); plt.show()
+
+    timestamp = dt.datetime.now()
+    fmtd_timestamp = timestamp.strftime('%Y-%m-%d-%H-%M-%S')
+    file_name = 'results/pgeq3_'+fmtd_timestamp+'_'+str(numtrials)+'replicates.csv'
+    pgeq3_data.to_csv(file_name,index=False)
+
+
 
 
 

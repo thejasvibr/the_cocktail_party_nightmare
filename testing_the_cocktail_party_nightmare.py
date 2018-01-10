@@ -198,7 +198,6 @@ class TestTheCPN(unittest.TestCase):
 
 
 
-
     def test_get_collocalised_deltadB(self):
 
         test_timegap = self.temporalmasking_fn['timegap_ms'][3]+0.004
@@ -215,7 +214,7 @@ class TestingNumEchoesHeard(unittest.TestCase):
         # temporal masking function -  make everything linear to ease
         # quick calculation of expected results
 
-        timegap_ms = np.arange(10,-3,-1)
+        timegap_ms = np.arange(0.010,-0.003,-0.001)
         fwd_masking_deltadB = np.linspace(-10,-1,10)
         bkwd_masking_deltadB = np.linspace(0,-2,3)
         deltadB = np.concatenate( (fwd_masking_deltadB,bkwd_masking_deltadB ))
@@ -230,6 +229,11 @@ class TestingNumEchoesHeard(unittest.TestCase):
         self.spatialrelease_fn = pd.DataFrame(index = range(deltatheta.size) )
         self.spatialrelease_fn['deltatheta'] = deltatheta
         self.spatialrelease_fn['dB_release'] = release_dB
+
+        # dummy spatial release function - with 0 dB release
+
+        self.nomaskingrelease_fn = self.spatialrelease_fn.copy()
+        self.nomaskingrelease_fn['dB_release'] = 0
 
         # the calls and echoes objects
         col_names = ['start','stop','theta','level']
@@ -319,15 +323,41 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         self.assertEqual(expect1echo,1)
 
-    def test_calculate_num_heard_echoes_singleecho_multicalls(self):
-        '''2 calls, one before and one after, with same angle of arrival.
-        - both of
+    def test_withandwithoutspatialunmasking(self):
+        '''Echo-call with and without spatial unmasking included.
         '''
-        self.echoes['start'] = [20] ; self.echoes['stop'] = [50]
-        # create two calls 3ms b4 and 3ms after the echo edges:
-        self.calls['start'] = [-40,80] ; self.calls['stop'] = [-10,110]
-        #self.echoes['level'] = [50] ; self.calls['level'] = []
 
+        # without any spatial unmasking :
+        self.calls['start'] = [0]; self.calls['stop'] = [29]
+        self.echoes['start'] = [60] ; self.echoes['stop'] = [89]
+
+        self.calls['theta'] = [80] ; self.echoes['theta'] = [80]
+
+        self.calls['level'] = [90] ; self.echoes['level'] = [86]
+
+        noechoes = calculate_num_heardechoes(self.echoes, self.calls,
+                                             self.temporalmasking_fn,
+                                             self.spatialrelease_fn)
+
+        self.assertEqual(noechoes,0)
+
+        # with angular difference by dummy spatial unmasking function :
+
+        self.echoes['theta'] = 90
+
+        noechoes_dummyfn = calculate_num_heardechoes(self.echoes, self.calls,
+                                             self.temporalmasking_fn,
+                                             self.nomaskingrelease_fn)
+
+        self.assertEqual(noechoes_dummyfn,0)
+
+        # with angular difference and proper spatial unmasking function :
+
+        oneecho_heard = calculate_num_heardechoes(self.echoes, self.calls,
+                                             self.temporalmasking_fn,
+                                             self.spatialrelease_fn)
+
+        self.assertEqual(oneecho_heard,1)
 
 
 

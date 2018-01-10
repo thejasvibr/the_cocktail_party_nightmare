@@ -751,7 +751,7 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
 
     pi_timesteps = np.arange(0,int(interpulse_interval/timeresolution))
 
-    call_steps = int(call_durn*timeresolution)
+    call_steps = int(call_durn/timeresolution)
 
 
     calls = populate_sounds(pi_timesteps,call_steps,call_level_range,

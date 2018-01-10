@@ -100,93 +100,6 @@ class TestTheCPN(unittest.TestCase):
         bkwd_nonoverlap = quantify_temporalmasking(echo,call)
         self.assertEqual(bkwd_nonoverlap[0],-20)
 
-
-    def test_check_if_echo_heard(self):
-        col_names = ['start','stop','theta','level']
-        call = pd.DataFrame(index=[0],columns=col_names)
-        echo = pd.DataFrame(index=[0],columns=col_names)
-
-        call['start'] = 00; call['stop'] =10
-        echo['start'] = 5000000; echo['stop'] = 5000100
-        call['theta'] = 60; echo['theta'] = 60
-        call['level'] = 80 ; echo['level'] = 60
-        # check the case where the echo and call are *very* far away.
-
-        call_far_away = check_if_echo_heard(echo,call,self.temporalmasking_fn,
-                                            self.spatialrelease_fn)
-        self.assertTrue(call_far_away)
-
-
-
-        # not so far away : this will be false
-
-        call['start'] = echo['start']+20 ; call['stop'] = echo['stop']+20
-        call_nearby = check_if_echo_heard(echo,call,self.temporalmasking_fn,
-                                            self.spatialrelease_fn)
-        self.assertFalse(call_nearby)
-
-        # simultaneous masking with spatial unmasking  :
-        call['theta'] = 50; echo['theta'] = 60
-        call['level'] = 80 ; echo['level'] = 70
-        timeres = 10**-4; durn = 0.003;
-        call_timesteps = int(durn/timeres)
-        call['start'] = 15 ; call['stop'] = call['start']+call_timesteps
-        echo['start'] = call['start'] ; echo['stop'] = call['stop']
-
-        angle_diff = abs(call['level'] - echo['level'])
-
-        colloc_echocalldeltadB = get_collocalised_deltadB(0,self.temporalmasking_fn)
-
-        spat_release = calc_spatial_release(angle_diff[0], self.spatialrelease_fn)
-
-        threshold_deltadB_spatrelease = colloc_echocalldeltadB + spat_release
-
-
-        echocall_deltadB = float(echo['level'] - call['level'])
-
-        heard_ornot = echocall_deltadB > threshold_deltadB_spatrelease
-
-
-        function_result = check_if_echo_heard(echo,call,self.temporalmasking_fn,
-                                                    self.spatialrelease_fn)
-
-        expected_as_calculated = np.all([function_result,heard_ornot])
-
-        self.assertTrue(expected_as_calculated)
-
-
-        # temporal masking with spatial unmasking:
-
-        call_arrival_delay = 2 # in ms
-        delay_timesteps = int((call_arrival_delay*10**-3)/timeres)
-        call['start'] = echo['start'] + delay_timesteps
-        call['stop'] = echo['stop'] + delay_timesteps
-        call['theta'] = 40 ; echo['theta'] = 70
-        echo['level'] = 80 ; call['level'] = 107
-
-        angle_diff = calc_angular_separation(call['theta'],echo['theta'])
-
-        # expected deltadB from temporal masking :
-        deltadb_tempomasking = get_collocalised_deltadB(call_arrival_delay,
-                                                    self.temporalmasking_fn)
-
-        # expected spatial release from spatial unmasking :
-        spat_release = calc_spatial_release(angle_diff,self.spatialrelease_fn)
-
-        # threshold deltadB :
-        deltadB_threshold = deltadb_tempomasking + spat_release
-
-        # current deltadB :
-        deltadB_echocall = float(echo['level'] - call['level'])
-
-        expected_outcome = deltadB_echocall > deltadB_threshold
-
-        #print(deltadB_echocall,deltadB_threshold)
-
-        function_outcome = check_if_echo_heard(echo,call,self.temporalmasking_fn,
-                                                    self.spatialrelease_fn)
-        self.assertTrue( np.all([expected_outcome, function_outcome]) )
-
     def test_calc_pechoesheard(self):
         numechoes = [0]*10+[1]*10+[2]*10 + [3]*10
 
@@ -206,6 +119,147 @@ class TestTheCPN(unittest.TestCase):
                                                     self.temporalmasking_fn)
 
         self.assertEqual(obtained_deltadB,self.temporalmasking_fn.iloc[3,1])
+
+
+
+
+class TestingCheckIfEchoHeard(unittest.TestCase)    :
+    '''
+    '''
+
+    def setUp(self):
+        print('setting up')
+        # temporal masking function -  make everything linear to ease
+        # quick calculation of expected results
+
+        timegap_ms = np.arange(0.010,-0.003,-0.001)
+        fwd_masking_deltadB = np.linspace(-10,-1,10)
+        bkwd_masking_deltadB = np.linspace(0,-2,3)
+        deltadB = np.concatenate( (fwd_masking_deltadB,bkwd_masking_deltadB ))
+        temp_masking = np.column_stack((timegap_ms,deltadB))
+        self.temporalmasking_fn = pd.DataFrame(temp_masking)
+        self.temporalmasking_fn.columns = ['timegap_ms','deltadB']
+
+        # spatial release function - make everything linear
+
+        deltatheta = np.linspace(0,25)
+        release_dB = np.linspace(0,-25,deltatheta.size)
+        self.spatialrelease_fn = pd.DataFrame(index = range(deltatheta.size) )
+        self.spatialrelease_fn['deltatheta'] = deltatheta
+        self.spatialrelease_fn['dB_release'] = release_dB
+
+        # dummy spatial release function - with 0 dB release
+
+        self.nomaskingrelease_fn = self.spatialrelease_fn.copy()
+        self.nomaskingrelease_fn['dB_release'] = 0
+
+        # the calls and echoes objects
+        col_names = ['start','stop','theta','level']
+        self.call = pd.DataFrame(index=[0],columns=col_names)
+        self.echo = pd.DataFrame(index=[0],columns=col_names)
+
+
+    def test_echocallveryseparated(self):
+        self.call['start'] = 00; self.call['stop'] =10
+        self.echo['start'] = 5000000; self.echo['stop'] = 5000100
+        self.call['theta'] = 60; self.echo['theta'] = 60
+        self.call['level'] = 80 ; self.echo['level'] = 60
+        # check the case where the echo and call are *very* far away.
+
+        call_far_away = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
+                                            self.spatialrelease_fn)
+        self.assertTrue(call_far_away)
+
+    def test_echocallcloseby(self):
+        '''No SUm and call is closeby
+        '''
+        self.echo['start'] = 5000000; self.echo['stop'] = 5000100
+        self.call['theta'] = 60; self.echo['theta'] = 60
+        self.call['level'] = 80 ; self.echo['level'] = 60
+        # not so far away : this will be false
+
+        self.call['start'] = self.echo['start']-20
+        self.call['stop'] = self.echo['stop']-20
+
+        call_nearby = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
+                                            self.spatialrelease_fn)
+        self.assertFalse(call_nearby)
+
+    def test_simultaneousmask_wSUm(self):
+
+        # simultaneous masking with spatial unmasking  :
+        timeres = 10**-4; durn = 0.003;
+        call_timesteps = int(durn/timeres)
+
+        self.call['theta'] = 50; self.echo['theta'] = 60
+        self.call['level'] = 80 ; self.echo['level'] = 70
+        self.call['start'] = 15
+        self.call['stop'] = self.call['start']+call_timesteps
+        self.echo['start'] = self.call['start']
+        self.echo['stop'] = self.call['stop']
+
+        angle_diff = abs(self.call['level'] - self.echo['level'])
+
+        colloc_echocalldeltadB = get_collocalised_deltadB(0,self.temporalmasking_fn)
+
+        spat_release = calc_spatial_release(angle_diff[0], self.spatialrelease_fn)
+
+        threshold_deltadB_spatrelease = colloc_echocalldeltadB + spat_release
+
+
+        echocall_deltadB = float(self.echo['level'] - self.call['level'])
+
+        heard_ornot = echocall_deltadB >= threshold_deltadB_spatrelease
+
+
+        function_result = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
+                                                    self.spatialrelease_fn)
+
+        expected_as_calculated = np.all([function_result,heard_ornot])
+
+        self.assertTrue(expected_as_calculated)
+
+    def test_nonoverlap_wSUm(self):
+
+        # temporal masking with spatial unmasking:
+        timeres = 10**-4;
+        call_arrival_delay = 5*10**-3 # seconds
+        delay_timesteps = int(call_arrival_delay/timeres)
+
+        self.echo['start'] = 100 ; self.echo['stop'] = 129
+        self.call['stop'] = self.echo['start'] - delay_timesteps
+        self.call['start'] = self.call['stop'] - 29
+        self.call['theta'] = 40 ; self.echo['theta'] = 70
+        self.echo['level'] = 80 ; self.call['level'] = 107
+
+        angle_diff = calc_angular_separation(self.call['theta'],self.echo['theta'])
+
+        # required deltadB from temporal masking :
+        tg = quantify_temporalmasking(self.echo,self.call)
+
+        deltadb_tempomasking = get_collocalised_deltadB(call_arrival_delay,
+                                                    self.temporalmasking_fn)
+
+        # drop in deltadB due to spatial release from spatial unmasking :
+        spat_release = calc_spatial_release(angle_diff,self.spatialrelease_fn)
+
+
+        # threshold deltadB :
+        deltadB_threshold = deltadb_tempomasking + spat_release
+
+        # current deltadB :
+        deltadB_echocall = float(self.echo['level'] - self.call['level'])
+
+        expected_outcome = deltadB_echocall > deltadB_threshold
+
+        function_outcome = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
+                                                    self.spatialrelease_fn)
+
+        exp_and_outcome_True = np.all([expected_outcome, function_outcome])
+        self.assertTrue( exp_and_outcome_True )
+
+
+
 
 class TestingNumEchoesHeard(unittest.TestCase):
 
@@ -327,7 +381,7 @@ class TestingNumEchoesHeard(unittest.TestCase):
         '''Echo-call with and without spatial unmasking included.
         '''
 
-        # without any spatial unmasking :
+        # with no difference in angle of arrival :
         self.calls['start'] = [0]; self.calls['stop'] = [29]
         self.echoes['start'] = [60] ; self.echoes['stop'] = [89]
 
@@ -341,7 +395,7 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         self.assertEqual(noechoes,0)
 
-        # with angular difference by dummy spatial unmasking function :
+        # with angular difference but dummy spatial unmasking function :
 
         self.echoes['theta'] = 90
 
@@ -358,6 +412,34 @@ class TestingNumEchoesHeard(unittest.TestCase):
                                              self.spatialrelease_fn)
 
         self.assertEqual(oneecho_heard,1)
+
+    def test_withandwithoutspatialunmasking_multiechoes(self):
+        self.calls['start'] = [0]  ; self.calls['stop'] = [29]
+        self.calls['theta'] = [80] ; self.calls['level'] = [90]
+
+        # with multiple echoes - same angle of arrival :
+
+        self.echoes['start'] = [60, 100] ; self.echoes['stop'] = [89,129]
+        self.echoes['theta'] = [80,80]   ; self.echoes['level'] = [86,82 ]
+
+        bothechoes_notheard = calculate_num_heardechoes(self.echoes,self.calls,
+                                                self.temporalmasking_fn,
+                                                self.spatialrelease_fn)
+        self.assertEqual(bothechoes_notheard,0)
+
+        # with one echo having different angle of arrival :
+        self.echoes['theta'] = [80, 90]
+        oneecho_heard = calculate_num_heardechoes(self.echoes,self.calls,
+                                                self.temporalmasking_fn,
+                                                self.spatialrelease_fn)
+        self.assertEqual(oneecho_heard,1)
+
+        # with one echo having different angle of arrival + dummy spatial unmasking
+
+        noneheard_dummyfn = calculate_num_heardechoes(self.echoes,self.calls,
+                                                self.temporalmasking_fn,
+                                                self.nomaskingrelease_fn)
+        self.assertEqual(noneheard_dummyfn,0)
 
 
 
@@ -449,14 +531,53 @@ class TestingPopulateSounds(unittest.TestCase):
 
 
 
+class TestingRunMultipleTrials(unittest.TestCase):
+
+    def setUp(self):
+        # temporal masking and spatial unmasking functions :
+        timegap_ms = np.arange(10,-3,-1)
+        fwd_masking_deltadB = np.linspace(-10,-1,10)
+        bkwd_masking_deltadB = np.linspace(0,-2,3)
+        deltadB = np.concatenate( (fwd_masking_deltadB,bkwd_masking_deltadB ))
+        temp_masking = np.column_stack((timegap_ms,deltadB))
+        self.temporalmasking_fn = pd.DataFrame(temp_masking)
+        self.temporalmasking_fn.columns = ['timegap_ms','deltadB']
+
+        # spatial release function - make everything linear
+
+        deltatheta = np.linspace(0,25)
+        release_dB = np.linspace(0,-25,deltatheta.size)
+        self.spatialrelease_fn = pd.DataFrame(index = range(deltatheta.size) )
+        self.spatialrelease_fn['deltatheta'] = deltatheta
+        self.spatialrelease_fn['dB_release'] = release_dB
+
+        self.calldensities = [1,5,10]
+
+        A_param = 7
+        self.calldirectionality = {'A':A_param}
+        self.numtrials = 1
+
+    def test_runmultipletrials_onerun(self):
+
+        echoesheard = run_multiple_trials(2, [10], self.temporalmasking_fn,
+                        self.spatialrelease_fn,
+                        spatial_unmasking=True,
+                        echo_level_range=(90,100))
+        print(echoesheard)
+
+    def test_catchinappropriatesizedfunctions(self):
+        '''If a temporal masking  or spatial unmasking function
+        with != 2 columns - then raise error.
+        '''
+
+        self.temporalmasking_fn['nonsensecolumn'] = 0
 
 
-
-
-
-
-
-
+        with self.assertRaises(IndexError):
+            run_multiple_trials(2, [10], self.temporalmasking_fn,
+                                          self.spatialrelease_fn,
+                                          spatial_unmasking=True,
+                                          echo_level_range=(90,100))
 
 
 

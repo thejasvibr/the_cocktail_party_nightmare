@@ -386,8 +386,8 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
     call_muchb4_echo = time_gap*simtime_resoln > np.max(temporalmasking_fn['timegap_ms'])
     call_muchafter_echo = time_gap*simtime_resoln < np.min(temporalmasking_fn['timegap_ms'])
 
-    print('enter fn')
 
+    #print('enter check if echo heard')
     try:
         if call_muchafter_echo.bool() or call_muchb4_echo.bool():
             return(True)
@@ -397,12 +397,17 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
 
 
     timegap_inms = time_gap*simtime_resoln
-    print('function timegap',timegap_inms)
+
+#    print('timegap_inms: ',timegap_inms)
+
     colloc_deltadB = get_collocalised_deltadB(float(timegap_inms),temporalmasking_fn)
+#    print('colloc_deltadB: ',colloc_deltadB)
 
     echocall_deltadB = float(echo['level'] - call['level'])
-    print('colloc deltadB',colloc_deltadB)
+#    print('echocall deltadB: ',echocall_deltadB)
+
     if echocall_deltadB >= colloc_deltadB:
+#        print('echo heard! - > colloc')
         return(True)
 
     # if the time gap between the call and echo is within the
@@ -410,12 +415,13 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
 
     angular_separation = calc_angular_separation(echo['theta'],call['theta'])
     spatial_release = calc_spatial_release(angular_separation, spatialrelease_fn)
-    print('in function spatial release',spatial_release)
-    print('in function combined release ',float(colloc_deltadB + spatial_release))
+#    print('total req deltadB: ',float(colloc_deltadB + spatial_release))
     if echocall_deltadB >= float(colloc_deltadB + spatial_release):
-            return(True)
+#        print('echo heard!')
+        return(True)
     else:
-            return(False)
+#        print('echo not heard!')
+        return(False)
 
 
 def quantify_temporalmasking(echo,call):
@@ -647,6 +653,14 @@ def run_multiple_trials(num_trials, call_densities, temporal_masking_fn,
                     echoes heard for each trial in every call density.
 
     '''
+
+    rows_tmfn, cols_tmfn = temporal_masking_fn.shape
+    rows_spfn, cols_spfn = spatial_release_fn.shape
+
+    if not np.all([cols_tmfn, cols_spfn] == [2,2]) :
+        raise IndexError('Number of columns !=2')
+
+
     all_echoes_heard = np.zeros((len(call_densities),num_trials))
 
     for row_num, call_density in enumerate(call_densities):

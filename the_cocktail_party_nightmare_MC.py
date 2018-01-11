@@ -11,6 +11,7 @@ Created on Tue Dec 12 21:55:48 2017
 """
 import numpy as np
 import pandas as pd
+import scipy.misc as misc
 
 def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5):
     '''
@@ -855,8 +856,55 @@ def call_directionality_factor(A,theta):
 
     return(call_dirn)
 
+def calc_num_times(Ntrials,p):
+    '''Calculates the probability of an event (eg. at least 3 echoes heard
+    in an inter-pulse interval) happening when the trial is repeated Ntrials
+    times.
+
+    Parameters:
+
+        Ntrials : integer >0. Number of trials that are played.
+
+        p : 0<=float<=1. probability of an event occuring.
+
+    Returns:
+
+    prob_occurence : pd.DataFrame with the following columns.
+
+        num_times : Number of times that the event could occur.
+
+        probability : Probability that an even will occur num_times
+                        in Ntrials.
+
+    '''
+    if p>1 or p<0 :
+        raise ValueError('Probability must be >=0 and <=1 ')
+
+    if not Ntrials >0:
+        raise ValueError('Ntrials must be >0')
+
+    if not isinstance(Ntrials,int):
+         try:
+            isitnpinteger = Ntrials.dtype.kind == 'i'
+            if not isitnpinteger:
+                raise TypeError('Ntrials must be an integer value')
+         except:
+            raise TypeError('Ntrials must be an integer value')
 
 
+
+    probability = np.zeros(Ntrials+1)
+    num_times = np.arange(Ntrials+1)
+
+    for k in num_times:
+        probability[k] = misc.comb(Ntrials,k)*(p**(k))*(1-p)**(Ntrials-k)
+
+    prob_occurence = pd.DataFrame(index = range(Ntrials+1),
+                                  columns=['num_times','probability'])
+    prob_occurence['num_times'] = num_times
+    prob_occurence['probability'] = probability
+
+    return(prob_occurence)
 
 
 if __name__ == '__main__':

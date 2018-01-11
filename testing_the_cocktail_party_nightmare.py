@@ -563,7 +563,7 @@ class TestingRunMultipleTrials(unittest.TestCase):
                         self.spatialrelease_fn,
                         spatial_unmasking=True,
                         echo_level_range=(90,100))
-        print(echoesheard)
+        #print(echoesheard)
 
     def test_catchinappropriatesizedfunctions(self):
         '''If a temporal masking  or spatial unmasking function
@@ -578,6 +578,73 @@ class TestingRunMultipleTrials(unittest.TestCase):
                                           self.spatialrelease_fn,
                                           spatial_unmasking=True,
                                           echo_level_range=(90,100))
+
+
+class TestingCalcNumTimes(unittest.TestCase):
+
+    def setUp(self):
+        self.p = 0.5
+        self.ntrials = 10
+
+    def test_simplecase(self):
+        '''Check if 5 trials has the greatest probability
+        when p = 0.5 in 10 trials
+        '''
+        prob_occrnce = calc_num_times(self.ntrials,self.p)
+        maxvalue_row = np.argmax(prob_occrnce['probability'])
+
+        max_times = prob_occrnce['num_times'][maxvalue_row]
+        expected_times = 5
+
+        self.assertEqual(expected_times, max_times)
+
+    def test_checkallprobssumto1(self):
+        '''Add up all probabilities and check that they add upto one.
+        '''
+        prob_occrnce = calc_num_times(self.ntrials,self.p)
+
+        total_prob = np.sum(prob_occrnce['probability'])
+
+        equalto1 = np.isclose(total_prob,1)
+        self.assertTrue(equalto1)
+
+    def test_catchincorrectpvalues(self):
+        '''Input p values that are <0 and 1>.
+        '''
+
+        self.p = 1.5
+
+        self.assertRaises(ValueError,
+                                  lambda : calc_num_times(self.ntrials,self.p))
+
+        self.p = -0.2
+
+        self.assertRaises(ValueError,
+                                  lambda : calc_num_times(self.ntrials,self.p))
+
+    def test_catchincorrectNtrials(self):
+        '''Input incorrect Ntrials that is <=0
+        '''
+        self.ntrials = -10
+        self.assertRaises(ValueError,
+                                  lambda : calc_num_times(self.ntrials,self.p))
+
+        self.ntrials = 0
+        self.assertRaises(ValueError,
+                                  lambda : calc_num_times(self.ntrials,self.p))
+
+    def test_catchincorrectNtrialstype(self):
+        '''Make sure Ntrials is an integer-like entry
+        '''
+
+        self.ntrials = 3.4
+        self.assertRaises(TypeError,
+                                  lambda : calc_num_times(self.ntrials,self.p))
+
+        self.ntrials = np.array([64.0],dtype='float16')
+        self.assertRaises(TypeError,
+                                  lambda : calc_num_times(self.ntrials,self.p))
+
 
 
 

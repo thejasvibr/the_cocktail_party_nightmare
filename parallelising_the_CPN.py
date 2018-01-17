@@ -26,7 +26,7 @@ print('loaded tempmasking')
 spatialrelease_fn = pd.read_csv('data//spatial_release_fn.csv').iloc[:,1:]
 
 # set up simulation parameters
-numtrials = 1000
+numtrials = 10**4
 #call_densities = 5*np.arange(1,8)
 call_densities = np.insert( np.arange(1,7)*5,0,1)
 echorange = (60,82)

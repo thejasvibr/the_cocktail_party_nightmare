@@ -646,6 +646,35 @@ class TestingCalcNumTimes(unittest.TestCase):
                                   lambda : calc_num_times(self.ntrials,self.p))
 
 
+class TestingSpatialArrangement(unittest.TestCase):
+    '''Testing the component functions that implement spatial arrangement
+    in the form of a hexagonal array
+    '''
+
+    def test_filluphexagonalrings(self):
+        nbats = 5
+        expected_rings = 1
+
+        ringnums,numbats = fillup_hexagonalrings(nbats)
+
+        self.assertEqual(numbats,nbats)
+        self.assertEqual(expected_rings,ringnums.size)
+
+        nbats = 29
+
+        ringnums,numbats = fillup_hexagonalrings(nbats)
+
+        expected_numbats = np.array([6,12,11])
+        expected_numrings = np.array([1,2,3])
+
+        values_equal = expected_numbats == numbats
+        rings_equal = expected_numrings == ringnums
+
+
+        self.assertTrue(np.all(values_equal))
+        self.assertTrue(np.all(rings_equal))
+
+
 
 
 

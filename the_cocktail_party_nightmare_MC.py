@@ -907,6 +907,113 @@ def calc_num_times(Ntrials,p):
     return(prob_occurence)
 
 
+
+
+
+def implement_spatial_arrangement(Nbats,nbr_distance,source_level):
+    '''Implements the fact that neigbouring bats in a group will occur at
+    different distances.
+
+    The focal bat is placed in the centre, and all neighbours are placed from
+    nearest to furthest ring according to the geometry of the group. By default
+    a hexagonal array arrangement is assumed, which means the focal bat has six
+    neighbours in the its first ring, followed by 12 neighbours in the second
+    ring, and so on.
+
+    Parameters :
+
+    Nbats : integer >0. number of bats to simulate as neighbours
+
+    nbr_distance : float>0. Distance to the nearest neighbour in the first ring
+                    in metres.
+
+    source_level : dictionary with two keys :
+            'intensity' : float. Sound pressure level at which a bat calls ref
+                         ref 20 muPa.
+            'ref_distamce' : float>0. distance in meters at which the call
+                            intensity has been measured at.
+
+
+
+    Returns :
+
+    RL : received level in dB SPL
+
+    num_calls : number of calls at each received level that arrive at
+                    the focal bat (without call directionality implemented)
+
+    '''
+
+
+
+
+
+
+
+
+
+def fillup_hexagonalrings(numbats):
+    ''' Fills up a given number bats in a group around a focal bat.
+
+    All the bats are placed within the centres of regular hexagonal
+    cells. The first ring refers to the immediate neighbours around the focal
+    bat. The second ring refers to the second concentric ring of cells centred
+    around the focal bat and so on.
+
+    All rings close to the bat need to be filled up before neighbouring bats
+    are added to the outer rings.
+
+
+    Parameters:
+
+    numbats : integer >0. The total number of neighbouring bats being simulated
+
+
+    Returns
+
+    occupied_rings : np.array with ring numbers starting from 1.
+
+    bats_in_eachring : number of bats in each ring.
+
+
+
+    Example :
+
+    fillup_hexagonalrings(10) --> np.array([1,2]) , np.array([6,4])
+
+    fillup_hexagonalrings(23) --> np.array([1,2,3]), np.array(6,12,5)
+
+    '''
+    n = np.arange(1,11)
+    bats_per_ring = 6*n
+    cumsum_bats = np.cumsum(bats_per_ring)
+
+    if numbats <= 6:
+
+        return(np.array(1),np.array(numbats))
+
+    outer_ring = np.argwhere(numbats<=cumsum_bats)[0] + 1
+    print('outer rin', outer_ring)
+    inner_rings = outer_ring -1
+
+    if inner_rings >1:
+        inner_numbats = 6*np.arange(1,inner_rings+1)
+    else:
+        inner_numbats = 6
+
+    bats_outermostring = numbats - np.sum(inner_numbats)
+
+    bats_in_eachring = np.append(inner_numbats,bats_outermostring)
+    occupied_rings = np.arange(1,outer_ring+1)
+
+    return(occupied_rings,bats_in_eachring)
+
+
+
+
+
+
+
 if __name__ == '__main__':
 
     calls = populate_sounds(np.arange(0,1000,1),3,(100,106),(0,360),5)

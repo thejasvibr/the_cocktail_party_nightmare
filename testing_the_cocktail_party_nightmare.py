@@ -674,6 +674,88 @@ class TestingSpatialArrangement(unittest.TestCase):
         self.assertTrue(np.all(values_equal))
         self.assertTrue(np.all(rings_equal))
 
+        self.assertRaises(ValueError,lambda : fillup_hexagonalrings(-1))
+
+    def test_calcRL(self):
+        '''
+        '''
+        SL = 120
+        ref_dist = 0.1
+        dist = 1.0
+
+
+        rl_calculated = calc_RL(dist, SL, ref_dist)
+        rl_expected = 100.0
+
+        self.assertEqual(rl_expected, rl_calculated)
+
+        self.assertRaises(ValueError,
+                          lambda : calc_RL(-0.1, SL, ref_dist))
+
+        self.assertRaises(ValueError,
+                          lambda : calc_RL(0.1, SL, -ref_dist))
+
+        self.assertRaises(ValueError,
+                          lambda : calc_RL(-0.1, SL, -ref_dist))
+
+
+
+
+    def test_calculate_receivedlevels(self):
+        '''
+        '''
+        source_level = {'intensity':120,'ref_distance':0.1}
+
+        rls = calculate_receivedlevels(1.0,source_level)
+
+        self.assertEqual(rls,100.0)
+
+        distances = np.array([1.0,2.0,0.5])
+
+        rls_distances = calculate_receivedlevels(distances,source_level)
+
+        expected_distances = np.apply_along_axis(calc_RL,0,
+                                            distances.reshape(1,-1),
+                                            source_level['intensity'],
+                                            source_level['ref_distance']
+                                            )
+        values_equal = np.array_equal(expected_distances, rls_distances)
+
+        self.assertTrue(np.all(values_equal))
+
+
+    def test_implement_hexagonal_spatial_arrangement(self):
+        '''
+        '''
+        bat_source_level = {'intensity':100, 'ref_distance':1.0}
+        nbr_distance = 0.5
+
+        self.assertRaises(ValueError,
+                          lambda: implement_hexagonal_spatial_arrangement(-1,
+                                                            nbr_distance,
+                                                            bat_source_level) )
+
+        self.assertRaises(ValueError,
+                          lambda: implement_hexagonal_spatial_arrangement(0,
+                                                            nbr_distance,
+                                                            bat_source_level) )
+
+        numbats = 5
+        received_levels, num_calls = implement_hexagonal_spatial_arrangement(
+                                                            numbats,
+                                                            nbr_distance,
+                                                            bat_source_level)
+
+        exp_levels = calc_RL(nbr_distance,
+                             bat_source_level['intensity'],
+                            bat_source_level['ref_distance']  ).reshape(1,-1)
+
+        arrays_equal = np.array_equal(exp_levels, received_levels)
+        numcalls_equal = np.array_equal( np.array(numbats),
+                                        num_calls)
+        self.assertTrue(arrays_equal)
+        self.assertTrue(numcalls_equal)
+
 
 
 

@@ -750,11 +750,32 @@ class TestingSpatialArrangement(unittest.TestCase):
                              bat_source_level['intensity'],
                             bat_source_level['ref_distance']  ).reshape(1,-1)
 
-        arrays_equal = np.array_equal(exp_levels, received_levels)
+        levels_equal = np.array_equal(exp_levels, received_levels)
         numcalls_equal = np.array_equal( np.array(numbats),
                                         num_calls)
-        self.assertTrue(arrays_equal)
+        self.assertTrue(levels_equal)
         self.assertTrue(numcalls_equal)
+
+
+        manybats = 25
+        manyreceived_levels, many_calls =implement_hexagonal_spatial_arrangement(
+                                                            manybats,
+                                                            nbr_distance,
+                                                            bat_source_level)
+
+        num_rings, numinrings = fillup_hexagonalrings(manybats)
+        distances = num_rings*nbr_distance
+        received_levelscalc = calculate_receivedlevels(distances,
+                                                       bat_source_level)
+
+        multibatlevels_equal = np.array_equal(received_levelscalc,
+                                                          manyreceived_levels)
+        multibats_numsequal = np.array_equal(numinrings, many_calls)
+
+        self.assertTrue(multibatlevels_equal)
+        self.assertTrue(multibats_numsequal)
+
+
 
 
 

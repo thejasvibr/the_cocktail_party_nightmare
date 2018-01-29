@@ -9,9 +9,14 @@ Created on Tue Dec 12 21:55:48 2017
 
 @author: tbeleyur
 """
+import sys
+folder = 'C:\\Users\\tbeleyur\\Google Drive\\Holger Goerlitz- IMPRS\\PHD_2015\\projects and analyses\\2016_jamming response modelling\\analytical_modelling\\poisson-disc-master\\poisson-disc-master'
+sys.path.append(folder)
 import numpy as np
 import pandas as pd
 import scipy.misc as misc
+import scipy.spatial as spl
+from poisson_disc import Grid
 
 def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5):
     '''
@@ -805,8 +810,8 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
 
 
 def calculate_directionalcall_level(call_params, receiver_distance):
-    '''Calculates the received level of a call according to a given emission angle,
-    on-axis source level and distane to the receiver
+    '''Calculates the received level of a call according to a given emission
+    angle,  on-axis source level and distane to the receiver
 
     Note. This calculation DOES NOT include atmospheric attenuation !
     - and is therefore an overly pessimistic calculation
@@ -815,11 +820,12 @@ def calculate_directionalcall_level(call_params, receiver_distance):
 
     call_params: dictioanry with following keys:
             A : float>0. Asymmetry parameter
-            source_level: float>0. On-axis source level of a call at 1 metre in dB SPL re 20 microPa
+            source_level: float>0. On-axis source level of a call at 1 metre in
+                dB SPL re 20 microPa
             emission_angle : value between -pi and pi radians.
 
-    receiver_distance: float>0. Distance of the receiving bat from the emitting bat
-                in metres.
+    receiver_distance: float>0. Distance of the receiving bat from the emitting
+                    bat   in metres.
 
     Returns :
     received_level : float. Intensity of sound heard by the receiver in dB SPL
@@ -910,7 +916,7 @@ def calc_num_times(Ntrials,p):
 
 
 
-def implement_spatial_arrangement(Nbats,nbr_distance,source_level):
+def implement_hexagonal_spatial_arrangement(Nbats,nbr_distance,source_level):
     '''Implements the fact that neigbouring bats in a group will occur at
     different distances.
 
@@ -937,16 +943,28 @@ def implement_spatial_arrangement(Nbats,nbr_distance,source_level):
 
     Returns :
 
-    RL : received level in dB SPL
+    RL : 1x Nrings np.array. received level in dB SPL. The calculations are
+        done *without*  any assumptions of atmospheric absorption - and only
+        considering spherical spreading. Where Nrings is the maximum number of
+        rings required to fill up Nbats in the hexagonal array.
 
-    num_calls : number of calls at each received level that arrive at
-                    the focal bat (without call directionality implemented)
+    num_calls : 1x Nrings np.array .number of calls at each received level that
+                arrive at the focal bat (without call directionality
+                implemented).    See above for description of Nrings.
 
+
+    Example :
+
+    implement
     '''
 
+    ring_nums, bat_nums = fillup_hexagonalrings(Nbats)
 
+    ring_distances = ring_nums * nbr_distance
 
+    RL_fromrings = calculate_receivedlevels(ring_distances, source_level)
 
+    return(RL_fromrings, bat_nums)
 
 
 
@@ -984,6 +1002,9 @@ def fillup_hexagonalrings(numbats):
     fillup_hexagonalrings(23) --> np.array([1,2,3]), np.array(6,12,5)
 
     '''
+    if numbats <= 0 :
+        raise ValueError('Number of neighbouring bats must be >0')
+
     n = np.arange(1,11)
     bats_per_ring = 6*n
     cumsum_bats = np.cumsum(bats_per_ring)
@@ -993,7 +1014,7 @@ def fillup_hexagonalrings(numbats):
         return(np.array(1),np.array(numbats))
 
     outer_ring = np.argwhere(numbats<=cumsum_bats)[0] + 1
-    print('outer rin', outer_ring)
+
     inner_rings = outer_ring -1
 
     if inner_rings >1:
@@ -1010,7 +1031,275 @@ def fillup_hexagonalrings(numbats):
 
 
 
+def calculate_receivedlevels(nbr_distances,source_level):
+    '''Calculates received levels at the focal bat given a source level value
+    at which neighbours are all calling at. All received levels are calculated
+    assuming only spherical spreading and no atmospheric absorption.
 
+    Parameters:
+
+    nbr_distance : np.array. nearest neighbour distances in meters.
+
+    source_level : dictionary with two keys :
+            'intensity' : float. Sound pressure level at which a bat calls ref
+                         ref 20 muPa.
+            'ref_distance' : float>0. distance in meters at which the call
+                            intensity has been measured at.
+    Returns :
+
+    received_levels : 1x nbr_distance.size np.array. Intensity at which
+                focal bat hears the calls of the neighbouring bats.
+
+    '''
+    if not type(nbr_distances) is np.ndarray:
+        nbr_distances = np.asanyarray(nbr_distances).reshape(1,-1)
+
+    try:
+        received_levels = np.apply_along_axis(calc_RL,0,nbr_distances,
+                                          source_level['intensity'],
+                                            source_level['ref_distance'])
+    except:
+        received_levels = np.apply_along_axis(calc_RL,0,
+                                        nbr_distances.reshape(1,-1),
+                                          source_level['intensity'],
+                                            source_level['ref_distance'])
+
+
+
+    return(received_levels)
+
+def calc_RL(distance, SL, ref_dist):
+    '''calculates received level only because of spherical spreading.
+
+    Parameters
+
+    distance : float>0. receiver distance from source in metres.
+
+    SL : float. source level in dB SPL re 20 muPa.
+
+    ref_dist : float >0. distance at which source level was measured in metres.
+
+
+    Returns:
+
+    RL : received level in dB SPL re 20muPa.
+
+    '''
+
+    if sum( np.array([distance,ref_dist]) <= 0.0):
+        raise ValueError('distances cannot be <= 0 !')
+
+    RL = SL - 20*np.log10(distance/ref_dist)
+
+    return(RL)
+
+
+
+def implement_poissondisk_spatial_arrangement(numbats,nbr_distance):
+    '''
+    '''
+
+    nbr_points, centre_pt = generate_points_w_poissondisksampling(
+                                                        numbats, nbr_distance)
+
+    radial_dist, thetas  = calculate_r_theta_forallpoints
+
+
+def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
+    '''Generates a set of npoints+1 roughly equally placed points using the
+    Poisson disk sampling algorithm. The point closest to the centroid is
+    considered the centremost point. The closest points to the centremost point
+    are then chosen.
+
+    Parameters:
+
+    npoints: integer. Number of neighbouring points around the focal point
+
+    nbr_distance : float>0. Minimum distance between adjacent points.
+
+    Returns:
+
+    nearby_points : npoints x 2 np.array. XY coordinates of neighbouring points
+                    around the centremost point.
+
+    centremost_point : 1 x 2 np.array. XY coordinates of centremost point.
+
+
+    '''
+
+    if nbr_distance <= 0.0 :
+        raise ValueError('nbr_distance cannot be < 0')
+
+    if npoints < 1:
+         raise ValueError('Number of neighbouring points must  be >=1 ')
+
+    insufficient_points = True
+    sidelength = 1.5
+    while insufficient_points :
+
+
+        length, width = sidelength, sidelength
+        grid = Grid(nbr_distance, length, width)
+
+        data = grid.poisson((length,width))
+        data_np = np.asanyarray(data)
+
+        rows, columns = data_np.shape
+        if rows <= npoints:
+            sidelength += 0.5
+        else :
+            insufficient_points = False
+
+
+    centremost_pt = choose_centremostpoint(data_np)
+    centremost_index = find_rowindex(data_np, centremost_pt)
+
+    nearby_points = find_nearbypoints(data_np, centremost_index, npoints)
+
+    return(nearby_points, centremost_pt)
+
+
+
+def find_rowindex(multirow_array, target_array):
+    '''Given a multi-row array and a target 2D array which is one of the rows
+    from the multi-row array - gets the row index of the target array.
+
+    Parameters:
+
+    multirow_array : N x 2 np.array.
+
+    target_array : 1 x 2 np.array.
+
+    Returns:
+
+    row_index : integer. row index of the target_array within the multirow_array
+    '''
+    values_sqerror = multirow_array**2 - target_array**2
+    row_error = np.sum(values_sqerror,axis=1)
+    try:
+        row_index = int(np.where(row_error==0)[0])
+        return(row_index)
+    except:
+        raise ValueError('Multiple matching points - please check inputs')
+
+
+
+
+def calculate_r_theta(target_point, focal_point):
+    '''
+    '''
+
+def choose_centremostpoint(points):
+    '''Select the point at the centre of a set of points. This is done by calc-
+    ulating the centroid of a set of points and checking which of the given
+    points are closest to the centroid.
+
+    If there are multiple points at equal distance to the centroid, then
+    one of them is assigned arbitrarily.
+
+
+    Parameters:
+
+    points : Npoints x 2 np.array. With X and Y coordinates of points
+
+    Returns:
+
+    centremost_point : 1 x 2 np.array.
+
+    '''
+    centroid_point = calc_centroid(points)
+    centremost_point = find_closestpoint(points, centroid_point)
+
+    return(centremost_point)
+
+
+
+def calc_centroid(data):
+    '''
+    based on code thanks to Retozi, https://tinyurl.com/ybumhquf
+    '''
+    try:
+        if data.shape[1] != 2:
+            raise ValueError('Input data must be a 2 column numpy array')
+    except:
+        raise ValueError('Input data must be a 2 column numpy array')
+
+
+    centroids = np.apply_along_axis(np.mean,0,data)
+    return(centroids)
+
+def find_closestpoint(all_points, target_point):
+    '''Given a target point and a set of generated points,
+    outputs the point closest to the target point.
+
+
+    Example:
+    target_point = np.array([0,0])
+    generated_points = np.array([0,1],[2,3],[3,10])
+
+    find_closestpointindex(generated_points, target_point) --> np.array([0,1])
+
+    '''
+    distance2tgt = np.apply_along_axis(calc_distance,1,all_points,target_point)
+    closestpointindx = np.argmin(distance2tgt)
+    closestpoint = all_points[closestpointindx,:]
+
+    return(closestpoint)
+
+
+calc_distance = lambda point1, point2 : spl.distance.euclidean(point1,point2)
+
+def find_nearbypoints(all_points, focalpoint_index, numnearpoints):
+    '''Given a set of points choose a fixed number of them that are closest
+    to a focal point among them.
+
+    Parameters:
+
+    all_points : Npoints x 2 np.array. All generated points.
+
+    focalpoint_index : integer. Row index from all_points of the focal point.
+
+    numnearpoints : integer. Number of neighbouring points that must be chosen.
+
+    Returns:
+
+    nearbypoints : numnearpoints x 2 np.array.
+
+
+
+    Example :
+    all_points = np.array([ [0,0],[0,1],[1,0],[2,2],[3,5] ])
+    focalpoint_index = 0
+    numnearpoints = 3
+
+
+
+
+    find_nearestpoints(all_points, focalpoint_index, numnearpoints) -->
+        np.array([ [0,1],[1,0],[2,2] ])
+
+    '''
+
+    numrows, numcols = all_points.shape
+    if numnearpoints >  numrows-1 :
+        raise ValueError('The number of neighbours requested is more than \
+            the number of points given!! ')
+
+    if not focalpoint_index in range(numrows):
+        raise IndexError('The given focalpoint index is not within the range\
+            of the array!')
+
+    validpoints = np.delete(all_points,focalpoint_index,0)
+    focal_point = all_points[focalpoint_index,:]
+    nearbypoints_dist = np.apply_along_axis(calc_distance,1,validpoints,
+                                                                focal_point)
+
+    nearbypoints_indices = nearbypoints_dist.argsort()[:numnearpoints]
+
+
+    nearbypoints = validpoints[nearbypoints_indices,:]
+
+    return(nearbypoints)
 
 
 

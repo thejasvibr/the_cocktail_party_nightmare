@@ -128,7 +128,6 @@ class TestingCheckIfEchoHeard(unittest.TestCase)    :
     '''
 
     def setUp(self):
-        print('setting up')
         # temporal masking function -  make everything linear to ease
         # quick calculation of expected results
 
@@ -264,7 +263,7 @@ class TestingCheckIfEchoHeard(unittest.TestCase)    :
 class TestingNumEchoesHeard(unittest.TestCase):
 
     def setUp(self):
-        print('setting up')
+
         # temporal masking function -  make everything linear to ease
         # quick calculation of expected results
 
@@ -646,7 +645,7 @@ class TestingCalcNumTimes(unittest.TestCase):
                                   lambda : calc_num_times(self.ntrials,self.p))
 
 
-class TestingSpatialArrangement(unittest.TestCase):
+class TestingSpatialArrangementHexagonal(unittest.TestCase):
     '''Testing the component functions that implement spatial arrangement
     in the form of a hexagonal array
     '''
@@ -774,6 +773,138 @@ class TestingSpatialArrangement(unittest.TestCase):
 
         self.assertTrue(multibatlevels_equal)
         self.assertTrue(multibats_numsequal)
+
+
+
+class TestingSpatialArrangementPoissondisk(unittest.TestCase):
+    '''
+    '''
+
+    def test_findclosestpoint(self):
+
+        test_points  = np.array([[0,5],[0,1],[0,2]])
+        tgt_point = np.array([0,0])
+
+        calc_point = find_closestpoint(test_points, tgt_point)
+
+        closest_point = test_points[1,:]
+        calcandtgtsame =  np.array_equal(calc_point, closest_point)
+
+        self.assertTrue(calcandtgtsame)
+
+    def test_findnearbypoints(self):
+        '''Set up a set of points in a horizontal line and choose point 4
+        as the focal point. Select 4 points around the focal point and check
+        results
+        '''
+
+        pts_x = np.arange(0,10)
+        pts_y = np.tile(0,10)
+        allpts = np.column_stack((pts_x,pts_y))
+
+        focalpt_indx = 3
+        numnearbypts = 4
+        nearbypts = find_nearbypoints(allpts, focalpt_indx, numnearbypts)
+
+        expected_xs = np.array([2,4,1,5])
+        expected_ys = np.tile(0,expected_xs.size)
+        expected_pts = np.column_stack((expected_xs,expected_ys))
+
+        outputexpected_match = np.array_equal(expected_pts,nearbypts)
+        self.assertTrue(outputexpected_match)
+
+        self.assertRaises(ValueError, lambda : find_nearbypoints(allpts,
+                                                    focalpt_indx,
+                                                    allpts.shape[0]+20 )
+                                                    )
+
+        self.assertRaises(IndexError, lambda : find_nearbypoints(allpts,
+                                                    focalpt_indx-50,
+                                                    numnearbypts )
+                                                    )
+
+    def test_choosecentremostpoint(self):
+        '''
+
+        '''
+
+        pts_x = np.array([1,1,-1,-1,0.25])
+        pts_y = np.array([1,-1,1,-1,0.3])
+        all_points = np.column_stack((pts_x,pts_y))
+        expected_point = all_points[-1,:]
+
+        centremost_pt = choose_centremostpoint(all_points)
+
+        centremostpt_match = np.array_equal(centremost_pt,expected_point)
+
+        self.assertTrue(centremostpt_match)
+
+    def test_calccentroid(self):
+        pts_x = np.arange(-10,11)
+        pts_y = np.arange(-10,11)
+        allpts = np.column_stack((pts_x,pts_y))
+
+        self.assertRaises(ValueError,lambda : calc_centroid(pts_x))
+
+        threecolumn_xyz = np.column_stack((allpts,pts_x))
+        self.assertRaises(ValueError,lambda : calc_centroid(threecolumn_xyz))
+
+        centroid_pt = calc_centroid(allpts)
+        expected_pt = np.apply_along_axis(np.mean,0,allpts)
+
+        centroidpt_match = np.array_equal(expected_pt, centroid_pt)
+
+        self.assertTrue(centroidpt_match)
+
+    def test_findingrowindex(self):
+        pts_x = np.arange(0,11)
+        pts_y = np.arange(0,11)
+        allpts = np.column_stack((pts_x,pts_y))
+
+        target_indx = 3
+        target_array = allpts[target_indx,:]
+
+        output_index = find_rowindex(allpts,target_array)
+
+        self.assertEqual(target_indx, output_index)
+
+
+    def test_generatesurroundpointspoissondisksampling(self):
+        '''Test if correct number of points are being generated.
+        '''
+
+        nbr_dist = 0.5
+        numpoints = np.arange(1,50,5)
+
+        num_genpoints = np.zeros(numpoints.size)
+        for index, npoints in enumerate(numpoints):
+            gen_pts,centrepts = generate_surroundpoints_w_poissondisksampling(
+                                                        npoints, nbr_dist)
+            numrows,numcols = gen_pts.shape
+            num_genpoints[index] = numrows
+
+
+        proper_numpointsgenerated = np.array_equal(num_genpoints, numpoints)
+
+        self.assertTrue(proper_numpointsgenerated)
+
+    def test_calcrtheta(self):
+        '''
+        '''
+
+        raise ValueError('calculate R theta needs to be written and tested')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

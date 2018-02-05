@@ -216,12 +216,23 @@ def populate_sounds(time_range, sound_duration,
 
     time_range : np.array with integer numbers of the discretised timesteps
                 of the pulse interval.
+
     sound_duration: integer. number of time steps that the call occupies.
-    sound_intensityrange : tuple with lower value in first index. minimum and maximum intensitiy that the sounds
-                            arrive with.
+
+    sound_intensityrange : tuple with lower value in first index. minimum and
+                           maximum intensitiy that the sounds   arrive with.
+
+                           Note : This argument can be set to None if poisson disk
+                           sampling is being used to simulate spatial arrangem-
+                           ent
+
 
     sound_arrivalangles : tuple with lower value in first index. minimum and maximum range of angles that sounds
                         arrive with in degrees.
+
+                        Note : This argument can be set to None if poisson disk
+                           sampling is being used to simulate spatial arrangem-
+                           ent
 
     num_sounds: integer. number of sounds to generate
 
@@ -234,12 +245,28 @@ def populate_sounds(time_range, sound_duration,
         with_dirnlcall: with directional call. dictionary with the following keys.
                 A : float>0. Asymmetry parameter of Giuggioli et al. 2015
 
+        poisson_disk : implements bats as if they were placed nearly
+                                uniformly in space with a Poisson disk arrange-
+                                ment. The centremost point is set as the focal
+                                bat's location, and the source level and recei-
+                                ved angles are calculated according to the nei-
+                                ghbouring points around it.
+
+                Dictionary with 2 keys :
+
+            'source_level' : dictionary with two keys describing
+                                    emitted call  (ref function calculate_recei
+                                    -vedlevels)
+
+            'min_nbrdist' : float >0. Minimum distance maintained be-
+                                        tween neighbouring bats.
+
 
 
     Returns:
 
     all_sounds : pd.DataFrame with the following column names :
-                start | stop | theta | intensity |
+                start | stop | theta | level |
 
                 Note : All thetas and intensity values are integer values.
     '''
@@ -255,13 +282,27 @@ def populate_sounds(time_range, sound_duration,
 
     all_sounds['start'] = startstop_array[:,0]
     all_sounds['stop'] = startstop_array[:,1]
+    # LOCATION OF SCENARIO SPECIFIC SWITCHES - FOR GEOMETRY OF THE SWARM.
 
-    angle1,angle2 = sound_arrivalangles
-    all_sounds['theta'] = np.random.random_integers(angle1,angle2,num_sounds)
+    if not 'poisson_disk' in kwargs.keys():
+        angle1,angle2 = sound_arrivalangles
+        all_sounds['theta'] = np.random.random_integers(angle1,angle2,
+                                                                    num_sounds)
 
-    level1, level2 = sound_intensityrange
+        level1, level2 = sound_intensityrange
 
-    all_sounds['level'] = np.random.random_integers(level1,level2,num_sounds)
+        all_sounds['level'] = np.random.random_integers(level1,level2,
+                                                                    num_sounds)
+    else:
+        min_nbrdist = kwargs['poisson_disk']['min_nbrdist']
+        source_level = kwargs['poisson_disk']['source_level']
+
+        pois_theta, pois_intensity = implement_poissondisk_spatial_arrangement(
+                                num_sounds,min_nbrdist, source_level)
+        all_sounds['theta'] = pois_theta
+        all_sounds['level'] = np.around(pois_intensity)
+
+
 
     if 'with_dirnlcall' in kwargs.keys():
         implement_call_directionality(all_sounds,
@@ -1095,14 +1136,49 @@ def calc_RL(distance, SL, ref_dist):
 
 
 
-def implement_poissondisk_spatial_arrangement(numbats,nbr_distance):
-    '''
+def implement_poissondisk_spatial_arrangement(numbats,nbr_distance,
+                                                                 source_level):
+    '''Distributes points/bats over space randomly with a minimum distance
+    between points through the Poisson disk sampling algorithm of Robert Brids
+    -on. Based on the distances to the focal bat the received level is calcula-
+    ted. The angle of arrival is also calculated.
+
+    The Poisson disk generation is implemented through code from IHautI
+    https://github.com/IHautaI/poisson-disc
+
+    Parameters:
+
+    numbats : integer>0. Number of bats in the group, excluding the focal bat
+
+    nbr_distance : float>0. Minimum distance between points in the group in met
+                    -res
+
+    source_level : dictionary with two keys :
+            'intensity' : float. Sound pressure level at which a bat calls ref
+                         ref 20 muPa.
+            'ref_distance' : float>0. distance in meters at which the call
+                            intensity has been measured at.
+
+
+    Returns:
+
+    sounds_thetaintensity : pd.DataFrame with the following column names :
+                | theta | intensity |
+                These columns can then be replaced in the original
+                pd.DataFrame which additionally has the start and stop times
+                of the different calls.
     '''
 
-    nbr_points, centre_pt = generate_points_w_poissondisksampling(
+    nbr_points, centre_pt = generate_surroundpoints_w_poissondisksampling(
                                                         numbats, nbr_distance)
 
-    radial_dist, thetas  = calculate_r_theta_forallpoints
+    radial_dist, thetas  = calculate_r_theta(nbr_points,centre_pt)
+
+    sounds_intensity = np.apply_along_axis(
+                            calculate_receivedlevels,1, radial_dist.reshape(-1,1),
+                                                                source_level)
+    return(thetas, sounds_intensity)
+
 
 
 def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
@@ -1159,6 +1235,132 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
     return(nearby_points, centremost_pt)
 
 
+def calculate_r_theta(target_points, focal_point):
+    '''Calculates radial distance and angle from a set of target points to the
+    focal point.
+
+    The angle calculated is the arrival angle for the focal point.
+
+    The focal_point is considered to be moving with a 90 degree direction by
+    default.
+
+
+    Parameters:
+
+    target_points: Npoints x 2 np.array. XY coordinates of the target points.
+
+    focal_point : 1 x 2 np.array. XY coordinates of the focal point.
+
+
+    Returns:
+
+    radial_distances : Npoints x 1 np.array. The radial distance between each
+                        of the target points and the focal point.
+
+    arrival_angles : Npoints x 1 np.array. The angle of arrival at which a call
+                    emitted from target points will arrive at the focal bat.
+
+                    The angles are in degrees. Angles that are negative, imply
+                    that the target point is on the left side of the focal poin
+                    -t.
+
+
+    Example:
+
+    target_points = np.array([ [1,1],
+                               [-1,-1]
+                                    ])
+    focal_point = np.array([0,0])
+
+
+    rad_dists, angles_arrival = calculate_r_theta(target_points, focal_point)
+
+    rad_dists --> np.array([1.4142, 1.4142])
+    angles_arrival --> np.array([45,-45])
+
+    '''
+
+    radial_distances = np.apply_along_axis(calculate_radialdistance,1,
+                                           target_points,
+                                           focal_point)
+
+    arrival_angles = np.apply_along_axis(calculate_angleofarrival,1,
+                                                             target_points,
+                                                             focal_point)
+
+    return(radial_distances, arrival_angles)
+
+
+
+def calculate_radialdistance(sourcepoint, focalpoint):
+    '''
+
+    Parameters:
+
+    sourcepoint, focalpoint : 1 x Ndimensions np.arraya with coordinates
+
+    Returns:
+
+    radialdist : float > 0. radial distance between sourcepoint and focalpoint
+
+    '''
+    radialdist = spl.distance.euclidean(sourcepoint, focalpoint)
+
+    return(radialdist)
+
+
+
+
+def calculate_angleofarrival(sourcepoint_xy,focalpoint_xy,focalpoint_orientation=90.0):
+    '''Calculates the relative angle of arrival if a neighbouring bat were to
+    call.
+
+    Function based on https://tinyurl.com/y9qpq84l - thanks MK83
+
+
+    Parameters :
+
+    sourcepoint_xy : 1x2 np.array. xy coordinates of call emitting bat
+
+    focalpoint_xy : 1x2 np.array. xy coordinates of focal bat
+
+    focalpoint_orientation : float. heading of focal bat. 0 degrees means the
+                            focal bat is facing 3 o'clock. Angles increase in
+                            anti-clockwise fashion
+                            Default is 90 degrees.
+
+    Returns :
+
+    angle_ofarrival : float. Angle of arrivals are between 0 and +/- 180 degrees
+                    Positive angles of arrival imply the emitted sound will be
+                    received on the right side, while negative angles of arrival
+                    mean the sound is received on the left side.
+
+    Example :
+
+    source_xy = np.array([1,1])
+    focal_xy = np.array([0,0])
+
+    calculate_angleofarrival(source_xy, focal_xy) --> +45.0
+    '''
+
+    radagntorntn=np.radians(float(focalpoint_orientation))
+
+
+    p0= np.array([np.cos( radagntorntn ), np.sin( radagntorntn) ])+ focalpoint_xy
+    p1= focalpoint_xy
+    v0 =  p0-p1
+
+    agentvects=(sourcepoint_xy-p1).flatten()
+
+
+    relangle = np.rad2deg( np.math.atan2( np.linalg.det([agentvects,v0]),
+                                                    np.dot(agentvects,v0) ) )
+    relangle=np.around(relangle,4)
+
+    return( relangle )
+
+
 
 def find_rowindex(multirow_array, target_array):
     '''Given a multi-row array and a target 2D array which is one of the rows
@@ -1184,10 +1386,6 @@ def find_rowindex(multirow_array, target_array):
 
 
 
-
-def calculate_r_theta(target_point, focal_point):
-    '''
-    '''
 
 def choose_centremostpoint(points):
     '''Select the point at the centre of a set of points. This is done by calc-

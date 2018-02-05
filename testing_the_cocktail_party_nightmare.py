@@ -528,6 +528,45 @@ class TestingPopulateSounds(unittest.TestCase):
                                  with_dirnlcall={'A':self.A})
         self.assertTrue(numheard<5)
 
+    def test_populatesoundswithpoissondisk(self):
+        '''Spread the emitting bats uniformly according to the poisson disk
+        sampling and check that the correct number of points are produced
+        '''
+
+        common_seednumber = 11
+        np.random.seed(common_seednumber)
+        timerange = np.arange(200)
+        duration = 3
+        intensityrange = (90,100)
+        arrivalangles = (0,90)
+        numsounds = 100
+
+
+        sourcelevel = {'ref_distance':0.1,'intensity':120}
+        nbr_dist = 0.6
+        poisdisk = {'source_level':sourcelevel, 'min_nbrdist': nbr_dist }
+
+        received_sounds = populate_sounds(timerange,duration,intensityrange,
+                                             arrivalangles,numsounds,
+                                             poisson_disk = poisdisk)
+
+        num_rows,num_cols = received_sounds.shape
+        self.assertEqual(num_rows, numsounds)
+        self.assertEqual(num_cols, 4)
+
+        # Also just check that the populate sounds with poisson disk accepts
+        # None for the other arguments
+
+        received_sounds_nonecheck = populate_sounds(timerange,duration,
+                                                    None,
+                                             None,numsounds,
+                                             poisson_disk = poisdisk)
+
+        num_rowsnonecheck, num_colsnonecheck = received_sounds_nonecheck.shape
+
+        self.assertEqual(num_rowsnonecheck, numsounds)
+        self.assertEqual(num_colsnonecheck, 4)
+
 
 
 class TestingRunMultipleTrials(unittest.TestCase):
@@ -888,19 +927,67 @@ class TestingSpatialArrangementPoissondisk(unittest.TestCase):
 
         self.assertTrue(proper_numpointsgenerated)
 
-    def test_calcrtheta(self):
+    def test_calculate_angleofarrival(self):
         '''
         '''
 
-        raise ValueError('calculate R theta needs to be written and tested')
+        source_xy = np.array([1,1])
+        focal_xy = np.array([0,0])
+
+        expected_angle = 45.0
+
+        angle_arrival = calculate_angleofarrival(source_xy, focal_xy)
+
+        self.assertEqual(angle_arrival, expected_angle)
+
+
+        multiple_xys = np.array(([1,1],[0,0],[0,1],[-1,0],[-1,-1],[0,-1],
+                                                                     [-1,0]))
+        expected_angles = np.array([45, 0, 0, -90, -135, 180, -90])
+
+        angles_arrival = np.apply_along_axis(calculate_angleofarrival,
+                                                     1, multiple_xys, focal_xy)
+
+        angles_match = np.array_equal(angles_arrival, expected_angles)
+        self.assertTrue(angles_match)
 
 
 
+    def test_calcrundtheta(self):
+
+        multiple_xys = np.array(([1,1],[0,0],[0,1],[-1,0],[-1,-1],[0,-1],
+                                                                     [-1,0]))
+        focal_point = np.array([0,0])
+
+        expected_angles = np.array([45, 0, 0, -90, -135, 180, -90])
+        expected_distances = np.apply_along_axis(spl.distance.euclidean,1,
+                                                         multiple_xys,[0,0]  )
+
+        radialdists, arrivalthetas = calculate_r_theta(multiple_xys,
+                                                                   focal_point)
+
+        distances_match = np.array_equal(radialdists, expected_distances)
+        angles_match = np.array_equal(arrivalthetas, expected_angles)
+
+        self.assertTrue(distances_match)
+        self.assertTrue(angles_match)
 
 
 
+    def test_implementpoissondiskspatialarrangement(self):
+        '''Only do testing of the output pd.DataFrame dimensions
+        '''
 
+        nbats = 40
+        min_dist = 0.5
+        source_level = {'intensity':100,'ref_distance':1.0}
 
+        thetas, intensities = implement_poissondisk_spatial_arrangement(nbats,
+                                                                min_dist,
+                                                                 source_level)
+
+        self.assertEqual(thetas.size,nbats)
+        self.assertEqual(intensities.size,nbats)
 
 
 

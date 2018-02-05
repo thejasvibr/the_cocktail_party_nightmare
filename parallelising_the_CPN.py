@@ -26,7 +26,7 @@ print('loaded tempmasking')
 spatialrelease_fn = pd.read_csv('data//spatial_release_fn.csv').iloc[:,1:]
 
 # set up simulation parameters
-numtrials = 10**4
+numtrials = 10*1
 #call_densities = 5*np.arange(1,8)
 call_densities = np.insert( np.arange(1,7)*5,0,1)
 echorange = (60,82)
@@ -35,15 +35,23 @@ callrange = (100,106)
 asym_param = 7
 call_directionality = {'A':asym_param}
 
+# parameters required to implement group geometry - a roughly equidistantly
+# placed group of echolocating bats emerging together :
+nbr_distance = 0.5
+call_level = {'intensity':100,'ref_distance':1.0}
+poisdisk_params = {  'source_level' : call_level, 'min_nbrdist': nbr_distance  }
+
 
 print('2',time.time()-st)
 scenario_dict = {
-    'only_TM': lambda : run_multiple_trials(numtrials, call_densities, tempmasking_fn,
+    'only_TM': lambda : run_multiple_trials(numtrials, call_densities,
+                                   tempmasking_fn,
                                    spatialrelease_fn, spatial_unmasking=False,
                                    echo_level_range = echorange,
                                    call_level_range = callrange),
 
-    'with_SUm': lambda : run_multiple_trials(numtrials, call_densities, tempmasking_fn,
+    'with_SUm': lambda : run_multiple_trials(numtrials, call_densities,
+                                    tempmasking_fn,
                                     spatialrelease_fn, spatial_unmasking=True,
                                     echo_level_range = echorange,
                                     call_level_range = callrange),
@@ -60,7 +68,15 @@ scenario_dict = {
                                              spatial_unmasking=True,
                                              echo_level_range = echorange,
                                         with_dirnlcall = call_directionality,
-                                                  call_level_range = callrange)
+                                                  call_level_range = callrange),
+    'with_SUm_CallDirn_GrpGeom' : lambda : run_multiple_trials(numtrials,
+                                             call_densities,
+                                             tempmasking_fn, spatialrelease_fn,
+                                             spatial_unmasking=True,
+                                             echo_level_range = echorange,
+                                        with_dirnlcall = call_directionality,
+                                                call_level_range = None,
+                                                poisson_disk = poisdisk_params)
                 }
 print('function dictionary set ')
 
@@ -74,7 +90,8 @@ print('3',time.time()-st)
 if __name__== '__main__':
     print('started....')
     scenarios_2bcalculated = ['only_TM','with_SUm','with_CallDirn',
-                                                      'with_SUm_CallDirn']
+                                                      'with_SUm_CallDirn',
+                                                  'with_SUm_CallDirn_GrpGeom']
     print('Calculations started')
 
 #    start = time.time()

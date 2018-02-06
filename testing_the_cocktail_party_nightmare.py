@@ -617,6 +617,26 @@ class TestingRunMultipleTrials(unittest.TestCase):
                                           spatial_unmasking=True,
                                           echo_level_range=(90,100))
 
+    def test_runmultipletrials_onerunwithpoissondisksampling(self):
+        '''
+        '''
+        sourcelevel = {'ref_distance':0.1,'intensity':120}
+        nbr_dist = 0.6
+        poisdisk_params = {'source_level':sourcelevel, 'min_nbrdist': nbr_dist}
+
+        seed_number = 203
+        np.random.seed(seed_number)
+        multip_result = run_multiple_trials(2, [10], self.temporalmasking_fn,
+                                          self.spatialrelease_fn,
+                                          spatial_unmasking=True,
+                                          echo_level_range=(90,100),
+                                            poisson_disk=poisdisk_params)
+        print('multip_result',multip_result)
+
+
+
+
+
 
 class TestingCalcNumTimes(unittest.TestCase):
 

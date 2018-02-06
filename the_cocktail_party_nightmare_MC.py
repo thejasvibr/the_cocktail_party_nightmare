@@ -705,7 +705,8 @@ def run_multiple_trials(num_trials, call_densities, temporal_masking_fn,
     rows_spfn, cols_spfn = spatial_release_fn.shape
 
     if not np.all([cols_tmfn, cols_spfn] == [2,2]) :
-        raise IndexError('Number of columns !=2')
+        raise IndexError('Number of columns in input masking or spatial \
+        release functions !=2')
 
 
     all_echoes_heard = np.zeros((len(call_densities),num_trials))
@@ -783,11 +784,19 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
             A : float >0. Asymmetry parameter of Giuggioli et al. 2015
 
 
+        poisson_disk : dictionary with two keys (ref implement_poissondisk_spa-
+                        tial_arrangement). Implements a random placement of
+                        individuals in the xy plane without causing problems
+                        like clustering or grid formation. Poisson disk sampling
+                        is the name of the algorithm used to generate such a
+                        distribution of points.
+
+
 
     Returns:
 
-    num_echoesheard : 0<=integer<=num_echoes. Number of echoes that were heard in this one
-                      simulation run.
+    num_echoesheard : 0<=integer<=num_echoes. Number of echoes that were heard
+                      in this one simulation run.
 
 
     Example:
@@ -807,7 +816,8 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
     interpulse_interval = 0.1
     call_durn = 3*10**-3
 
-    # assign the non-default values to the variable names in the kwargs
+    # if any other non-default values are assigned for the temporal and acoustic
+    # parameters - re-assign them below.
     if len(kwargs.keys())>0:
         for key in kwargs.keys():
             exec('%s=%s'%(key,kwargs[key]))
@@ -822,8 +832,9 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
                                               call_arrival_angles,call_density,
                                               **kwargs)
 
-    # re-assign the echo start and stop points to avoid echo-echo overlap and keep them at the beggining 1.2
-    # of the pulse interval
+    # re-assign the echo start and stop points to avoid echo-echo overlap and
+    #  keep them at the beggining 1/2 of the pulse interval
+
     echoes = populate_sounds(pi_timesteps,call_steps,echo_level_range,
                                                echo_arrival_angles,num_echoes)
     echo_starts = np.int16(np.linspace(0,interpulse_interval/2.0,5)/timeresolution)
@@ -835,9 +846,9 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
         num_echoesheard = calculate_num_heardechoes(echoes,calls,
                                                     temporal_masking_fn,
                                                     spatial_release_fn)
+    # No spatial unmasking :
     else :
 
-        # with NO spatial release
         spl_rel_fn = spatial_release_fn.copy()
 
         spl_rel_fn.iloc[:,1] = 0
@@ -845,8 +856,7 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
         num_echoesheard = calculate_num_heardechoes(echoes,calls,
                                                     temporal_masking_fn,
                                                     spl_rel_fn)
-#    print('echoes',echoes)
-#    print('calls',calls)
+
     return(num_echoesheard)
 
 

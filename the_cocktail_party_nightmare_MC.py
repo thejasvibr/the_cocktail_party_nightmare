@@ -837,7 +837,8 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
 
     echoes = populate_sounds(pi_timesteps,call_steps,echo_level_range,
                                                echo_arrival_angles,num_echoes)
-    echo_starts = np.int16(np.linspace(0,interpulse_interval/2.0,5)/timeresolution)
+
+    echo_starts = np.int16(np.linspace(0,interpulse_interval/2.0,num_echoes)/timeresolution)
     echo_ends = echo_starts + call_steps -1
     echoes['start'] = echo_starts
     echoes['stop'] = echo_ends

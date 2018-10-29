@@ -1,0 +1,4 @@
+ring_number ,Radial_distance,Radial_distance_meters,Number_bats,Received_level(dBSPL),Fraction
+1,2a,0.5,6,106,0.17
+2,4a,1,12,100,0.33
+3,6a,1.5,18,94,0.5

@@ -1,0 +1,5 @@
+numtrials=10**4;
+call_densities = np.inset(np.arange(1,7)*5,0,1);
+echorange = (60,82);
+callrange = (100,106);
+asym_param = 7

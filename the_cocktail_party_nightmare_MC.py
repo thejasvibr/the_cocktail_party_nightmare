@@ -715,7 +715,7 @@ def run_multiple_trials(num_trials, call_densities, temporal_masking_fn,
 
         echoes_heard = [ run_one_trial(call_density, temporal_masking_fn,
                                     spatial_release_fn, spatial_unmasking,
-                                    **kwargs) for a_trial in range(num_trials)]
+                                    **kwargs) for a_trial in xrange(num_trials)]
         all_echoes_heard[row_num,:] = echoes_heard
 
     return(all_echoes_heard)
@@ -1494,7 +1494,7 @@ def find_nearbypoints(all_points, focalpoint_index, numnearpoints):
         raise ValueError('The number of neighbours requested is more than \
             the number of points given!! ')
 
-    if not focalpoint_index in range(numrows):
+    if not focalpoint_index in xrange(numrows):
         raise IndexError('The given focalpoint index is not within the range\
             of the array!')
 

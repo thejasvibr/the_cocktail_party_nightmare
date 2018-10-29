@@ -34,7 +34,7 @@ print('loaded tempmasking')
 spatialrelease_fn = pd.read_csv('data//spatial_release_fn.csv').iloc[:,1:]
 
 # set up simulation parameters
-numtrials = 500
+numtrials = 5
 #call_densities = 5*np.arange(1,8)
 call_densities = np.insert( np.arange(1,7)*5,0,1)
 echorange = (60,82)
@@ -50,7 +50,7 @@ call_level = {'intensity':100,'ref_distance':1.0}
 poisdisk_params = {  'source_level' : call_level, 'min_nbrdist': nbr_distance  }
 
 # set number of echoes and calls:
-num_target_echoes = np.arange(1,33,2)
+num_target_echoes = np.arange(29,33,2)
 num_masker_calls = np.arange(1,33,2)
 
 
@@ -100,9 +100,9 @@ for i, num_echo in enumerate(num_target_echoes):
                                             glimpse_echoes)
     glimpse_prob[int(all_echoes[i][0])] = peq_numglimpse
 
-# Save the glimpse probability dictionary :
-with open('glimpse_probs.pkl', 'wb') as probs_file:
-    pickle.dump(glimpse_prob, probs_file)
+## Save the glimpse probability dictionary :
+#with open('glimpse_probs.pkl', 'wb') as probs_file:
+#    pickle.dump(glimpse_prob, probs_file)
 
 
 

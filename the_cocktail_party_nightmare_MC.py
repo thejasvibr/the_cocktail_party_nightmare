@@ -714,6 +714,9 @@ def run_multiple_trials(num_trials, call_densities, temporal_masking_fn,
     all_echoes_heard : len(call_densities)xnum_trials np.array with number of
                     echoes heard for each trial in every call density.
 
+    onehot_echoesheard : (based on keyword argument one_hot) Nechoes x num_trials np.array. 
+                        with one-hot encoding of which echoes were heard.
+
     '''
 
     rows_tmfn, cols_tmfn = temporal_masking_fn.shape
@@ -725,21 +728,58 @@ def run_multiple_trials(num_trials, call_densities, temporal_masking_fn,
 
 
     all_echoes_heard = np.zeros((len(call_densities),num_trials))
+    output_number_and_id = 'one_hot' in kwargs.keys() and kwargs['one_hot']
+    if output_number_and_id:
+        all_echo_ids = []
 
     for row_num, call_density in enumerate(call_densities):
 
         echoes_heard = [ run_one_trial(call_density, temporal_masking_fn,
                                     spatial_release_fn, spatial_unmasking,
                                     **kwargs) for a_trial in xrange(num_trials)]
-        all_echoes_heard[row_num,:] = echoes_heard
+        if not output_number_and_id:
+            all_echoes_heard[row_num,:] = echoes_heard
+        else:
+            # get the total number of echoes heard
+            all_echoes_heard[row_num,:] = map(extract_numechoesheard, echoes_heard)
 
-    return(all_echoes_heard)
+            num_echoes = echoes_heard[0][1].size
+            onehot_echoesheard = np.zeros((num_trials,num_echoes))            
+            # get the identity of the echoes heard
+            for i, echoespertrial in enumerate(echoes_heard):
+                onehot_echoesheard[i,:] = extract_echoids(echoespertrial)
+            all_echo_ids.append(onehot_echoesheard)
+        
+            # assemble the identities of echoes heard across various call densities
+            multidensity_echoids = assemble_echoids(all_echo_ids, call_densities,
+                                                          num_echoes, num_trials)        
+    if output_number_and_id:
+        return(all_echoes_heard, multidensity_echoids)
+    else:
+        return(all_echoes_heard)
+
+# helper functions to separate out tuples 
+extract_numechoesheard = lambda X : X[0]
+
+extract_echoids = lambda X : X[1]
+
+def assemble_echoids(echoids_per_calldensity, call_densities, num_echoes,
+                           num_trials):
+    '''reshapes multiple 2D onehot echoids in a list into a 3D array
+    '''
+    multidensity_echoids = np.zeros((len(call_densities),num_trials,num_echoes))
+    for i, echoids_at_calldensity in enumerate(echoids_per_calldensity):
+        multidensity_echoids[i,:,:] = echoids_at_calldensity
+    return(multidensity_echoids)
+        
 
 
 def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
                   spatial_unmasking=True,**kwargs):
     '''
-    Runs one trial with/out spatial unmasking.
+    Places conspecific maskers into an interpulse interval with echos and calc-
+    ulates the number of echoes heard. The complexity of the model can be twea-
+    ked by changing the various parameters and biological phenomena included.
 
     Parameters:
 
@@ -806,12 +846,18 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
                         is the name of the algorithm used to generate such a
                         distribution of points.
 
+        one_hot : boolean. See calculate_num_heardechoes.
+
 
 
     Returns:
 
     num_echoesheard : 0<=integer<=num_echoes. Number of echoes that were heard
                       in this one simulation run.
+    
+    id_echoesheard : 1 x num_echoes binary np.array. Output is conditional on
+                     keyword argument one_hot==True. See documentation in 
+                     calculate_num_heardechoes  for more. 
 
 
     Example:
@@ -859,9 +905,9 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
     echoes['stop'] = echo_ends
 
     if spatial_unmasking:
-        num_echoesheard = calculate_num_heardechoes(echoes,calls,
+        echoesheard = calculate_num_heardechoes(echoes,calls,
                                                     temporal_masking_fn,
-                                                    spatial_release_fn)
+                                                    spatial_release_fn,**kwargs)
     # No spatial unmasking :
     else :
 
@@ -869,11 +915,10 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
 
         spl_rel_fn.iloc[:,1] = 0
 
-        num_echoesheard = calculate_num_heardechoes(echoes,calls,
+        echoesheard = calculate_num_heardechoes(echoes,calls,
                                                     temporal_masking_fn,
-                                                    spl_rel_fn)
-
-    return(num_echoesheard)
+                                                    spl_rel_fn, **kwargs)
+    return(echoesheard)
 
 
 def calculate_directionalcall_level(call_params, receiver_distance):

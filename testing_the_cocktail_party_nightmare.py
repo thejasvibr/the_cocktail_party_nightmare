@@ -709,11 +709,53 @@ class TestingRunMultipleTrials(unittest.TestCase):
                                             poisson_disk=poisdisk_params)
         print('multip_result',multip_result)
 
+    def test_runmultipletrials_onehot(self):
+        '''Run the simulations with the onehot switch activated 
+        '''
+        sourcelevel = {'ref_distance':0.1,'intensity':120}
+        nbr_dist = 0.6
+        poisdisk_params = {'source_level':sourcelevel, 'min_nbrdist': nbr_dist}
 
+        seed_number = 203
+        np.random.seed(seed_number)
+        multip_result = run_multiple_trials(5, [10], self.temporalmasking_fn,
+                                          self.spatialrelease_fn,
+                                          spatial_unmasking=True,
+                                          echo_level_range=(90,100),
+                                            poisson_disk=poisdisk_params,
+                                            one_hot=True)
+        num_echoes_heard = multip_result[0]
+        echoes_id = multip_result[1]
+        numechoes_heard_fromid = np.apply_along_axis(np.sum, 2, echoes_id)
+        num_heardechoes_match = np.allclose(numechoes_heard_fromid, num_echoes_heard)
+        self.assertTrue(num_heardechoes_match)
 
+    def test_runmultipletrials_onehot_multicalldensities(self):
+        ''' Run onehot switch at multiple call densities
+        '''
+        sourcelevel = {'ref_distance':0.1,'intensity':120}
+        nbr_dist = 0.6
+        poisdisk_params = {'source_level':sourcelevel, 'min_nbrdist': nbr_dist}
 
-
-
+        seed_number = 203
+        np.random.seed(seed_number)
+        multip_result = run_multiple_trials(5, [1,10,20], self.temporalmasking_fn,
+                                          self.spatialrelease_fn,
+                                          spatial_unmasking=True,
+                                          echo_level_range=(90,100),
+                                            poisson_disk=poisdisk_params,
+                                            one_hot=True)
+        num_echoes_heard = multip_result[0]
+        echoes_id = multip_result[1]
+        num_densities, num_trials, num_echoes = echoes_id.shape
+        
+        sum_echoes_heard = np.zeros(num_echoes_heard.shape)
+        for i, each_density in enumerate(range(num_densities)):
+            for j, each_trial in enumerate(range(num_trials)):
+                sum_echoes_heard[i,j] = np.sum(echoes_id[i,j,:])
+        self.assertTrue(np.allclose(sum_echoes_heard, num_echoes_heard))
+        
+ 
 class TestingCalcNumTimes(unittest.TestCase):
 
     def setUp(self):

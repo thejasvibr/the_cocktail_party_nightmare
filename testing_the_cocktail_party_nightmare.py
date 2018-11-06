@@ -439,6 +439,82 @@ class TestingNumEchoesHeard(unittest.TestCase):
                                                 self.temporalmasking_fn,
                                                 self.nomaskingrelease_fn)
         self.assertEqual(noneheard_dummyfn,0)
+    
+    def test_onehotcoding_switch_positive(self):
+        '''
+        Checks if the one-hot coding option activated by the keyword argument
+        gives the expected output when all echoes are heard
+        '''
+        # copy the test with spatial unmasking multiechoes
+        self.calls['start'] = [0]  ; self.calls['stop'] = [29]
+        self.calls['theta'] = [80] ; self.calls['level'] = [90]
+
+        # with multiple echoes - same angle of arrival :
+
+        self.echoes['start'] = [1500, 10000] ; self.echoes['stop'] = [1600,10600]
+        self.echoes['theta'] = [0, 0]   ; self.echoes['level'] = [86,86]
+
+
+        oneecho_heard, obtained_outcome = calculate_num_heardechoes(self.echoes,self.calls,
+                                                self.temporalmasking_fn,
+                                                self.spatialrelease_fn,
+                                                one_hot=True)
+        self.assertEqual(oneecho_heard,2)
+        expected_outcome = np.array([1,1])
+        outcomes_match_positive = np.sum(obtained_outcome - expected_outcome) == 0
+        self.assertTrue(outcomes_match_positive)
+    
+    def test_onehotcoding_switch_negative(self):
+        '''
+        Checks if the one-hot coding option activated by the keyword argument
+        gives the expected output when no echoes are heard
+        '''
+        # copy the test with spatial unmasking multiechoes
+        self.calls['start'] = [0]  ; self.calls['stop'] = [29]
+        self.calls['theta'] = [80] ; self.calls['level'] = [90]
+
+        # with multiple echoes - same angle of arrival :
+
+        self.echoes['start'] = [0, 15] ; self.echoes['stop'] = [10,20]
+        self.echoes['theta'] = [80, 80]   ; self.echoes['level'] = [5,2]
+
+
+        noecho_heard, obtained_outcome = calculate_num_heardechoes(self.echoes,self.calls,
+                                                self.temporalmasking_fn,
+                                                self.spatialrelease_fn,
+                                                one_hot=True)
+        self.assertEqual(noecho_heard,0)
+        expected_outcome = np.array([0,0])
+        outcomes_match_negative = np.sum(obtained_outcome - expected_outcome) == 0
+        self.assertTrue(outcomes_match_negative)
+    
+    def test_onehotcoding_switch_secondechoheard(self):
+        '''
+        Checks if the one-hot coding option activated by the keyword argument
+        gives the expected output when the second of two echoes is heard
+        '''
+        # copy the test with spatial unmasking multiechoes
+        self.calls['start'] = [0]  ; self.calls['stop'] = [29]
+        self.calls['theta'] = [80] ; self.calls['level'] = [90]
+
+        # with multiple echoes - same angle of arrival :
+
+        self.echoes['start'] = [0, 10000] ; self.echoes['stop'] = [16,10600]
+        self.echoes['theta'] = [0, 0]   ; self.echoes['level'] = [1,86]
+
+
+        oneecho_heard, obtained_outcome = calculate_num_heardechoes(self.echoes,self.calls,
+                                                self.temporalmasking_fn,
+                                                self.spatialrelease_fn,
+                                                one_hot=True)
+        self.assertEqual(oneecho_heard,1)
+        expected_outcome = np.array([0,1])
+        outcomes_match_oneheard = np.sum(obtained_outcome - expected_outcome) == 0
+        self.assertTrue(outcomes_match_oneheard)
+    
+        
+
+
 
 
 

@@ -10,7 +10,8 @@ Created on Tue Dec 12 21:55:48 2017
 @author: tbeleyur
 """
 import sys
-folder = '/home/tbeleyur/Documents/the_cocktail_party_nightmare/poisson-disc-master/poisson-disc-master'
+
+folder = 'C://Users//tbeleyur//Google Drive//Holger Goerlitz- IMPRS//PHD_2015//projects and analyses//2016_jamming response modelling//analytical_modelling//poisson-disc-master//poisson-disc-master//'
 sys.path.append(folder)
 import numpy as np
 import pandas as pd
@@ -338,7 +339,7 @@ def implement_call_directionality(sound_df,A):
     return(sound_df)
 
 
-def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn):
+def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn,**kwargs):
     '''Given an echo and call sound dataframes, outputs the total number of
     echoes that a bat might have heard.
 
@@ -369,10 +370,19 @@ def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn)
 
     spatial_release_fn : pandas.DataFrame
 
+    Keyword arguments:
+    
+        one_hot : boolean. If True then the echoes that are heard are 
+                  output as an 1 x Nechoes one-hot binary array. 
+
 
     Returns:
 
     num_echoes: integer. number of echoes that are heard.
+
+    heardechoes_id : (if one_hot is True) 1x Nechoes one-hot binary np.array.
+                  eg. for a 5 echo situation in which echoes 2,3 are heard, 
+                  the output will be --> np.array([0,1,1,0,0])
 
     '''
 
@@ -395,9 +405,14 @@ def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn)
         this_echoheard = num_calls ==  sum(call_doesnotmask)
 
         echoes_heard.append(this_echoheard)
-
+    
     num_echoes = sum(echoes_heard)
-    return(num_echoes)
+
+    if 'one_hot' in kwargs.keys():
+        heardechoes_id = np.array(echoes_heard).astype('int')
+        return(num_echoes, heardechoes_id)
+    else:
+        return(num_echoes)
 
 
 

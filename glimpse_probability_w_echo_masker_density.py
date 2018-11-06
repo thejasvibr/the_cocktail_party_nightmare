@@ -34,7 +34,7 @@ print('loaded tempmasking')
 spatialrelease_fn = pd.read_csv('data//spatial_release_fn.csv').iloc[:,1:]
 
 # set up simulation parameters
-numtrials = 5
+numtrials = 2
 #call_densities = 5*np.arange(1,8)
 call_densities = np.insert( np.arange(1,7)*5,0,1)
 echorange = (60,82)
@@ -50,7 +50,7 @@ call_level = {'intensity':100,'ref_distance':1.0}
 poisdisk_params = {  'source_level' : call_level, 'min_nbrdist': nbr_distance  }
 
 # set number of echoes and calls:
-num_target_echoes = np.arange(29,33,2)
+num_target_echoes = np.arange(1,5,2)
 num_masker_calls = np.arange(1,33,2)
 
 
@@ -75,7 +75,7 @@ def num_echoes_wrapper(num_echoes):
                                                  num_echoes = num_echoes)
     return(num_echoes, output)
 
-parallel=False
+parallel=True
 print('Starting time ..')
 start_pll = time.time()
 if parallel:

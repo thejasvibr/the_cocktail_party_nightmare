@@ -714,7 +714,7 @@ def run_multiple_trials(num_trials, call_densities, temporal_masking_fn,
     all_echoes_heard : len(call_densities)xnum_trials np.array with number of
                     echoes heard for each trial in every call density.
 
-    onehot_echoesheard : (based on keyword argument one_hot) Nechoes x num_trials np.array. 
+    onehot_echoesheard : (based on keyword argument one_hot) num_calldensities x Nechoes x num_trials np.array. 
                         with one-hot encoding of which echoes were heard.
 
     '''

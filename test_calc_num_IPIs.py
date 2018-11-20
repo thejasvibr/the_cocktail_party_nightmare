@@ -4,6 +4,7 @@ Created on Tue Nov 20 17:25:58 2018
 
 @author: tbeleyur
 """
+import collections
 import unittest
 import numpy as np
 from calc_num_IPIs import *
@@ -79,15 +80,27 @@ class TestingCalcNumIpis(unittest.TestCase):
     def test_longcase(self):
         '''
         '''
-        trials_to_hear_2echoes = calc_num_IPIs_to_hear_echoes(self.echoesheard_long,
-                                                              2, 4)
-        trials_to_hear_3echoes = calc_num_IPIs_to_hear_echoes(self.echoesheard_long,
-                                                              3, 4)
-        trials_to_hear_4echoes = calc_num_IPIs_to_hear_echoes(self.echoesheard_long,
-                                                              4, 4)
-        print(trials_to_hear_2echoes,
-              trials_to_hear_3echoes,
-              trials_to_hear_4echoes)
+        num_trials_to_hear = []
+        for num_echoes in range(1,5):
+            n_trials = calc_num_IPIs_to_hear_echoes(self.echoesheard_long,
+                                                    num_echoes, 4)
+            num_trials_to_hear.append(n_trials)
+        
+        expected_results = {1 : [1,24,25,50],
+                            2 : [25, 75],
+                            3 : [50, None],
+                            4 : [100]} 
+
+        # now compare the obtained and expected results 
+        for i, obtained_results in enumerate(num_trials_to_hear):
+            same_numtrials = self.compare_lists(obtained_results,
+                                           expected_results[i+1])
+            self.assertTrue(same_numtrials)
+                                                               
+    
+    def compare_lists(self,a,b):
+        lists_are_same = collections.Counter(a) == collections.Counter(b)
+        return(lists_are_same)
         
         
 

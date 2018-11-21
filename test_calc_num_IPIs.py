@@ -96,6 +96,15 @@ class TestingCalcNumIpis(unittest.TestCase):
             same_numtrials = self.compare_lists(obtained_results,
                                            expected_results[i+1])
             self.assertTrue(same_numtrials)
+
+    def test_onetrialcase(self):
+        '''
+        '''
+        ntrials = calc_num_IPIs_to_hear_echoes(self.echoesheard_case1, 1,4)
+        expected = [1]*4
+        
+        obtained_matches_expected = self.compare_lists(expected, ntrials)
+        self.assertTrue(obtained_matches_expected)
                                                                
     
     def compare_lists(self,a,b):

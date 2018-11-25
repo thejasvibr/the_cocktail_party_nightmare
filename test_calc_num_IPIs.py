@@ -49,6 +49,26 @@ class TestingCountNumrows(unittest.TestCase):
         num_trials = count_numrows_to_m_echoes(self.long_case, 4)
         self.assertEqual(num_trials,total_trials)        
 
+    def test_seeing_all_echoes_twice(self):
+        '''Test switch to count num trials req to see all 
+        echoes *N* times
+        '''
+        all_echoes_2x = np.row_stack((self.echoes_heard, self.echoes_heard))
+        num_times_allechoes = 2 
+        numtrials = count_numrows_to_m_echoes(all_echoes_2x, 4,
+                                              numtimes_allechoes=2)
+        self.assertEqual(numtrials, 8)
+
+    def test_seeing_allechoes_twice_empty(self):
+        '''testing if the numtimes switch still works when a zeros array is
+        given
+        '''
+        self.echoes_heard[:,:] = 0
+        numtrials = count_numrows_to_m_echoes(self.echoes_heard, 4,
+                                              numtimes_allechoes=2)
+        self.assertEqual(numtrials, None)
+        
+        
 
 class TestingCalcNumIpis(unittest.TestCase):
 
@@ -97,6 +117,24 @@ class TestingCalcNumIpis(unittest.TestCase):
                                            expected_results[i+1])
             self.assertTrue(same_numtrials)
 
+    def test_longcase_w_allechoes2x(self):
+        ''' check longcase with the numtimes switch set to 2
+        '''
+        longcase_2x = np.row_stack((self.echoesheard_long, self.echoesheard_long))
+
+        n_trials = calc_num_IPIs_to_hear_echoes(longcase_2x,
+                                                    4, 4,
+                                                    numtimes_allechoes = 2)
+        self.assertEqual(n_trials[0], longcase_2x.shape[0])
+
+    def test_oneecho_allechoes2x(self):
+        '''check if one echo case counting is accurate
+        '''
+        oneecho = np.array([0,0,1,0,0,1]).reshape(6,1)
+        n_trials = calc_num_IPIs_to_hear_echoes(oneecho,1,1,
+                                                numtimes_allechoes=2)
+        self.assertEqual(n_trials[0],6)
+        
     def test_onetrialcase(self):
         '''
         '''

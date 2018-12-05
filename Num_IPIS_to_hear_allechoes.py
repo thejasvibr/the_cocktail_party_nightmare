@@ -31,7 +31,7 @@ print('loaded tempmasking')
 spatialrelease_fn = pd.read_csv('data//spatial_release_fn.csv').iloc[:,1:]
 
 # set up simulation parameters
-numtrials = 10**4
+numtrials = 10
 echorange = (60,82)
 callrange = (100,106)
 
@@ -45,7 +45,7 @@ call_level = {'intensity':100,'ref_distance':1.0}
 poisdisk_params = {  'source_level' : call_level, 'min_nbrdist': nbr_distance  }
 
 # set number of echoes and calls:
-num_target_echoes = np.arange(1,33,2)
+num_target_echoes = np.arange(1,3,2)
 num_masker_calls = np.arange(1,33,2)
 
 
@@ -69,6 +69,15 @@ def num_echoes_wrapper(num_echoes):
                                                   call_level_range = callrange,
                                                  num_echoes = num_echoes,
                                                  one_hot=True)
+    folder = 'results\\the_CPN_nIPIs_to_hear_all_echoes\\'
+    computer_name = '_mytable_ubuntu_'
+    with open(folder+'N_IPIS_to_hear_allechoes'+computer_name+str(num_echoes)+'echoes_.pkl',
+              'wb') as nipis_file:
+        result_dict ={'num_echoes': num_echoes,
+                      'echoes_heard':echoesheard,
+                      'echo_ids' : echoes_id}
+        pickle.dump(result_dict, nipis_file)
+
 
     output = {'num_targetechoes':num_echoes, 'num_echoesheard':echoesheard, 'echo_id':echoes_id}
 
@@ -87,14 +96,7 @@ else:
     all_echoes = map(num_echoes_wrapper, num_target_echoes.tolist())
 
 print('parallel time: ',time.time()-start_pll)
-
-folder = 'results\\the_CPN_nIPIs_to_hear_all_echoes\\'
-computer_name = '_mytable_ubuntu_'
-with open(folder+'N_IPIS_to_hear_allechoes'+computer_name+'.pkl', 'wb') as nipis_file:
-    pickle.dump(all_echoes, nipis_file)
-
-
-    
+  
     
 
 

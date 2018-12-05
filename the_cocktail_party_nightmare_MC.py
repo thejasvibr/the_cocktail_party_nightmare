@@ -848,6 +848,10 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
 
         one_hot : boolean. See calculate_num_heardechoes.
 
+        echoes_within : 1x2 array-like. Interval of the interpulse interval within 
+                        which the echoes are uniformly placed. 
+                        The values should lie between 0 and interpulse interval
+                        length. Defaults to [0, ipi-0.004]. 
 
 
     Returns:
@@ -870,12 +874,14 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
     num_echoes = 5
     call_level_range = (100,106)
     echo_level_range = (60,82)
-    echo_arrival_angles = (75,105) # treating 0 degrees as 3'oclock
+    echo_arrival_angles = (60,120) # treating 0 degrees as 3'oclock
     call_arrival_angles = (0,360)
 
     timeresolution = 10**-4
     interpulse_interval = 0.1
     call_durn = 3*10**-3
+    echoes_within = [0, interpulse_interval-0.004]
+
 
     # if any other non-default values are assigned for the temporal and acoustic
     # parameters - re-assign them below.
@@ -899,11 +905,12 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
     echoes = populate_sounds(pi_timesteps,call_steps,echo_level_range,
                                                echo_arrival_angles,num_echoes)
 
-    echo_starts = np.int16(np.linspace(0,interpulse_interval/2.0,num_echoes)/timeresolution)
+    echo_timewindow = np.linspace(echoes_within[0],echoes_within[1],num_echoes)
+    echo_starts = np.int16(echo_timewindow/timeresolution)
     echo_ends = echo_starts + call_steps -1
     echoes['start'] = echo_starts
     echoes['stop'] = echo_ends
-
+    print(echoes)
     if spatial_unmasking:
         echoesheard = calculate_num_heardechoes(echoes,calls,
                                                     temporal_masking_fn,

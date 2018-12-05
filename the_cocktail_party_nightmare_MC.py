@@ -910,7 +910,7 @@ def run_one_trial(call_density, temporal_masking_fn,spatial_release_fn,
     echo_ends = echo_starts + call_steps -1
     echoes['start'] = echo_starts
     echoes['stop'] = echo_ends
-    print(echoes)
+
     if spatial_unmasking:
         echoesheard = calculate_num_heardechoes(echoes,calls,
                                                     temporal_masking_fn,

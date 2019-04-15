@@ -11,7 +11,7 @@ Created on Tue Dec 12 21:55:48 2017
 """
 import sys
 
-folder = '/home/tbeleyur/Documents/the_cocktail_party_nightmare/poisson-disc-master/poisson-disc-master'
+folder = 'C:\\Users\\tbeleyur\\Google Drive\\Holger Goerlitz- IMPRS\\PHD_2015\\projects and analyses\\2016_jamming response modelling\\analytical_modelling\\poisson-disc-master\\poisson-disc-master'
 sys.path.append(folder)
 import numpy as np
 import pandas as pd
@@ -723,8 +723,7 @@ def run_multiple_trials(num_trials, call_densities, temporal_masking_fn,
     rows_spfn, cols_spfn = spatial_release_fn.shape
 
     if not np.all([cols_tmfn, cols_spfn] == [2,2]) :
-        raise IndexError('Number of columns in input masking or spatial \
-        release functions !=2')
+        raise IndexError('Number of columns in input masking or spatial release functions !=2')
 
 
     all_echoes_heard = np.zeros((len(call_densities),num_trials))
@@ -1558,12 +1557,10 @@ def find_nearbypoints(all_points, focalpoint_index, numnearpoints):
 
     numrows, numcols = all_points.shape
     if numnearpoints >  numrows-1 :
-        raise ValueError('The number of neighbours requested is more than \
-            the number of points given!! ')
+        raise ValueError('The number of neighbours requested is more than the number of points given!! ')
 
     if not focalpoint_index in xrange(numrows):
-        raise IndexError('The given focalpoint index is not within the range\
-            of the array!')
+        raise IndexError('The given focalpoint index is not within the range of the array!')
 
     validpoints = np.delete(all_points,focalpoint_index,0)
     focal_point = all_points[focalpoint_index,:]

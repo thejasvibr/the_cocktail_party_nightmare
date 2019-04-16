@@ -4,6 +4,11 @@ the cocktail party nightmare
 
 TODO :
 1) implement the effect of spatial arrangement on the cocktail party nightmare
+2) hearing directionality
+3) include switch to make each bat call in a different direction
+4) calculate 2dary echoes 
+5) many calculations assume all bats fly in the same direction - fix this assumption
+   by including a switch to allow different flight directions
 
 Created on Tue Dec 12 21:55:48 2017
 
@@ -1148,44 +1153,6 @@ def fillup_hexagonalrings(numbats):
     return(occupied_rings,bats_in_eachring)
 
 
-
-def calculate_receivedlevels(nbr_distances,source_level):
-    '''Calculates received levels at the focal bat given a source level value
-    at which neighbours are all calling at. All received levels are calculated
-    assuming only spherical spreading and no atmospheric absorption.
-
-    Parameters:
-
-    nbr_distance : np.array. nearest neighbour distances in meters.
-
-    source_level : dictionary with two keys :
-            'intensity' : float. Sound pressure level at which a bat calls ref
-                         ref 20 muPa.
-            'ref_distance' : float>0. distance in meters at which the call
-                            intensity has been measured at.
-    Returns :
-
-    received_levels : 1x nbr_distance.size np.array. Intensity at which
-                focal bat hears the calls of the neighbouring bats.
-
-    '''
-    if not type(nbr_distances) is np.ndarray:
-        nbr_distances = np.asanyarray(nbr_distances).reshape(1,-1)
-
-    try:
-        received_levels = np.apply_along_axis(calc_RL,0,nbr_distances,
-                                          source_level['intensity'],
-                                            source_level['ref_distance'])
-    except:
-        received_levels = np.apply_along_axis(calc_RL,0,
-                                        nbr_distances.reshape(1,-1),
-                                          source_level['intensity'],
-                                            source_level['ref_distance'])
-
-
-
-    return(received_levels)
-
 def calc_RL(distance, SL, ref_dist):
     '''calculates received level only because of spherical spreading.
 
@@ -1315,6 +1282,10 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
 def calculate_r_theta(target_points, focal_point):
     '''Calculates radial distance and angle from a set of target points to the
     focal point.
+
+    TODO : accept heading orientation other than 90 degrees
+    
+        
 
     The angle calculated is the arrival angle for the focal point.
 
@@ -1575,41 +1546,345 @@ def find_nearbypoints(all_points, focalpoint_index, numnearpoints):
     return(nearbypoints)
 
 
+def make_focal_first(xy_posns, focal_xy):
+    '''shifts the focal_xy to the 1st row
+    '''
+    row_index = find_rowindex(xy_posns, focal_xy)
+    focal_first = np.roll(xy_posns, np.tile(-row_index, 2))
+    return(focal_first)
 
-if __name__ == '__main__':
+def calculate_receivedlevels(sound_type, **kwargs):
+    '''Calculates the received levels of conspecific calls and 2dary echoes. 
+    
+    Parameters:
+        sound_type : str. defines which kind of sound is being propagated. 
+                     The valid entries are either '2ndary_echoes' or 'conspecific_calls'
 
-    calls = populate_sounds(np.arange(0,1000,1),3,(100,106),(0,360),5)
-    echoes = populate_sounds(np.arange(0,500,1),3,(60,82),(0,360),3)
-    print(calls)
-    col_names = ['start','stop','theta','level']
-    call = pd.DataFrame(index=[0],columns=col_names)
-    echo = pd.DataFrame(index=[0],columns=col_names)
+    Keyword Arguments:
+        focal_bat
+        bats_xy
+        bats_orientations
+        source_level
+        call_directionality,
+        hearing_directionality,
+        reflection_strength 
 
-    call['start'] = 0; call['stop'] = 10
-    echo['start'] = 12 ; echo['stop'] = 14
-    echo['level'] = 65; call['level'] = 80
+    Returns:
+        received_levels : pd.DataFrame . A 'sound' DataFrame - see populate_sounds
 
-    fwdmask_nonovlp = quantify_temporalmasking(echo,call)
+    '''
+  
+    sound_type_calculations = {'2ndary_echoes': calculate_2ndary_echolevels,
+                               'conspecific_calls' : calculate_conspecific_calls}
 
-    temp_masking = pd.DataFrame(index=range(50),columns=['timegap_ms','dB'])
-    temp_masking['timegap_ms'] = np.linspace(10,-1,50)
-    temp_masking['dB'] = np.linspace(-30,10,50)
-    spl_release = temp_masking.copy()
-    spl_release.columns = ['deltatheta','dB_release']
+    try:
+        received_levels = sound_type_calculations[sound_type](**kwargs)
+        return(received_levels)
+    except:
+        raise ValueError('Invalid sound type, unable to calculate received levels')
 
-    num = run_one_trial(5,temp_masking,spl_release,False)
 
-    call_ds = np.array([10,20,40])
-    num_replicates = 50
-    p_leq3= {'wsum':[],'wosum':[]}
+def calculate_2ndary_echolevels(**kwargs):
+    ''' Calculates the received levels of 2ndary echoes from a conspecific call
+    bouncing off conspecifics once and reaching the focal bat
 
-    for calldens in call_ds:
-        w_sum = [ run_one_trial(calldens,temp_masking,spl_release,True,echo_level_range=(80,92)) for k in range(num_replicates)]
-        wo_sum = [ run_one_trial(calldens,temp_masking,spl_release,False,echo_level_range=(80,92)) for k in range(num_replicates)]
-        probs,cum_probs = calc_pechoesheard(w_sum,5)
-        probs_wo, cum_probs_wo = calc_pechoesheard(wo_sum,5)
+    Keyword Arguments:
+        focal_bat
+        bats_xy
+        bats_orientations
+        reflection_strength
+        hearing_directionality
+        call_directionality
+        source_level
+    
+    Returns:
 
-        p_leq3['wsum'].append(sum(probs[1:]))
-        p_leq3['wosum'].append(sum(probs_wo[1:]))
+        secondary_echo_levels : pd.DataFrame. A 'sound' DataFrame.s
+       
 
-    p_leq3
+    '''
+    # There will be secondary echoes only when there are >= 3 bats
+    if kwargs['bats_xy'].shape[0] >= 3:
+        reflection_strength = kwargs['reflection_strength']
+        hearing_directionality = kwargs['hearing_directionality']
+        call_directionality = kwargs['call_directionality']
+        source_level = kwargs['source_level']
+
+        # calculate the distances and angles involved in the secondary echo paths
+        secondary_echopaths = calculate_2ndary_echopaths(**kwargs)
+        # calculate the sound pressure levels based on the geometry + emission-reception directionalities        
+        secondary_echo_levels = calculate_2ndary_echolevels(secondary_paths, reflection_strength,
+                                                            call_directionality, hearing_directionality,
+                                                            source_level)
+        return(secondary_echo_levels)
+    else:
+        return(None)
+
+
+def calculate_2ndary_echopaths(**kwargs):
+    '''Calculates the incoming and outgoin paths and angles of a conspecific call
+    
+    For Nbats the total number of secondary echoes a focal bat will hear is:
+        N_emitters x N_targets -->  (Nbats-1) x (Nbats-2)
+    
+    Keyword Arguments:
+        focal_bat : 1x2 np.array. xy position of focal bat. This is the end point of all the 2ndary
+                    paths that are calculated
+
+        bats_xy : Nbats x 2 np.array. xy positions of bats 
+
+        bats_orientations : np.array. heading directions of all bats. This direction is with reference to 
+                            a global zero which is set at 3 o'clock. 
+
+    Returns:
+
+        secondary_echopaths : dictionary with following 6 keys - each with 
+                    theta_emission|R_incoming|theta_incoming|theta_outgoing|R_outgoing|theta_reception
+
+                    All theta values are in degrees. 
+                    theta_emission, theta_incoming, theta_outgoing and theta_reception are calculated
+                    with the heading direction of the bat as the zero. 
+
+                    R_incoming and R_outgoing are in metres. 
+    '''
+    bats_xy = kwargs['bats_xy']
+    bats_orientations = kwargs['bats_orientations']
+
+    focal_bat = find_rowindex(bats_xy, kwargs['focal_bat'])
+
+    # make all emitter-target and target-receiver paths using the row indices as 
+    # an identifier
+    emitters = set(range(bats_xy.shape[0])) - set([focal_bat])
+    targets = set(range(bats_xy.shape[0])) - set([focal_bat])
+
+    secondary_echo_routes = []
+    for an_emitter in emitters:
+        for a_target in targets:
+            if not a_target is an_emitter:
+                emitter_target_focal = (an_emitter, a_target, focal_bat)
+                secondary_echo_routes.append(emitter_target_focal)
+
+    distance_matrix = spl.distance_matrix(bats_xy, bats_xy)
+
+    secondary_echo_paths = {}
+    secondary_echo_paths['R_incoming'], secondary_echo_paths['R_outgoing'] = calc_R_in_out(distance_matrix,
+                                                                                           secondary_echo_routes)
+    secondary_echo_paths['theta_incoming'], secondary_echo_paths['theta_outgoing'] = calc_2daryecho_thetas(bats_xy,
+                                                                                                           bats_orientations,
+                                                                                                           secondary_echo_routes,
+                                                                                                           'incoming_outgoing')
+    secondary_echo_paths['theta_emission'], secondary_echo_paths['theta_reception'] = calc_2daryecho_thetas(bats_xy,
+                                                                                                            bats_orientations,
+                                                                                                            secondary_echo_routes,
+                                                                                                            'emission_reception')
+    return(secondary_echo_paths)
+
+def calc_R_in_out(distance_matrix, sound_routes):
+    '''Calculates the direct path length that a sound needs to travel between
+    an emitter bat to target bat (R_in) and target bat to focal receiver bat (R_out)
+    
+    Parameters:
+
+        distance_matrix : Nbats x Nbats np.array. Distance between each of the bats in metres. 
+
+        sound_routes : list with (Nbats-1)x(Nbats-2) tuples of 3 entries. Each tuple refers to the path 
+                        of a call emission. 
+                        Eg. (20, 10, 5) refers to a sound emitted by bat 20 onto bat 10 and then 
+                        reflecting and reaching bat 5. 
+
+    Returns:
+
+        R_in : tuple with (Nbats-1)x(Nbats-2) floats. Distances of sound on its inbound journey from emitter to target
+        R_in : tuple with (Nbats-1)x(Nbats-2) floats. Distances of sound on its outbound journey from target to receiver
+    
+    '''
+    R_in = [distance_matrix[each_route[0],each_route[1]] for each_route in sound_routes]
+    R_out = [distance_matrix[each_route[1],each_route[2]] for each_route in sound_routes]
+    return(tuple(R_in), tuple(R_out))
+
+def calc_2daryecho_thetas(bats_xy, bat_orientations, sound_routes, which_angles):
+    '''Calculates relative  angles of sound with reference to the heading direction
+    of the bats concerned. 
+    
+    The switch 'which_angles' decides if the theta_ingoing and theta_outgoing 
+    or theta_emission and theta_reception pairs are calculated.
+
+    Parameters:
+
+        bats_xy : Nbats x 2 np.array. XY positions of bats. 
+
+        bat_orientations : Nbats x 1 np.array. Heading directions of all bats in degrees. 
+                           Zero degrees is 3 o'clock and increases in anti clockwise manner
+        
+        sound_routes : list w (Nbats-1)x(Nbats-2) tuples.  Each tuple has the index number of 
+                       the emitter, target and focal receiver bat. 
+                       
+        which_angles : str. Switch which decides which pair of angles are calculated. 
+                       
+            If which_angles is 'emission_reception'  then :
+                       
+                       theta_towardstarget is the relative angle of emission angle with reference to 
+                       the heading direction of the emitter bat
+                       AND 
+                       theta_fromtarget is the relative angle of reception with reference to the heading 
+                       direction of the focal bat 
+            If which_angles is 'incoming_outgoing' then the angles are calculated with reference ot 
+                        the incoming call and outgoing echo on the surface of the target bat. 
+
+                     theta_towardstarget is the relative angle of emitted call arrival wrt to the 
+                     heading direction of the target bat
+                     AND
+                     theta_fromtarget is the relative angle of the reflected sound wrt to the 
+                     heading direction of the target bat
+                       
+
+    Returns:
+
+        theta_towardstarget : tuple with Nbats-1 x Nbats-2 floats. Angle of incoming sound with reference to heading direction
+                         of target bat or emitting bat (see which_angles). Heading direction is zero and it increases off-axis till +/- 180 degrees.
+
+        theta_fromtarget : tuple with  Nbats-1 x Nbats-2 floats. Angle of outgoing sound with reference to heading direction
+                         of target bat or focal bat (see which_angles). Heading direction is zero and it increases off-axis till +/- 180 degrees.
+    '''
+    # towardstarget refers to the emission angle OR to the incoming angle
+    theta_towardstarget = []
+    theta_fromtarget = []
+
+    for route in sound_routes:
+        emitter, target, focal = route
+        if which_angles is 'incoming_outgoing':
+            theta_in = calculate_angleofarrival(bats_xy[emitter], bats_xy[target], bat_orientations[target])
+            theta_towardstarget.append(theta_in)
+            theta_out = calculate_angleofarrival(bats_xy[focal], bats_xy[target], bat_orientations[target])
+            theta_fromtarget.append(theta_out)
+        elif which_angles is 'emission_reception':
+            theta_in = calculate_angleofarrival(bats_xy[target], bats_xy[emitter], bat_orientations[emitter])
+            theta_towardstarget.append(theta_in)
+            theta_out = calculate_angleofarrival(bats_xy[target], bats_xy[focal], bat_orientations[focal])
+            theta_fromtarget.append(theta_out)
+
+    return(tuple(theta_towardstarget), tuple(theta_fromtarget))
+
+def implement_hearing_directionality(arrival_angle, hearing_dirnlty):
+    '''
+    '''
+    
+    pass
+
+def run_CPN(**kwargs):
+    ''' Run one iteration of the spatially explicit CPN, and calculate the
+    number of echoes heard.
+
+    This version of the simulation places bats in space, calculates the 
+    received conspecific call levels and the 2dary echoes that may arrive at a
+    focal bat. 
+
+    
+    Keyword Arguments:
+
+            Nbats : integer. Number of bats in the group.
+
+            min_spacing : float>0. Minimum distance between one bat and its closest neighbour
+
+            heading_variation : float>0. Variation in heading direction of each bat in degrees. 
+                            The reference direction is 90 degrees (3 o'clock is 0 degrees), and 
+                            all bat headings are within +/- heading_variation of 90 degrees. 
+                            This is also assumed to be the direction in which the bat is calling and hearing at.
+                            Example  : a heading variation of 10 degrees will mean that all bats in the group
+                            are facing between 100-80 degrees with uniform probability.
+
+           source_level : dictionary with the following keys and entries:
+                          'dB_SPL' : float. Sound pressure level in dB with 20microPascals as reference
+                          'ref_distance' : float. Reference distance in metres. 
+
+           call_directionality : function. Relates the decrease in source level in dB with emission angle
+                          The on-axis angle is set to 0 here, and the angle right behind the bat is 180 degrees. 
+
+           hearing_directionality : function. Relates the change in received level in dB with sound arrival angle
+                          The heading angle is set to 0 here, and the angle right behind the bat is 180 degrees. 
+
+           reflection_strength : function. Describes the reflection characteristics of echoes bouncing off
+                               bats. This is different from the target_strength because the position of
+                               reception and position of emission are different. 
+
+           N_echoes : integer >0. The number of target echoes to be placed in the interpulse interval
+
+           echo_properties : pd.DatFrame. A 'sound'df -- see previous documentation
+
+    Keyword Arguments:
+
+        TODO : 
+
+    Returns:
+
+        num_echoes_heard : Number of echoes heard        
+    
+    '''
+    # place Nbats out 
+    bats_xy, bats_orientations = place_bats_inspace(Nbats, min_spacing,
+                                                    heading_variation)
+
+    # choose focal bat
+    focal_bat = choose_centremostpoint(bats_xy)
+    
+
+    kwargs['bats_xy'] = bats_xy
+    kwargs['bats_orientations'] = bats_orientations
+    kwargs['focal_bat'] = focal_bat
+
+
+    # calculate the received levels of the conspecific calls and 2dary echoes
+    conspecific_calls = calculate_receivedlevels(sound_type='conspecific_calls', **kwargs)
+    secondary_echoes = calculate_receivedlevels(sound_type='2dary_echoes', **kwargs)
+    
+    # place the conspecific calls and 2dary echoes in the IPI
+    calls_and_2daryechoes = combine_sounds(conspecific_calls, secondary_echoes)
+
+    # place target echoes in the IPI and check how many of them are heard
+    target_echoes = generate_echoes(Nechoes, echo_properties)
+    
+    num_echoes_heard = calculate_num_heardechoes(target_echoes, calls_and_2daryechoes,
+                              temporal_masking_fn,
+                              spatial_release_fn)
+    
+    return(num_echoes_heard)
+
+#
+#
+#if __name__ == '__main__':
+#
+#    calls = populate_sounds(np.arange(0,1000,1),3,(100,106),(0,360),5)
+#    echoes = populate_sounds(np.arange(0,500,1),3,(60,82),(0,360),3)
+#    print(calls)
+#    col_names = ['start','stop','theta','level']
+#    call = pd.DataFrame(index=[0],columns=col_names)
+#    echo = pd.DataFrame(index=[0],columns=col_names)
+#
+#    call['start'] = 0; call['stop'] = 10
+#    echo['start'] = 12 ; echo['stop'] = 14
+#    echo['level'] = 65; call['level'] = 80
+#
+#    fwdmask_nonovlp = quantify_temporalmasking(echo,call)
+#
+#    temp_masking = pd.DataFrame(index=range(50),columns=['timegap_ms','dB'])
+#    temp_masking['timegap_ms'] = np.linspace(10,-1,50)
+#    temp_masking['dB'] = np.linspace(-30,10,50)
+#    spl_release = temp_masking.copy()
+#    spl_release.columns = ['deltatheta','dB_release']
+#
+#    num = run_one_trial(5,temp_masking,spl_release,False)
+#
+#    call_ds = np.array([10,20,40])
+#    num_replicates = 50
+#    p_leq3= {'wsum':[],'wosum':[]}
+#
+#    for calldens in call_ds:
+#        w_sum = [ run_one_trial(calldens,temp_masking,spl_release,True,echo_level_range=(80,92)) for k in range(num_replicates)]
+#        wo_sum = [ run_one_trial(calldens,temp_masking,spl_release,False,echo_level_range=(80,92)) for k in range(num_replicates)]
+#        probs,cum_probs = calc_pechoesheard(w_sum,5)
+#        probs_wo, cum_probs_wo = calc_pechoesheard(wo_sum,5)
+#
+#        p_leq3['wsum'].append(sum(probs[1:]))
+#        p_leq3['wosum'].append(sum(probs_wo[1:]))
+#
+#    p_leq3

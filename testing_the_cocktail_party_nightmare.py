@@ -1128,13 +1128,156 @@ class TestingSpatialArrangementPoissondisk(unittest.TestCase):
         self.assertEqual(intensities.size,nbats)
 
 
+# TODO:
+
+class TestingConspecificcallPaths(unittest.TestCase):
+    '''
+    '''
+    def setUp(self):
+        self.kwargs = {}
+        self.kwargs['bats_xy'] = np.array(([1,1],[2,1],[2,2]))
+        self.kwargs['focal_bat'] = np.array([1,1])
+        self.kwargs['bats_orientations'] = np.array([90,45,135])
+    
+    def calc_distmat(self):
+        self.distance_matrix = spl.distance_matrix(self.kwargs['bats_xy'], self.kwargs['bats_xy'])
+
+        
+
+    def test_basicpaths(self):
+        '''3 bat case that are in a triangular formation
+        '''
+        consp_paths = calculate_conspecificcall_paths(**self.kwargs)
+        output_paths = pd.DataFrame(consp_paths)
+        self.calc_distmat()
+        
+        expected_distances = np.array([self.distance_matrix[0,1], self.distance_matrix[0,2]])
+        expected_theta_reception = np.array([90, 45])
+        
+        self.assertTrue(np.array_equal(expected_distances, output_paths['R_incoming']))
+        self.assertTrue(np.array_equal(expected_theta_reception, output_paths['theta_reception']))
+        
+    def test_inaline(self):
+        '''3 bats in a line heading in the same direction
+        '''
+        self.kwargs['bats_xy'] = np.array(([1,1],[1,2],[1,3]))
+        self.kwargs['bats_orientations'] = np.tile(90,3)
+        self.calc_distmat()
+
+
+        consp_paths = calculate_conspecificcall_paths(**self.kwargs)
+        output_paths = pd.DataFrame(consp_paths)
+
+        expected_distances = np.array([self.distance_matrix[0,1], self.distance_matrix[0,2]])
+        expected_theta_reception = np.array([0, 0])
+        
+        self.assertTrue(np.array_equal(expected_distances, output_paths['R_incoming']))
+        self.assertTrue(np.array_equal(expected_theta_reception, output_paths['theta_reception']))
+
+class Testing2ndaryEchoPaths(unittest.TestCase):
+    '''
+    '''
+    def setUp(self):
+        self.kwargs = {}
+        self.kwargs['bats_xy'] = np.array(([1,1],[2,1],[2,2]))
+        self.kwargs['focal_bat'] = np.array([1,1])
+        self.kwargs['bats_orientations'] = np.array([90,45,135])
+
+    def calc_distmat(self):
+        self.distance_matrix = spl.distance_matrix(self.kwargs['bats_xy'], self.kwargs['bats_xy'])
+
+
+    def test_check_correctnumechoes(self):
+        '''check if number of secondary echoes is correctly produced;
+        '''
+        for num_bats in [3, 10, 50]:
+        
+            self.kwargs['bats_xy'] = np.random.normal(0,1,num_bats*2).reshape(-1,2)
+            self.kwargs['bats_orientations'] = np.random.normal(0,90,num_bats)
+            self.kwargs['focal_bat'] = self.kwargs['bats_xy'][num_bats-1]
+    
+            secondechoes_paths = calculate_2ndary_echopaths(**self.kwargs)
+            expected_number = (num_bats-1)*(num_bats-2)
+
+            self.assertEqual(expected_number, len(secondechoes_paths['sound_routes']))
+        
+
+    def test_basic_2ndaryechoes(self):
+        ''' 3 bats in a triangle confuguration
+        '''
+        secondechoes_paths = calculate_2ndary_echopaths(**self.kwargs)
+        output_paths = pd.DataFrame(secondechoes_paths)
+
+        expected_paths = pd.DataFrame(data=[], index=range(2),
+                                      columns=output_paths.columns)
+        expected_paths['R_incoming'] = [1.0,1.0]
+        expected_paths['R_outgoing'] = [np.sqrt(2), 1.0]
+        expected_paths['theta_emission'] = [-45.0, -135.0]
+        expected_paths['theta_reception'] = [45.0, 90.0]
+        expected_paths['sound_routes'] = [(1,2,0),(2,1,0)]
+        expected_paths['theta_incoming'] = [-135.0,-45.0]
+        expected_paths['theta_outgoing'] = [-90.0,-135.0]
+        
+        self.assertTrue(expected_paths.equals(output_paths))
+
+    def test_basic_diamond(self):
+        '''Test a configuration of 4 bats placed in a diamond configuration 
+        around a central bat
+        
+        This test independently checks if the geometrical parameters are being 
+        calculated as expected !
+        '''
+        
+        self.kwargs['bats_xy'] = np.array(([0,0],
+                                           [0,1],
+                                           [0,-1],
+                                           [1,0],
+                                           [-1,0]))
+        self.kwargs['bats_orientations'] = np.tile(90,5)
+
+        self.kwargs['focal_bat'] = self.kwargs['bats_xy'][0,:]
+
+        self.calc_distmat()
+
+        self.output = calculate_2ndary_echopaths(**self.kwargs)
+        exp_R_in = []
+        exp_R_out = []
+        exp_theta_em = []
+        exp_theta_recpn = []
+        exp_theta_in = []
+        exp_theta_out = []
+
+        for echo_id, each_echo in enumerate(output['sound_routes']):
+            emitter, target, focal = each_echo
+            
+            exp_R_in.append(self.distance_matrix[emitter, target])
+            exp_R_out.append(self.distance_matrix[target, focal])
+
+            
+            exp_theta_recpn.append(calculate_angleofarrival(self.kwargs['bats_xy'][target],
+                                         self.kwargs['bats_xy'][focal],
+                                         self.kwargs['bats_orientations'][focal]))
+
+            exp_theta_em.append(calculate_angleofarrival(self.kwargs['bats_xy'][target],
+                                                            self.kwargs['bats_xy'][emitter],
+                                                            self.kwargs['bats_orientations'][emitter]))
+
+            exp_theta_in.append(calculate_angleofarrival(self.kwargs['bats_xy'][emitter],
+                                                            self.kwargs['bats_xy'][target],
+                                                            self.kwargs['bats_orientations'][target]))
+
+            exp_theta_out.append(calculate_angleofarrival(self.kwargs['bats_xy'][focal],
+                                                            self.kwargs['bats_xy'][target],
+                                                            self.kwargs['bats_orientations'][target]))
 
 
 
-
-
-
-
+        # check if the calculated values match up:
+        for key, expected in zip(['R_incoming', 'R_outgoing', 'theta_emission', 'theta_reception',
+                                  'theta_incoming','theta_outgoing'],
+                                [exp_R_in, exp_R_out, exp_theta_em, exp_theta_recpn,
+                                 exp_theta_in, exp_theta_out]):
+            self.assertEqual(self.output[key], tuple(expected))
 
 
 if __name__ == '__main__':

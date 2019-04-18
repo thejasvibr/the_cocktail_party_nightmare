@@ -1611,7 +1611,10 @@ def calculate_conspecificcall_levels(**kwargs):
         bats_xy = kwargs['bats_xy']
         
         conspecific_call_paths = calculate_conspecificcall_paths(**kwargs)
-        conspecific_calls = calculate_conspecificcallreceived_levels(**kwargs)
+        conspecific_calls = calculate_conspecificcallreceived_levels(conspecific_call_paths,
+                                                                     call_directionality,
+                                                                     hearing_directionality,
+                                                                     source_level)
         
         return(conspecific_calls)
 
@@ -1649,13 +1652,11 @@ def calculate_2ndaryecho_levels(**kwargs):
         # calculate the distances and angles involved in the secondary echo paths
         secondary_echopaths = calculate_2ndary_echopaths(**kwargs)
         # calculate the sound pressure levels based on the geometry + emission-reception directionalities        
-        secondary_echoes = calculate_2ndaryechoreceived_levels(focal_bat,
-                                                                    bats_xy,
-                                                                    secondary_echopaths,
-                                                                    reflection_function,
-                                                                    call_directionality,
-                                                                    hearing_directionality,
-                                                                    source_level)
+        secondary_echoes = calculate_2ndaryechoreceived_levels(secondary_echopaths,
+                                                               reflection_function,
+                                                               call_directionality,
+                                                               hearing_directionality,
+                                                               source_level)
     else:
         # other wise return an empty sound df. 
         secondary_echoes = pd.DataFrame(data=[], index=[0],
@@ -1743,15 +1744,7 @@ def calculate_2ndaryechoreceived_levels(secondary_echopaths,
 
                     reflection_strength : float. The ratio of incoming and outgoing sound pressure levels in dB (20log10)
 
-                    For example, one row entry could be :
-                                ref_distance | incoming_theta | outgoing_theta | reflection_strength 
-                                      0.1    |       30       |       90       |       -60  
-            
-                              The above example refers to a situation where sound
-                              arrives at the object at 30 degrees and its reflection
-                              is received at 90 degrees. The outgoing sound id 60 dB fainter than the 
-                              incoming sound when measured at a 10 cm radius around the centre
-                              of the target object. 
+                       see get_reflection_strength for Details.
 
         call_directionality : function with one input. The call_direcitonality
                               function accepts one input theta_emission, which 
@@ -1776,7 +1769,7 @@ def calculate_2ndaryechoreceived_levels(secondary_echopaths,
                                        start | stop | theta | level |
 
     '''
-    reflection_ref_distance = np.min(reflection_function['ref_distance'])
+    reflection_ref_distance = np.unique(reflection_function['ref_distance'])
 
     num_echoes = len(secondary_echopaths['sound_routes'])
     secondaryechoes = pd.DataFrame(data=[], index=range(num_echoes),
@@ -1823,23 +1816,72 @@ def calculate_2ndaryechoreceived_levels(secondary_echopaths,
     return(secondaryechoes)
 
 
-def get_reflection_strength():
-    '''There are only so many incoming and outgoing angles that can be 
-    measured to create a refleection strenght profile of an object. 
+def get_reflection_strength(reflection_function, 
+                            theta_in,
+                            theta_out,
+                            max_theta_error = 30):
+    '''The reflection_function is a mapping between the reflection strength
+    and the input + output angles of the sound. 
     
-    What happens when the theta_incoming and theta_outgoing are not
-    in the measured set of angles? 
-    
+    In simulatoins, the incoming and outgoing angles will likely vary continuously.
+    However, experimental measurements of course cannot handle all possible values. 
     This function tries to choose the angle pair which matches the
     unmeasured theta incoming and outgoing to best possible extent. 
+
+    Parameters:
+
+        reflection_function : pd.DataFrame with the following columns:
+            
+                    ref_distance : float>0. Distance at which the reflection strength is calculated in metres.
+
+                    incoming_theta : float. Angle at which the incoming sound arrives at. This 
+                                     angle is with relation to the heading direciton of the target bat. 
+
+                    outgoing_theta : float. Angle at which the outgoing sound reflects at. This 
+                                     angle is with relation to the heading direciton of the target bat. 
+
+                    reflection_strength : float. The ratio of incoming and outgoing sound pressure levels in dB (20log10)
+
+                    For example, one row entry could be :
+                                ref_distance | incoming_theta | outgoing_theta | reflection_strength 
+                                      0.1    |       30       |       90       |       -60  
+            
+                              The above example refers to a situation where sound
+                              arrives at the object at 30 degrees and its reflection
+                              is received at 90 degrees. The outgoing sound id 60 dB fainter than the 
+                              incoming sound when measured at a 10 cm radius around the centre
+                              of the target object. 
+
+    Returns:
+
+        reflection_strength : float <=0. The ratio of incoming and outgoing sound pressure levels in dB
+
     
-    
+
+    Example Usage : 
+        get_reflection_strength(reflection_funciton, 90, 0) --> -50
+
     '''
-    pass
-
-
-
     
+    # get best fit angle pair:
+    theta_diffs = np.apply_along_axis(angle_difference, 1,
+                                      np.array(reflection_function[['incoming_theta','outgoing_theta']]),
+                                      theta_in, theta_out)
+
+    if np.min(abs(theta_diffs)) > max_theta_error:
+        print(theta_in, theta_out, np.min(abs(theta_diffs)))
+        raise ValueError('Reflection function is coarser than ' + str(max_theta_error)+'..aborting calculation' )
+    else:
+        best_index = np.argmin(abs(theta_diffs))
+        return(reflection_function['reflection_strength'][best_index])
+
+def angle_difference(df_row, theta_in, theta_out):
+        angle_diff = spl.distance.euclidean([df_row[0],df_row[1]],
+                     [theta_in, theta_out])
+        return(angle_diff)
+    
+
+
 def calculate_conspecificcall_paths(**kwargs):
     '''Given the positions and orientations of all bat, the output is 
     the distances and angles relevant to the geometry of conspecific call
@@ -2120,9 +2162,9 @@ def run_CPN(**kwargs):
 
            echo_properties : pd.DatFrame. A 'sound'df -- see previous documentation
 
-    Keyword Arguments:
+           temporal_masking_fn : ?? . temporal masking funciton
 
-        TODO : 
+           spatial_release_fn : ?? . spatial release function. 
 
     Returns:
 
@@ -2130,8 +2172,7 @@ def run_CPN(**kwargs):
     
     '''
     # place Nbats out 
-    bats_xy, bats_orientations = place_bats_inspace(Nbats, min_spacing,
-                                                    heading_variation)
+    bats_xy, bats_orientations = place_bats_inspace(**kwargs)
 
     # choose focal bat
     focal_bat = choose_centremostpoint(bats_xy)
@@ -2156,42 +2197,3 @@ def run_CPN(**kwargs):
                               temporal_masking_fn,
                               spatial_release_fn)
     return(num_echoes_heard)
-
-#
-#if __name__ == '__main__':
-#
-#    calls = populate_sounds(np.arange(0,1000,1),3,(100,106),(0,360),5)
-#    echoes = populate_sounds(np.arange(0,500,1),3,(60,82),(0,360),3)
-#    print(calls)
-#    col_names = ['start','stop','theta','level']
-#    call = pd.DataFrame(index=[0],columns=col_names)
-#    echo = pd.DataFrame(index=[0],columns=col_names)
-#
-#    call['start'] = 0; call['stop'] = 10
-#    echo['start'] = 12 ; echo['stop'] = 14
-#    echo['level'] = 65; call['level'] = 80
-#
-#    fwdmask_nonovlp = quantify_temporalmasking(echo,call)
-#
-#    temp_masking = pd.DataFrame(index=range(50),columns=['timegap_ms','dB'])
-#    temp_masking['timegap_ms'] = np.linspace(10,-1,50)
-#    temp_masking['dB'] = np.linspace(-30,10,50)
-#    spl_release = temp_masking.copy()
-#    spl_release.columns = ['deltatheta','dB_release']
-#
-#    num = run_one_trial(5,temp_masking,spl_release,False)
-#
-#    call_ds = np.array([10,20,40])
-#    num_replicates = 50
-#    p_leq3= {'wsum':[],'wosum':[]}
-#
-#    for calldens in call_ds:
-#        w_sum = [ run_one_trial(calldens,temp_masking,spl_release,True,echo_level_range=(80,92)) for k in range(num_replicates)]
-#        wo_sum = [ run_one_trial(calldens,temp_masking,spl_release,False,echo_level_range=(80,92)) for k in range(num_replicates)]
-#        probs,cum_probs = calc_pechoesheard(w_sum,5)
-#        probs_wo, cum_probs_wo = calc_pechoesheard(wo_sum,5)
-#
-#        p_leq3['wsum'].append(sum(probs[1:]))
-#        p_leq3['wosum'].append(sum(probs_wo[1:]))
-#
-#    p_leq3

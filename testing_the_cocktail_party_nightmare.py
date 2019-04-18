@@ -1279,6 +1279,136 @@ class Testing2ndaryEchoPaths(unittest.TestCase):
                                  exp_theta_in, exp_theta_out]):
             self.assertEqual(self.output[key], tuple(expected))
 
+class TestingSecondaryEchoReceivedLevels(unittest.TestCase):
+    '''Check if the received levels are correct.
+    '''
+    def setUp(self):
+        self.kwargs = {}
+
+        self.kwargs['bats_xy'] = np.array(([1,1],[2,1],[2,2]))
+        self.kwargs['focal_bat'] = np.array([1,1])
+        self.kwargs['bats_orientations'] = np.array([90,45,135])
+        self.kwargs['reflection_function'] = pd.DataFrame(data=[], index=range(360*360),
+                                                          columns=['ref_distance',
+                                                                   'incoming_theta',
+                                                                   'outgoing_theta',
+                                                                   'reflection_strength'])
+        self.kwargs['reflection_function']['reflection_strength'] = np.tile(-10, 360*360)
+        all_angles = np.array(np.meshgrid(range(-180,180), range(-180,180))).T.reshape(-1,2)
+        
+        self.kwargs['reflection_function']['incoming_theta'] = all_angles[:,0]
+        self.kwargs['reflection_function']['outgoing_theta'] = all_angles[:,1]
+        self.kwargs['reflection_function']['ref_distance'] = np.tile(0.1, 360*360)
+        
+        self.kwargs['call_directionality'] = lambda X : 0 
+        self.kwargs['hearing_directionality'] = lambda X : 0
+        self.kwargs['source_level'] = {'ref_distance' : 0.1, 'dBSPL':120}
+        
+    def test_basic(self):
+        '''
+        '''
+        secondary_echoes = calculate_2ndaryecho_levels(**self.kwargs)
+        output_received_levels = np.array(secondary_echoes['level']).flatten()
+
+        # calculate the expected received levels of the 2dary echoes
+        paths = calculate_2ndary_echopaths(**self.kwargs)
+        ref_dist = np.unique(self.kwargs['reflection_function']['ref_distance'])
+
+        reflection_strength = np.unique(self.kwargs['reflection_function']['reflection_strength'])
+
+        expected_received_levels = []
+        for echonum, route in enumerate(paths['sound_routes']):
+            r_in = paths['R_incoming'][echonum]
+            r_out = paths['R_outgoing'][echonum]
+            incoming_SPL = calc_RL(r_in-ref_dist,
+                                   self.kwargs['source_level']['dBSPL'],
+                                   self.kwargs['source_level']['ref_distance'])
+
+            post_reflection_SPL = incoming_SPL + reflection_strength
+            rec_levels = calc_RL(r_out, post_reflection_SPL, ref_dist )
+            expected_received_levels.append(rec_levels)
+
+        print(expected_received_levels, output_received_levels)
+        self.assertTrue(np.array_equal(np.array(expected_received_levels).flatten(),
+                                       output_received_levels))
+ 
+class TestCalculateConspecificcall_levels(unittest.TestCase):
+    '''
+    '''
+    def setUp(self):
+        self.kwargs = {}
+        
+        self.kwargs['bats_xy'] = np.array(([1,1],[2,1],[2,2]))
+        self.kwargs['focal_bat'] = np.array([1,1])
+        self.kwargs['bats_orientations'] = np.array([90,45,135])
+        self.kwargs['call_directionality'] = lambda X : 0 
+        self.kwargs['hearing_directionality'] = lambda X : 0
+        self.kwargs['source_level'] = {'ref_distance' : 0.1, 'dBSPL':120}
+
+
+    def calc_distmat(self):
+        self.distance_matrix = spl.distance_matrix(self.kwargs['bats_xy'], self.kwargs['bats_xy'])
+
+    def test_basic(self):
+        '''test 3 bat situation 
+        '''
+        conspecific_calls = calculate_conspecificcall_levels(**self.kwargs)
+        print(conspecific_calls)
+        self.calc_distmat()
+        
+        output_receivedlevels = np.array(conspecific_calls['level']).flatten()
+
+        expected_receivedlevels = np.zeros(2)
+        expected_receivedlevels[0] = calc_RL(self.distance_matrix[0,1], self.kwargs['source_level']['dBSPL'],
+                                    self.kwargs['source_level']['ref_distance'])
+        
+        expected_receivedlevels[1] = calc_RL(self.distance_matrix[0,2], self.kwargs['source_level']['dBSPL'],
+                                    self.kwargs['source_level']['ref_distance'])
+        
+        self.assertTrue(np.array_equal(output_receivedlevels, expected_receivedlevels))
+        
+
+class TestPropagateSound(unittest.TestCase):
+    '''
+    '''
+    def setUp(self):
+        self.kwargs = {}
+        
+        self.kwargs['bats_xy'] = np.array(([1,1],[2,1],[2,2]))
+        self.kwargs['focal_bat'] = np.array([1,1])
+        self.kwargs['bats_orientations'] = np.array([90,45,135])
+        self.kwargs['call_directionality'] = lambda X : 0 
+        self.kwargs['hearing_directionality'] = lambda X : 0
+        self.kwargs['source_level'] = {'ref_distance' : 0.1, 'dBSPL':120}
+
+        self.kwargs['reflection_function'] = pd.DataFrame(data=[], index=range(36*36),
+                                                          columns=['ref_distance',
+                                                                   'incoming_theta',
+                                                                   'outgoing_theta',
+                                                                   'reflection_strength'])
+        self.kwargs['reflection_function']['reflection_strength'] = np.tile(-10, 36*36)
+        all_angles = np.array(np.meshgrid(np.linspace(-180,180,36),
+                                          np.linspace(-180,180,36))).T.reshape(-1,2)
+        
+        self.kwargs['reflection_function']['incoming_theta'] = all_angles[:,0]
+        self.kwargs['reflection_function']['outgoing_theta'] = all_angles[:,1]
+        self.kwargs['reflection_function']['ref_distance'] = np.tile(0.1, 36*36)
+
+    def test_numberofsounds(self):
+        
+        # calculate the received levels and angles of arrivals of the sounds
+        conspecific_calls = propagate_sounds('conspecific_calls', **self.kwargs)
+        secondary_echoes = propagate_sounds('2ndary_echoes', **self.kwargs)
+
+        num_conspecificcalls, num_2daryechoes = conspecific_calls.shape[0], secondary_echoes.shape[0]
+        
+        nbats = self.kwargs['bats_xy'].shape[0]
+        exp_numcalls = nbats-1
+        exp_num2daryechoes = (nbats-2)*(nbats-1)
+
+        self.assertTrue(np.array_equal([num_conspecificcalls, num_2daryechoes],
+                                       [exp_numcalls, exp_num2daryechoes]))
+
 
 if __name__ == '__main__':
 

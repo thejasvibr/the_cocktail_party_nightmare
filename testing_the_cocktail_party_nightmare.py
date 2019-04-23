@@ -1410,6 +1410,29 @@ class TestPropagateSound(unittest.TestCase):
                                        [exp_numcalls, exp_num2daryechoes]))
 
 
+class TestCombineSounds(unittest.TestCase):
+    '''
+    '''
+    def setUp(self):
+        # generate two empty DFs with no data yet. 
+        self.A = pd.DataFrame(data=[], index=range(10), columns=['start', 'stop',
+                         'theta', 'level','id'])
+        self.B = A.copy()
+        self.B['identity'] = np.nan
+
+    def test_basic(self):
+        '''Check if two dfs with dissimilar columns names will be concateneted correctly:
+        '''
+        combined_sounds = combine_sounds([self.A, self.B])        
+        num_expected_rows = self.A.shape[0] + self.B.shape[0]
+        joined_columns = set(self.A.columns).union(set(self.B.columns))
+        num_expected_colnums = len(joined_columns)
+
+        self.assertTrue(np.array_equal([num_expected_rows, num_expected_colnums],
+                                       list(combined_sounds.shape)))
+      
+
+
 if __name__ == '__main__':
 
     unittest.main()

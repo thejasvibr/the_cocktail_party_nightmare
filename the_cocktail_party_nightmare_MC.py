@@ -24,6 +24,11 @@ import scipy.misc as misc
 import scipy.spatial as spl
 from poisson_disc import Grid
 
+
+class MissingKeyword(ValueError):
+    '''raised when there's a missing keywork argument
+    '''
+
 def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5):
     '''
     Function which does a Monte Carlo simulation of call arrival in the pulse
@@ -1254,14 +1259,15 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
          raise ValueError('Number of neighbouring points must  be >=1 ')
 
     insufficient_points = True
-    sidelength = 1.5
+    grid_size = 2*(nbr_distance/np.sqrt(2))
+
+    sidelength = (np.ceil(np.sqrt(npoints))+0.1)*grid_size
+
     while insufficient_points :
-
-
         length, width = sidelength, sidelength
         grid = Grid(nbr_distance, length, width)
 
-        data = grid.poisson((length,width))
+        data = grid.poisson((0,0))
         data_np = np.asanyarray(data)
 
         rows, columns = data_np.shape
@@ -1270,11 +1276,10 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
         else :
             insufficient_points = False
 
-
     centremost_pt = choose_centremostpoint(data_np)
     centremost_index = find_rowindex(data_np, centremost_pt)
 
-    nearby_points = find_nearbypoints(data_np, centremost_index, npoints)
+    nearby_points = find_nearbypoints(data_np, centremost_index, npoints-1)
 
     return(nearby_points, centremost_pt)
 
@@ -1581,7 +1586,8 @@ def propagate_sounds(sound_type, **kwargs):
         received_sounds = sound_type_propagation[sound_type](**kwargs)
         return(received_sounds)
     except:
-        raise ValueError('Invalid sound type, unable to calculate received levels')
+        print(sound_type)
+        
 
 def calculate_conspecificcall_levels(**kwargs):
     '''Calculates the received levels and angles of reception of conspecific calls
@@ -1601,15 +1607,18 @@ def calculate_conspecificcall_levels(**kwargs):
                                        and other related attributes of the sound : 
                                        start | stop | theta | level |
     '''
-    if kwargs['bats_xy'].shape[1] < 2:
+    if kwargs['bats_xy'].shape[0] < 2:
         raise ValueError('Çonspecific calls cannot propagated for Nbats < 2')
     else:
-        hearing_directionality = kwargs['hearing_directionality']
-        call_directionality = kwargs['call_directionality']
-        source_level = kwargs['source_level']
-        focal_bat = kwargs['focal_bat']
-        bats_xy = kwargs['bats_xy']
-        
+        try:
+            hearing_directionality = kwargs['hearing_directionality']
+            call_directionality = kwargs['call_directionality']
+            source_level = kwargs['source_level']
+            focal_bat = kwargs['focal_bat']
+            bats_xy = kwargs['bats_xy']
+        except:
+            pass
+            
         conspecific_call_paths = calculate_conspecificcall_paths(**kwargs)
         conspecific_calls = calculate_conspecificcallreceived_levels(conspecific_call_paths,
                                                                      call_directionality,
@@ -1642,21 +1651,23 @@ def calculate_2ndaryecho_levels(**kwargs):
     '''
     # There will be secondary echoes only when there are >= 3 bats
     if kwargs['bats_xy'].shape[0] >= 3:
-        reflection_function = kwargs['reflection_function']
-        hearing_directionality = kwargs['hearing_directionality']
-        call_directionality = kwargs['call_directionality']
-        source_level = kwargs['source_level']
-        focal_bat = kwargs['focal_bat']
-        bats_xy = kwargs['bats_xy']
+        try:
+            reflection_function = kwargs['reflection_function']
+            hearing_directionality = kwargs['hearing_directionality']
+            call_directionality = kwargs['call_directionality']
+            source_level = kwargs['source_level']
+            # calculate the distances and angles involved in the secondary echo paths
+            secondary_echopaths = calculate_2ndary_echopaths(**kwargs)
+            
+            # calculate the sound pressure levels based on the geometry + emission-reception directionalities        
+            secondary_echoes = calculate_2ndaryechoreceived_levels(secondary_echopaths,
+                                                                       reflection_function,
+                                                                       call_directionality,
+                                                                       hearing_directionality,
+                                                                       source_level)
+        except:
+            pass
 
-        # calculate the distances and angles involved in the secondary echo paths
-        secondary_echopaths = calculate_2ndary_echopaths(**kwargs)
-        # calculate the sound pressure levels based on the geometry + emission-reception directionalities        
-        secondary_echoes = calculate_2ndaryechoreceived_levels(secondary_echopaths,
-                                                               reflection_function,
-                                                               call_directionality,
-                                                               hearing_directionality,
-                                                               source_level)
     else:
         # other wise return an empty sound df. 
         secondary_echoes = pd.DataFrame(data=[], index=[0],
@@ -2122,6 +2133,51 @@ def implement_hearing_directionality(arrival_angle, hearing_dirnlty):
     
     pass
 
+def combine_sounds(sounddf_list):
+    '''Combine 2>= sound dfs into one df. 
+    EAch sound df is expected to at least have the following columns:
+        start : start time of 
+        stop : 
+        level : 
+        theta : 
+
+    '''
+    combined_sounds = pd.concat(sounddf_list, ignore_index=True)
+    return(combined_sounds)
+
+def place_bats_inspace(**kwargs):
+    ''' Assign bats their positions and heading directions in 2D
+    The positions of the bats are placed randomly so that 
+    they are at least a fixed distance away from their nearest neighbours.
+    This is achieved through Poisson disk sampling.
+    
+
+    Keyword Arguments:
+        Nbats : integer >0. Number of bats in the group
+
+        min_spacing : float> 0. Minimum distance between neighbouring bats in metres.
+
+        heading_variation : float >0. Range of heading directions in degrees.
+                            eg. if heading_variation = 10, 
+                            then all bats will have a uniform prob. of 
+                            having headings between [90-10, 90+10] degrees.
+
+    Returns : 
+        bat_xy : list with [Nbats x 2 np.array, focal bat XY]. XY positions of nearby and focal bats
+
+        headings : 1x Nbats np.array. Heading direction of bats in degrees.
+       
+    '''
+    min_heading, max_heading = 90 - kwargs['heading_variation'], 90 + kwargs['heading_variation']
+    headings = np.random.choice(np.arange(min_heading, max_heading+1),
+                                kwargs['Nbats'])
+    
+    nearby, focal = generate_surroundpoints_w_poissondisksampling(kwargs['Nbats'],
+                                                                   kwargs['min_spacing'])
+
+    return([nearby, focal], headings)
+
+
 def run_CPN(**kwargs):
     ''' Run one iteration of the spatially explicit CPN, and calculate the
     number of echoes heard.
@@ -2154,7 +2210,7 @@ def run_CPN(**kwargs):
            hearing_directionality : function. Relates the change in received level in dB with sound arrival angle
                           The heading angle is set to 0 here, and the angle right behind the bat is 180 degrees. 
 
-           reflection_strength : function. Describes the reflection characteristics of echoes bouncing off
+           reflection_function : function. Describes the reflection characteristics of echoes bouncing off
                                bats. This is different from the target_strength because the position of
                                reception and position of emission are different. 
 
@@ -2169,31 +2225,31 @@ def run_CPN(**kwargs):
     Returns:
 
         num_echoes_heard : Number of echoes heard        
-    
+
     '''
     # place Nbats out 
-    bats_xy, bats_orientations = place_bats_inspace(**kwargs)
+    bat_positions, bats_orientations = place_bats_inspace(**kwargs)
+    nearby_bats, focal_bat = bat_positions
 
-    # choose focal bat
-    focal_bat = choose_centremostpoint(bats_xy)
-    
+    bats_xy = np.row_stack((focal_bat, nearby_bats))
 
     kwargs['bats_xy'] = bats_xy
     kwargs['bats_orientations'] = bats_orientations
     kwargs['focal_bat'] = focal_bat
 
-
+    print(kwargs.keys())
     # calculate the received levels and angles of arrivals of the sounds
-    conspecific_calls = propagate_sounds(sound_type='conspecific_calls', **kwargs)
-    secondary_echoes = propagate_sounds(sound_type='2dary_echoes', **kwargs)
+    conspecific_calls = propagate_sounds('conspecific_calls', **kwargs)
+    secondary_echoes = propagate_sounds('2ndary_echoes', **kwargs)
 
     # place the conspecific calls and 2dary echoes in the IPI
-    calls_and_2daryechoes = combine_sounds(conspecific_calls, secondary_echoes)
-
-    # place target echoes in the IPI and check how many of them are heard
-    target_echoes = generate_echoes(Nechoes, echo_properties)
-
-    num_echoes_heard = calculate_num_heardechoes(target_echoes, calls_and_2daryechoes,
-                              temporal_masking_fn,
-                              spatial_release_fn)
-    return(num_echoes_heard)
+    calls_and_2daryechoes = combine_sounds([conspecific_calls, secondary_echoes])
+#
+#    # place target echoes in the IPI and check how many of them are heard
+#    target_echoes = generate_echoes(Nechoes, echo_properties)
+#
+#    num_echoes_heard = calculate_num_heardechoes(target_echoes, calls_and_2daryechoes,
+#                              temporal_masking_fn,
+#                              spatial_release_fn)
+#    return(num_echoes_heard)
+    return(calls_and_2daryechoes)

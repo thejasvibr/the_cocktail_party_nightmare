@@ -28,22 +28,109 @@ from poisson_disc import Grid
 class MissingKeyword(ValueError):
     '''raised when there's a missing keywork argument
     '''
+    pass
 
-def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5):
+
+def assign_random_arrival_times(sound_df, **kwargs):
+    '''Assigns a random arrival time to the sounds in the input sound_df. 
+    The sound_df can be either conspecific calls or secondary echoes. 
+    
+    Parameters:
+
+        sound_df : pd.DataFrame with at least the following columns:
+                    'start', 'stop'
+    
+    Keyword Arguments:
+        simtime_resoln
+        interpulse_interval
+        echocall_duration
+
+    Returns: 
+        sound_df with values assigned to the start and stop columns
+
     '''
-    Function which does a Monte Carlo simulation of call arrival in the pulse
-    interval
+    num_timesteps = calc_num_timesteps_in_IPI(**kwargs)
+    ipi_in_timesteps = range(num_timesteps)
+
+    echocall_timesteps = int(np.around(kwargs['echocall_duration']/kwargs['simtime_resolution']))
+    num_sounds = sound_df.shape[0]
+
+    start_stop = place_sounds_randomly_in_IPI(ipi_in_timesteps, echocall_timesteps,
+                                              num_sounds)
+    sound_df['start'] = start_stop[:,0]
+    sound_df['stop'] = start_stop[:,1]
+    return(sound_df)
+
+def calc_num_timesteps_in_IPI(**kwargs):
+    '''Calculates the number of time steps in an IPI given the simtime resolution
+    Keyword Arguments:
+        simtime_resolution
+        interpulse_interval
+    Returns:
+        num_timesteps : integer.         
+    '''
+    num_timesteps = int(np.ceil(kwargs['interpulse_interval']/kwargs['simtime_resolution']))
+    return(num_timesteps)
+
+def assign_real_arrival_times(sound_df, **kwargs):
+    '''Assigns a random arrival time to the sounds in the input sound_df. 
+    The sound_df can be either conspecific calls or secondary echoes. 
+    
+    Parameters:
+
+        sound_df : pd.DataFrame with at least the following columns:
+                    'start', 'stop'
+    
+    Keyword Arguments:
+        v_sound
+        bats_xy
+        simtime_resoln
+        interpulse_interval
+        echocall_duration
+
+    Returns: 
+        sound_df with values assigned to the start and stop columns
+
+    '''
+    # get the delays at which the primary echoes from all the neighbours arrive
+    dist_mat = spl.distance_matrix(kwargs['bats_xy'], kwargs['bats_xy'])
+    echo_distances = dist_mat[1:,0]*2.0
+    echo_arrivaltimes = echo_distances/kwargs['v_sound']
+    relative_arrivaltimes = np.float64(echo_arrivaltimes/kwargs['interpulse_interval'])
+    
+    # calculate arrival time in the ipi timesteps:
+    num_timesteps = calc_num_timesteps_in_IPI(**kwargs)
+    echo_start_timesteps = np.int64(np.around(relative_arrivaltimes*num_timesteps))
+    
+    echo_timesteps = np.around(kwargs['echocall_duration']/kwargs['simtime_resolution'])
+    echo_end_timesteps = np.int64(echo_start_timesteps + echo_timesteps -1)
+
+    # assign the start and stop timesteps
+    sound_df['start'] = echo_start_timesteps
+    sound_df['stop'] = echo_end_timesteps
+
+    return(sound_df)
+
+   
+    
+
+def place_sounds_randomly_in_IPI(timeline ,calldurn_steps, Nsounds = 1):
+    '''Randomly places 
+    
 
     Inputs:
 
     timeline: list. range object with iteration numbers ranging from 0 to the
-             the number of iterations the inter pulse interval consists of
+             the number of iterations the inter pulse interval consists of.
+             Eg. if the temporal resolution of the simulations is 10**-6 seconds
+             per timeblock then the IPI of 0.1 seconds is split into 10**5 steps.
+             The timeline will thus be xrange(10**5) or range(10**5)
+             
 
     calldurn_steps : integer. the length of the calls which are arriving in the
               pulse interval
 
-    Ncalls : integer. number of calls to generate per pulse interval.
-    replicates: integer. number of times to generate Ncalls in the pulse interval
+    Nsounds : integer. number of calls to generate per pulse interval. Defaults to 1
 
     Outputs:
 
@@ -52,36 +139,26 @@ def generate_calls_randomly(timeline,calldurn_steps,Ncalls = 1,replicates=10**5)
 
 
     '''
-
+    assert len(timeline) > calldurn_steps, 'Call duration cannot be greater than ipi!!'
     # Achtung: I actually assume a right truncated timeline here
     # because I want to ensure the full length of the call is always
     # assigned within the inter-pulse interval
-
+    	
     actual_timeline = timeline[:-calldurn_steps]
 
-    multi_replicate_calls =[]
+    this_replicate = []
 
-    for each_replicate in range(replicates):
+    for every_call in range(Nsounds):
 
-        this_replicate = []
+        call_start = np.random.choice(actual_timeline)
+        call_end = call_start + calldurn_steps -1
 
-        for every_call in range(Ncalls):
-
-            call_start = np.random.choice(actual_timeline)
-            call_end = call_start + calldurn_steps -1
-
-            if call_end > len(timeline):
-
-                raise Exception('call_end is beyond current timeline')
-
-            else:
-
-               this_replicate.append([call_start,call_end])
-
-        multi_replicate_calls.append(this_replicate)
-
-    return(multi_replicate_calls)
-
+        if call_end > len(timeline):
+            raise Exception('call_end is beyond current timeline')
+        else:
+           this_replicate.append([call_start,call_end])
+    sound_times = np.array(this_replicate)    
+    return(sound_times)
 
 def calc_pechoesheard(num_echoes_heard, total_echoes):
     '''Calculates the cumulative probabilities of 1,2,3,...N echoes
@@ -408,7 +485,8 @@ def calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn,
         for callindex,each_call in calls.iterrows():
 
             heard = check_if_echo_heard(each_echo,each_call,temporalmasking_fn,
-                                                          spatialrelease_fn)
+                                                          spatialrelease_fn, 
+                                                          **kwargs)
             call_doesnotmask.append(heard)
 
         #The echo is heard only if all calls do not mask it
@@ -447,10 +525,8 @@ def check_if_echo_heard(echo,call,temporalmasking_fn,spatialrelease_fn,
 
     echo_heard : Boolean. True if echo is heard, False if it could be masked
     '''
-    if not 'simtime_resoln' in kwargs.keys():
-        simtime_resoln = 10**-4
-    else :
-        simtime_resoln = kwargs['simtime_resoln']
+   
+    simtime_resoln = kwargs['simtime_resoln']
 
     time_gap = quantify_temporalmasking(echo,call)
 
@@ -1183,53 +1259,6 @@ def calc_RL(distance, SL, ref_dist):
 
     return(RL)
 
-
-
-def implement_poissondisk_spatial_arrangement(numbats,nbr_distance,
-                                                                 source_level):
-    '''Distributes points/bats over space randomly with a minimum distance
-    between points through the Poisson disk sampling algorithm of Robert Brids
-    -on. Based on the distances to the focal bat the received level is calcula-
-    ted. The angle of arrival is also calculated.
-
-    The Poisson disk generation is implemented through code from IHautI
-    https://github.com/IHautaI/poisson-disc
-
-    Parameters:
-
-    numbats : integer>0. Number of bats in the group, excluding the focal bat
-
-    nbr_distance : float>0. Minimum distance between points in the group in met
-                    -res
-
-    source_level : dictionary with two keys :
-            'intensity' : float. Sound pressure level at which a bat calls ref
-                         ref 20 muPa.
-            'ref_distance' : float>0. distance in meters at which the call
-                            intensity has been measured at.
-
-
-    Returns:
-
-    sounds_thetaintensity : pd.DataFrame with the following column names :
-                | theta | intensity |
-                These columns can then be replaced in the original
-                pd.DataFrame which additionally has the start and stop times
-                of the different calls.
-    '''
-
-    nbr_points, centre_pt = generate_surroundpoints_w_poissondisksampling(
-                                                        numbats, nbr_distance)
-
-    radial_dist, thetas  = calculate_r_theta(nbr_points,centre_pt)
-
-    sounds_intensity = np.apply_along_axis(
-                            calculate_receivedlevels,1, radial_dist.reshape(-1,1),
-                                                                source_level)
-    return(thetas, sounds_intensity)
-
-
-
 def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
     '''Generates a set of npoints+1 roughly equally placed points using the
     Poisson disk sampling algorithm. The point closest to the centroid is
@@ -1559,8 +1588,11 @@ def make_focal_first(xy_posns, focal_xy):
     return(focal_first)
 
 def propagate_sounds(sound_type, **kwargs):
-    '''Propagates a sound and calculates the received levels and angles 
-    
+    '''Propagates a sound and calculates the received levels and angles.
+    Conspecific calls and primary echoes are placed randomly in the interpulse
+    interval. Primary echoes are placed according to their calculated time of
+    arrival by the distances at which the neighbouring bats are at. 
+
     Parameters:
         sound_type : str. defines which kind of sound is being propagated. 
                      The valid entries are either 'secondary_echoes',
@@ -1581,9 +1613,9 @@ def propagate_sounds(sound_type, **kwargs):
 
     '''
   
-    sound_type_propagation = {'secondary_echoes': calculate_2ndaryecho_levels,
+    sound_type_propagation = {'secondary_echoes': calculate_secondaryecho_levels,
                                'conspecific_calls' : calculate_conspecificcall_levels,
-                               'primary_echoes' : calculate_echo_levels}
+                               'primary_echoes' : calculate_primaryecho_levels}
 
     try:
         received_sounds = sound_type_propagation[sound_type](**kwargs)
@@ -1592,9 +1624,6 @@ def propagate_sounds(sound_type, **kwargs):
         print(sound_type)
         
        
-def calculate_echo_levels(**kwargs):
-    
-    pass
 
 def calculate_conspecificcall_levels(**kwargs):
     '''Calculates the received levels and angles of reception of conspecific calls
@@ -1631,7 +1660,7 @@ def calculate_conspecificcall_levels(**kwargs):
                                                                      source_level)
         return(conspecific_calls)
 
-def calculate_2ndaryecho_levels(**kwargs):
+def calculate_secondaryecho_levels(**kwargs):
     ''' Calculates the received levels and angle of reception of 2ndary echoes from a conspecific call
     bouncing off conspecifics once and reaching the focal bat
 
@@ -1661,10 +1690,10 @@ def calculate_2ndaryecho_levels(**kwargs):
             call_directionality = kwargs['call_directionality']
             source_level = kwargs['source_level']
             # calculate the distances and angles involved in the secondary echo paths
-            secondary_echopaths = calculate_echopaths(**kwargs)
+            secondary_echopaths = calculate_echopaths('secondary_echoes', **kwargs)
             
             # calculate the sound pressure levels based on the geometry + emission-reception directionalities        
-            secondary_echoes = calculate_2ndaryechoreceived_levels(secondary_echopaths,
+            secondary_echoes = calculate_echoreceived_levels(secondary_echopaths,
                                                                        reflection_function,
                                                                        call_directionality,
                                                                        hearing_directionality,
@@ -1677,6 +1706,49 @@ def calculate_2ndaryecho_levels(**kwargs):
         secondary_echoes = pd.DataFrame(data=[], index=[0],
                                    columns=['start','stop','theta','level'])
     return(secondary_echoes)
+
+
+def calculate_primaryecho_levels(**kwargs):
+    ''' Calculates the received levels and angle of reception of primary echoes from a conspecific call
+    bouncing off conspecifics once and reaching the focal bat
+
+
+    Keyword Arguments:
+        focal_bat
+        bats_xy
+        bats_orientations
+        reflection_function
+        hearing_directionality
+        call_directionality
+        source_level
+    
+    Returns:
+
+        secondary_echoes : pd.DataFrame. A 'sound' df with received level, angle of arrival
+                                       and other related attributes of the sound : 
+                                       start | stop | theta | level |
+       
+    '''   
+    try:
+        reflection_function = kwargs['reflection_function']
+        hearing_directionality = kwargs['hearing_directionality']
+        call_directionality = kwargs['call_directionality']
+        source_level = kwargs['source_level']
+        # calculate the distances and angles involved in the secondary echo paths
+        echopaths = calculate_echopaths('primary_echoes', **kwargs)
+        
+        # calculate the sound pressure levels based on the geometry + emission-reception directionalities        
+        primary_echoes = calculate_echoreceived_levels(echopaths,
+                                                       reflection_function,
+                                                       call_directionality,
+                                                       hearing_directionality,
+                                                       source_level)
+    except:
+        pass
+
+    return(primary_echoes)
+   
+
 
 def calculate_conspecificcallreceived_levels(conspecificcall_paths,
                                              call_directionality,
@@ -1734,17 +1806,17 @@ def calculate_conspecificcallreceived_levels(conspecificcall_paths,
     
     
 
-def calculate_2ndaryechoreceived_levels(secondary_echopaths,
-                                        reflection_function,
-                                        call_directionality,
-                                        hearing_directionality,
-                                        source_level):
+def calculate_echoreceived_levels(echopaths,
+                                reflection_function,
+                                call_directionality,
+                                hearing_directionality,
+                                source_level):
     '''Calculates the final sound pressure levels at the focal receiver bat given
-    the geometry of the problem. 
+    the geometry of the problem for primary and secondary echoes
 
     Parameters:
 
-        secondary_echopaths : dictionary with geometry related entries. 
+        echopaths : dictionary with geometry related entries. 
                               See calculate_2ndary_echopaths for details.
 
         reflection_function : pd.DataFrame with the following columns:
@@ -1781,23 +1853,23 @@ def calculate_2ndaryechoreceived_levels(secondary_echopaths,
 
         secondaryechoes : pd.DataFrame. A 'sound' df with received level, angle of arrival
                                        and other related attributes of the sound : 
-                                       start | stop | theta | level |
+                                       start | stop | theta | level | route|
 
     '''
     reflection_ref_distance = np.unique(reflection_function['ref_distance'])
 
-    num_echoes = len(secondary_echopaths['sound_routes'])
-    secondaryechoes = pd.DataFrame(data=[], index=range(num_echoes),
-                                   columns=['start','stop','theta','level'])
+    num_echoes = len(echopaths['sound_routes'])
+    echoes = pd.DataFrame(data=[], index=range(num_echoes),
+                                   columns=['start','stop','theta','level','route'])
     # for each secondary echo
-    for echo_id, echo_route in enumerate(secondary_echopaths['sound_routes']):
+    for echo_id, echo_route in enumerate(echopaths['sound_routes']):
         
-        R_incoming = secondary_echopaths['R_incoming'][echo_id]
-        R_outgoing = secondary_echopaths['R_outgoing'][echo_id]
-        theta_emission = secondary_echopaths['theta_emission'][echo_id]
-        theta_reception = secondary_echopaths['theta_reception'][echo_id]
-        theta_incoming = secondary_echopaths['theta_incoming'][echo_id]
-        theta_outgoing = secondary_echopaths['theta_outgoing'][echo_id]
+        R_incoming = echopaths['R_incoming'][echo_id]
+        R_outgoing = echopaths['R_outgoing'][echo_id]
+        theta_emission = echopaths['theta_emission'][echo_id]
+        theta_reception = echopaths['theta_reception'][echo_id]
+        theta_incoming = echopaths['theta_incoming'][echo_id]
+        theta_outgoing = echopaths['theta_outgoing'][echo_id]
         
         # calculate soundpressure level at the reference radius around the target.
         emitted_SPL = source_level['dBSPL'] + call_directionality(theta_emission)
@@ -1825,10 +1897,11 @@ def calculate_2ndaryechoreceived_levels(secondary_echopaths,
             outgoing_SPL = incoming_SPL + reflection_strength
             received_level = calc_RL(R_outgoing, outgoing_SPL, reflection_ref_distance) + hearing_directionality(theta_reception)
 
-        secondaryechoes['theta'][echo_id] = theta_reception
-        secondaryechoes['level'][echo_id] = received_level
+        echoes['theta'][echo_id] = theta_reception
+        echoes['level'][echo_id] = float(received_level)
+        echoes['route'][echo_id] = echo_route
 
-    return(secondaryechoes)
+    return(echoes)
 
 
 def get_reflection_strength(reflection_function, 
@@ -1953,7 +2026,7 @@ def calculate_echopaths(echo_type, **kwargs):
     Parameters:
 
         echo_type : string. Either 'primary_echo' or 'secondary_echo'
-    
+
     Keyword Arguments:
         focal_bat : 1x2 np.array. xy position of focal bat. This is the end point of all the 2ndary
                     paths that are calculated
@@ -2223,8 +2296,14 @@ def run_CPN(**kwargs):
     received conspecific call levels and the 2dary echoes that may arrive at a
     focal bat. 
 
+TODO : 
+    1) make switch to choose which is the focal bat 
     
     Keyword Arguments:
+
+            simtime_resoln : float >0. The time resolution of the simulations in seconds. 
+
+            v_sound : float>0. speed of sound in metres/second. 
 
             Nbats : integer. Number of bats in the group.
 
@@ -2236,6 +2315,10 @@ def run_CPN(**kwargs):
                             This is also assumed to be the direction in which the bat is calling and hearing at.
                             Example  : a heading variation of 10 degrees will mean that all bats in the group
                             are facing between 100-80 degrees with uniform probability.
+
+           interpulse_interval : float>0. Duration of the interpulse interval in seconds. 
+
+           echocall_duration : float>0. Duration of the echo and call in seconds.                               
 
            source_level : dictionary with the following keys and entries:
                           'dB_SPL' : float. Sound pressure level in dB with 20microPascals as reference
@@ -2264,7 +2347,9 @@ def run_CPN(**kwargs):
         num_echoes_heard : Number of echoes heard        
 
     '''
-    # place Nbats out 
+    assert kwargs['Nbats'] >= 1, 'The cocktail party nightmare has to have >= 1 bats! '
+    
+    # place Nbats out and choose the centremost bat as the focal bat 
     bat_positions, bats_orientations = place_bats_inspace(**kwargs)
     nearby_bats, focal_bat = bat_positions
 
@@ -2277,19 +2362,26 @@ def run_CPN(**kwargs):
     print(kwargs.keys())
     # calculate the received levels and angles of arrivals of the sounds
     conspecific_calls = propagate_sounds('conspecific_calls', **kwargs)
-    secondary_echoes = propagate_sounds('2ndary_echoes', **kwargs)
+    secondary_echoes = propagate_sounds('secondary_echoes', **kwargs)
+
+    
+    # assign random times of arrival to the sounds :
+    assign_random_arrival_times(conspecific_calls, **kwargs)
+    assign_random_arrival_times(secondary_echoes, **kwargs)
+    
 
     # place the conspecific calls and 2dary echoes in the IPI
     maskers = combine_sounds([conspecific_calls, secondary_echoes])
 
     # place target echoes in the IPI and check how many of them are heard
-    target_echoes = generate_echoes(Nechoes, echo_properties)
+    target_echoes = propagate_sounds('primary_echoes', **kwargs)
+    assign_real_arrival_times(target_echoes, **kwargs)
 
 #    num_echoes_heard = calculate_num_heardechoes(target_echoes, maskers,
 #                              temporal_masking_fn,
 #                              spatial_release_fn)
 #    return(num_echoes_heard)
-    return(maskers)
+    return(secondary_echoes, conspecific_calls, target_echoes)
 
 
 if __name__ == '__main__':
@@ -2297,12 +2389,16 @@ if __name__ == '__main__':
     B = 2 
 
     kwargs={}
+    kwargs['interpulse_interval'] = 0.1
+    kwargs['v_sound'] = 330
+    kwargs['simtime_resolution'] = 10**-6
+    kwargs['echocall_duration'] = 0.003
     kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
     kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
     reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
     thetas = np.linspace(-180,180,12)
     input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
-    reflectionfunc['reflection_strength'] = np.random.normal(-60,5,
+    reflectionfunc['reflection_strength'] = np.random.normal(-40,5,
                                               input_output_angles.shape[0])
     reflectionfunc['incoming_theta'] = input_output_angles[:,0]
     reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
@@ -2310,7 +2406,24 @@ if __name__ == '__main__':
     kwargs['reflection_function'] = reflectionfunc
     kwargs['heading_variation'] = 10
     kwargs['min_spacing'] = 0.5
-    kwargs['Nbats'] = 10
+    kwargs['Nbats'] = 50
     kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
+    
+    a, b, c = run_CPN(**kwargs)
+    print(a.tail(), b.head())
+    
+    plt.figure()
+    plt.xlim(0,10**5)
+    for i,row in c.iterrows():
+        plt.plot([row['start'], row['stop']],[i*0.5,i*0.5])
+    for j, row in a.iterrows():
+        y = 30 + np.random.normal(0,1,1)
+        plt.plot([row['start'], row['stop']],[y,y], 'r', linewidth=2.0)
+    for j, row in a.iterrows():
+        y = 20 + np.random.normal(0,1,1)
+        plt.plot([row['start'], row['stop']],[y,y], 'g', linewidth=2.0)
+    
+    
+        
+        
 
-    _ = run_CPN(**kwargs)

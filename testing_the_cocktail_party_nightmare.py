@@ -899,15 +899,18 @@ class TestPropagateSound(unittest.TestCase):
         # calculate the received levels and angles of arrivals of the sounds
         conspecific_calls = propagate_sounds('conspecific_calls', **self.kwargs)
         secondary_echoes = propagate_sounds('secondary_echoes', **self.kwargs)
+        primary_echoes = propagate_sounds('primary_echoes', **self.kwargs)
         
         num_conspecificcalls, num_2daryechoes = conspecific_calls.shape[0], secondary_echoes.shape[0]
+        num_1echoes =  primary_echoes.shape[0]
 
         nbats = self.kwargs['bats_xy'].shape[0]
         exp_numcalls = nbats-1
         exp_num2daryechoes = (nbats-2)*(nbats-1)
+        exp_num1echoes = nbats-1
 
-        self.assertTrue(np.array_equal([num_conspecificcalls, num_2daryechoes],
-                                       [exp_numcalls, exp_num2daryechoes]))
+        self.assertTrue(np.array_equal([num_conspecificcalls, num_2daryechoes, num_1echoes],
+                                       [exp_numcalls, exp_num2daryechoes, exp_num1echoes]))
 
 class TestCombineSounds(unittest.TestCase):
     '''
@@ -962,6 +965,105 @@ class TestRunCPN(unittest.TestCase):
         '''
         num_echoesheard = run_CPN(**self.kwargs)
         self.assertTrue(isinstance(num_echoesheard, int))
+
+
+class TestPlaceSoundsRandomlyinIPI(unittest.TestCase):
+    '''
+    '''
+    def test_basic(self):
+        '''simple test to chck if correct number of sounds are being assigned
+        '''
+        exp_num_sounds = [5,10,100]
+        got_num_sounds = []
+        for num_sound in exp_num_sounds:
+            sound_times = place_sounds_randomly_in_IPI(range(10**5),30,num_sound)
+            got_num_sounds.append(sound_times.shape[0])
+        
+        self.assertTrue(np.array_equal(exp_num_sounds, got_num_sounds))
+
+    def test_weird(self):
+        '''make sure an error is thrown when the call duration is longer than the ipi
+        '''
+        with self.assertRaises(AssertionError) as context:
+            place_sounds_randomly_in_IPI(range(10**5),10**6,2)
+
+        self.assertTrue('Call duration cannot be greater than ipi!!' in context.exception)
+
+class TestAssignRandomArrivalTimes(unittest.TestCase):
+    
+    def setUp(self):
+        '''
+        '''
+        self.calls = pd.DataFrame(data=[], columns = ['start','stop','theta'],index=range(10))
+        self.kwargs ={}
+        self.kwargs['simtime_resolution'] = 10**-6
+        self.kwargs['interpulse_interval'] = 0.1
+        self.kwargs['echocall_duration'] = 0.003
+        
+    def check_num_nulls(self,X):
+        num_nulls = sum(pd.isnull(X))
+        return(num_nulls)
+
+    def test_basis(self):
+        '''Check if the number of start-stop times correspond to the number of sounds in sound_df
+        '''
+        self.calls = assign_random_arrival_times(self.calls, **self.kwargs)
+        startstop_null = [self.check_num_nulls(self.calls['start']),
+                          self.check_num_nulls(self.calls['stop'])]
+
+        # check that there are no missing values
+        self.assertTrue(np.array_equal([0,0], startstop_null))
+
+class TestAssignRealArrivalTimes(unittest.TestCase):
+    '''
+    '''
+    def setUp(self):
+        self.echoes = pd.DataFrame(data=[], columns = ['start','stop','theta'],index=range(1))
+        self.kwargs ={}
+        self.kwargs['simtime_resolution'] = 10**-6
+        self.kwargs['interpulse_interval'] = 0.1
+        self.kwargs['echocall_duration'] = 0.003
+        self.kwargs['v_sound'] = 330.0
+    
+    def test_oneecho(self):
+        '''check that the time of arrival is proper for just one target
+        '''
+        self.kwargs['bats_xy'] = np.array(([0,0],[1,0]))
+        exp_start = int(np.around((2/self.kwargs['v_sound'])/self.kwargs['simtime_resolution']))
+        exp_echocall_timesteps = int(np.around(self.kwargs['echocall_duration']/self.kwargs['simtime_resolution']))
+        exp_stop = exp_start + exp_echocall_timesteps -1 
+
+        assign_real_arrival_times(self.echoes, **self.kwargs)
+        self.assertTrue(np.array_equal([exp_start, exp_stop],
+                                        np.array(self.echoes[['start','stop']]).flatten()))
+        
+    
+    def test_basiccross(self):
+        '''check if the echo TOA are proper for a basic cross configuration of 4 bats 
+        with the focal in the centre
+        '''
+        ipi_timesteps = calc_num_timesteps_in_IPI(**self.kwargs)
+        self.echoes = pd.DataFrame(data=[], columns = ['start','stop','theta'],index=range(4))
+        self.kwargs['bats_xy'] = np.array(([0,0],[2,0],[-3,0],[0,-4],[0,5]))
+        assign_real_arrival_times(self.echoes, **self.kwargs)
+        
+        echo_dists = 2*spl.distance_matrix(self.kwargs['bats_xy'], self.kwargs['bats_xy'])
+        distances = echo_dists[1:,0]
+        
+        starts = distances/self.kwargs['v_sound']
+        relative_starts = np.float64(starts/self.kwargs['interpulse_interval'])
+        exp_start = np.int64(np.around(relative_starts*ipi_timesteps))
+        exp_echocall_timesteps = np.around(self.kwargs['echocall_duration']/self.kwargs['simtime_resolution'])
+        exp_stop = np.int64(exp_start + exp_echocall_timesteps -1 )
+        exp_start_stop = np.column_stack((exp_start, exp_stop)).reshape(-1,2)
+        got_start_stop = np.array(self.echoes[['start','stop']]).reshape(-1,2)
+        print(exp_start_stop, got_start_stop)
+
+        self.assertTrue(np.array_equal(exp_start_stop, got_start_stop))
+        
+        
+        
+        
 
 if __name__ == '__main__':
 

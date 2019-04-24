@@ -1563,7 +1563,9 @@ def propagate_sounds(sound_type, **kwargs):
     
     Parameters:
         sound_type : str. defines which kind of sound is being propagated. 
-                     The valid entries are either '2ndary_echoes' or 'conspecific_calls'
+                     The valid entries are either 'secondary_echoes',
+                                                  'conspecific_calls' OR
+                                                  'primary_echoes'
 
     Keyword Arguments:
         focal_bat
@@ -1579,8 +1581,9 @@ def propagate_sounds(sound_type, **kwargs):
 
     '''
   
-    sound_type_propagation = {'2ndary_echoes': calculate_2ndaryecho_levels,
-                               'conspecific_calls' : calculate_conspecificcall_levels}
+    sound_type_propagation = {'secondary_echoes': calculate_2ndaryecho_levels,
+                               'conspecific_calls' : calculate_conspecificcall_levels,
+                               'primary_echoes' : calculate_echo_levels}
 
     try:
         received_sounds = sound_type_propagation[sound_type](**kwargs)
@@ -1588,6 +1591,10 @@ def propagate_sounds(sound_type, **kwargs):
     except:
         print(sound_type)
         
+       
+def calculate_echo_levels(**kwargs):
+    
+    pass
 
 def calculate_conspecificcall_levels(**kwargs):
     '''Calculates the received levels and angles of reception of conspecific calls
@@ -1614,17 +1621,14 @@ def calculate_conspecificcall_levels(**kwargs):
             hearing_directionality = kwargs['hearing_directionality']
             call_directionality = kwargs['call_directionality']
             source_level = kwargs['source_level']
-            focal_bat = kwargs['focal_bat']
-            bats_xy = kwargs['bats_xy']
         except:
             pass
-            
+
         conspecific_call_paths = calculate_conspecificcall_paths(**kwargs)
         conspecific_calls = calculate_conspecificcallreceived_levels(conspecific_call_paths,
                                                                      call_directionality,
                                                                      hearing_directionality,
                                                                      source_level)
-        
         return(conspecific_calls)
 
 def calculate_2ndaryecho_levels(**kwargs):
@@ -1657,7 +1661,7 @@ def calculate_2ndaryecho_levels(**kwargs):
             call_directionality = kwargs['call_directionality']
             source_level = kwargs['source_level']
             # calculate the distances and angles involved in the secondary echo paths
-            secondary_echopaths = calculate_2ndary_echopaths(**kwargs)
+            secondary_echopaths = calculate_echopaths(**kwargs)
             
             # calculate the sound pressure levels based on the geometry + emission-reception directionalities        
             secondary_echoes = calculate_2ndaryechoreceived_levels(secondary_echopaths,
@@ -1938,13 +1942,17 @@ def calculate_conspecificcall_paths(**kwargs):
                                                                                                                  conspecificcall_routes)
     return(conspecificall_paths)
 
-def calculate_2ndary_echopaths(**kwargs):
+def calculate_echopaths(echo_type, **kwargs):
     '''Given the positions and orientations of all bats, the output is the
-    distances, angles and secondary echo routes required to calculate the
-    received levels at the focal bat.
+    distances, angles and and routes for primary and secondary echo routes
+    required to calculate the received levels at the focal bat.
 
     For Nbats the total number of secondary echoes a focal bat will hear is:
         N_emitters x N_targets -->  (Nbats-1) x (Nbats-2)
+    
+    Parameters:
+
+        echo_type : string. Either 'primary_echo' or 'secondary_echo'
     
     Keyword Arguments:
         focal_bat : 1x2 np.array. xy position of focal bat. This is the end point of all the 2ndary
@@ -1957,7 +1965,7 @@ def calculate_2ndary_echopaths(**kwargs):
 
     Returns:
 
-        secondary_echopaths : dictionary with following 7 keys - each with 
+        echo_paths : dictionary with following 7 keys - each with 
                     sound_routes|theta_emission|R_incoming|theta_incoming|theta_outgoing|R_outgoing|theta_reception
 
                     All theta values are in degrees. 
@@ -1970,34 +1978,63 @@ def calculate_2ndary_echopaths(**kwargs):
     bats_orientations = kwargs['bats_orientations']
 
     focal_bat = find_rowindex(bats_xy, kwargs['focal_bat'])
+    
+    echo_routes = make_echo_paths(echo_type, focal_bat, bats_xy)                    
 
+    distance_matrix = spl.distance_matrix(bats_xy, bats_xy)
+
+    echo_paths = {}
+    echo_paths['R_incoming'], echo_paths['R_outgoing'] = calc_R_in_out(distance_matrix,
+                                                                                           echo_routes)
+    echo_paths['theta_incoming'], echo_paths['theta_outgoing'] = calc_echo_thetas(bats_xy,
+                                                                                                           bats_orientations,
+                                                                                                           echo_routes,
+                                                                                                           'incoming_outgoing')
+    echo_paths['theta_emission'], echo_paths['theta_reception'] = calc_echo_thetas(bats_xy,
+                                                                                                            bats_orientations,
+                                                                                                            echo_routes,
+                                                                                                            'emission_reception')
+    echo_paths['sound_routes'] = tuple(echo_routes)
+    return(echo_paths)
+
+def make_echo_paths(echo_type, focal_bat, bats_xy):   
+    
+    echo_paths= {'primary_echoes' : paths_1aryechoes,
+                 'secondary_echoes': paths_2daryechoes}
+
+    echo_routes = echo_paths[echo_type](focal_bat, bats_xy)
+    return(echo_routes)
+
+def paths_2daryechoes(focal_bat, bats_xy): 
     # make all emitter-target and target-receiver paths using the row indices as 
     # an identifier
     emitters = set(range(bats_xy.shape[0])) - set([focal_bat])
     targets = set(range(bats_xy.shape[0])) - set([focal_bat])
-
-    secondary_echo_routes = []
+    
+    
+    echo_routes = []
     for an_emitter in emitters:
         for a_target in targets:
             if not a_target is an_emitter:
-                emitter_target_focal = (an_emitter, a_target, focal_bat)
-                secondary_echo_routes.append(emitter_target_focal)
+                    emitter_target_focal = (an_emitter, a_target, focal_bat)
+                    echo_routes.append(emitter_target_focal)
+    return(echo_routes) 
+    
+def paths_1aryechoes(focal_bat, bats_xy): 
+    # make all emitter-target and target-receiver paths using the row indices as 
+    # an identifier
+    targets = set(range(bats_xy.shape[0])) - set([focal_bat])
+   
+    echo_routes = []
 
-    distance_matrix = spl.distance_matrix(bats_xy, bats_xy)
+    for a_target in targets:
+        emitter_target_focal = (focal_bat, a_target, focal_bat)
+        echo_routes.append(emitter_target_focal)
+    return(echo_routes) 
+ 
+        
+                        
 
-    secondary_echo_paths = {}
-    secondary_echo_paths['R_incoming'], secondary_echo_paths['R_outgoing'] = calc_R_in_out(distance_matrix,
-                                                                                           secondary_echo_routes)
-    secondary_echo_paths['theta_incoming'], secondary_echo_paths['theta_outgoing'] = calc_2daryecho_thetas(bats_xy,
-                                                                                                           bats_orientations,
-                                                                                                           secondary_echo_routes,
-                                                                                                           'incoming_outgoing')
-    secondary_echo_paths['theta_emission'], secondary_echo_paths['theta_reception'] = calc_2daryecho_thetas(bats_xy,
-                                                                                                            bats_orientations,
-                                                                                                            secondary_echo_routes,
-                                                                                                            'emission_reception')
-    secondary_echo_paths['sound_routes'] = tuple(secondary_echo_routes)
-    return(secondary_echo_paths)
 
 def calc_R_in_out(distance_matrix, sound_routes):
     '''Calculates the direct path length that a sound needs to travel between
@@ -2064,7 +2101,7 @@ def calc_conspecificcall_thetas(bats_xy, bat_orientations, conspecificcall_route
     return(tuple(theta_emission), tuple(theta_reception))
 
 
-def calc_2daryecho_thetas(bats_xy, bat_orientations, sound_routes, which_angles):
+def calc_echo_thetas(bats_xy, bat_orientations, sound_routes, which_angles):
     '''Calculates relative  angles of sound with reference to the heading direction
     of the bats concerned. 
     
@@ -2243,13 +2280,37 @@ def run_CPN(**kwargs):
     secondary_echoes = propagate_sounds('2ndary_echoes', **kwargs)
 
     # place the conspecific calls and 2dary echoes in the IPI
-    calls_and_2daryechoes = combine_sounds([conspecific_calls, secondary_echoes])
-#
-#    # place target echoes in the IPI and check how many of them are heard
-#    target_echoes = generate_echoes(Nechoes, echo_properties)
-#
-#    num_echoes_heard = calculate_num_heardechoes(target_echoes, calls_and_2daryechoes,
+    maskers = combine_sounds([conspecific_calls, secondary_echoes])
+
+    # place target echoes in the IPI and check how many of them are heard
+    target_echoes = generate_echoes(Nechoes, echo_properties)
+
+#    num_echoes_heard = calculate_num_heardechoes(target_echoes, maskers,
 #                              temporal_masking_fn,
 #                              spatial_release_fn)
 #    return(num_echoes_heard)
-    return(calls_and_2daryechoes)
+    return(maskers)
+
+
+if __name__ == '__main__':
+    A = 7
+    B = 2 
+
+    kwargs={}
+    kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
+    kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
+    reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
+    thetas = np.linspace(-180,180,12)
+    input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
+    reflectionfunc['reflection_strength'] = np.random.normal(-60,5,
+                                              input_output_angles.shape[0])
+    reflectionfunc['incoming_theta'] = input_output_angles[:,0]
+    reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
+    reflectionfunc['ref_distance'] = 0.1
+    kwargs['reflection_function'] = reflectionfunc
+    kwargs['heading_variation'] = 10
+    kwargs['min_spacing'] = 0.5
+    kwargs['Nbats'] = 10
+    kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
+
+    _ = run_CPN(**kwargs)

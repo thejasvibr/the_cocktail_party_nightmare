@@ -11,117 +11,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from the_cocktail_party_nightmare_MC import *
 
-class TestTheCPN(unittest.TestCase):
-
-    def setUp(self):
-        temp_mask_colnames = ['timegap_ms','deltadB']
-        time_range = np.linspace(10,-1)
-
-
-        deltadB_vals = np.linspace(-10,0,time_range.size)
-        self.temporalmasking_fn = pd.DataFrame(index=range(time_range.size),
-                                         columns = temp_mask_colnames)
-
-        self.temporalmasking_fn['deltadB'] = deltadB_vals
-        self.temporalmasking_fn['timegap_ms'] = time_range
-
-        deltatheta_vals = np.linspace(0,25,100)
-        sp_rel_colnames = ['deltatheta','dB_release']
-        self.spatialrelease_fn =  pd.DataFrame(index=range(deltatheta_vals.size),
-                                         columns = sp_rel_colnames)
-        self.spatialrelease_fn['deltatheta'] = deltatheta_vals
-        self.spatialrelease_fn['dB_release'] = np.linspace(0,-25,deltatheta_vals.size)
-
-
-
-    def test_populate_sounds(self):
-
-        pi_range = np.arange(0,1000,1)
-        call_durn = 3
-        intensity_range = (60,80)
-        arrival_angles = (75,105)
-        numcalls_in_pi = 10
-
-        all_calls = populate_sounds(pi_range,call_durn,intensity_range,
-                                    arrival_angles,numcalls_in_pi)
-
-        nrows,ncols = all_calls.shape
-        self.assertEqual(nrows,numcalls_in_pi)
-        self.assertEqual(ncols,4)
-
-    def test_calc_angularseparation(self):
-        a1 = 20
-        a2 = 40
-
-        self.assertEqual(calc_angular_separation(a1,a2),20)
-
-        a3 = -90
-        self.assertEqual(calc_angular_separation(a1,a3),110)
-
-        a4 = 310
-        self.assertEqual(calc_angular_separation(a1,a4),70)
-
-
-    def test_quantify_temporal_masking(self):
-        col_names = ['start','stop','theta','level']
-        call = pd.DataFrame(index=[0],columns=col_names)
-        echo = pd.DataFrame(index=[0],columns=col_names)
-
-        call['start'] = 0; call['stop'] = 10
-        echo['start'] = 1 ; echo['stop'] = 11
-
-        timegap_simult = quantify_temporalmasking(echo,call)
-
-        self.assertEqual(timegap_simult,0)
-
-        # case where there is non-overlapping fwd masking:
-        call['start'] = 3; call['stop'] = 13
-        echo['start'] = 15; echo['stop'] = 19
-
-        fwdmask_nonovlp = quantify_temporalmasking(echo,call)
-        self.assertEqual(fwdmask_nonovlp[0],2)
-
-        call['start'] = 5; call['stop'] = 15
-        fwdmask_ovlp = quantify_temporalmasking(echo,call)
-        self.assertEqual(fwdmask_ovlp,0)
-
-        # simultaneous masking :
-        call['start'] = echo['start']; call['stop'] = echo['stop']
-        simult_ovlp = quantify_temporalmasking(echo,call)
-        self.assertEqual(simult_ovlp,0)
-
-        # bkwd overlap :
-        call['start'] = echo['start']+2 ; call['stop'] = echo['stop']+2
-        bkwd_ovlp = quantify_temporalmasking(echo,call)
-        self.assertEqual(bkwd_ovlp[0],-2)
-
-        #bkwd no overlap :
-        call['start'] = echo['start'] +20; call['stop'] = echo['stop'] + 20
-        bkwd_nonoverlap = quantify_temporalmasking(echo,call)
-        self.assertEqual(bkwd_nonoverlap[0],-20)
-
-    def test_calc_pechoesheard(self):
-        numechoes = [0]*10+[1]*10+[2]*10 + [3]*10
-
-        probs,cumprob = calc_pechoesheard(numechoes,3)
-
-        as_expected = np.all(probs == np.array([0.25]*4))
-
-        self.assertTrue(as_expected)
-
-
-
-    def test_get_collocalised_deltadB(self):
-
-        test_timegap = self.temporalmasking_fn['timegap_ms'][3]+0.004
-
-        obtained_deltadB = get_collocalised_deltadB(test_timegap,
-                                                    self.temporalmasking_fn)
-
-        self.assertEqual(obtained_deltadB,self.temporalmasking_fn.iloc[3,1])
-
-
-
 
 class TestingCheckIfEchoHeard(unittest.TestCase)    :
     '''
@@ -511,250 +400,7 @@ class TestingNumEchoesHeard(unittest.TestCase):
         expected_outcome = np.array([0,1])
         outcomes_match_oneheard = np.sum(obtained_outcome - expected_outcome) == 0
         self.assertTrue(outcomes_match_oneheard)
-    
-        
 
-
-
-
-
-class TestingPopulateSounds(unittest.TestCase):
-    '''Checks if the various switches for call directionality
-    and spatial arrangement are running correctly at the original function
-    and at upper functions like run_one_trial
-    '''
-    def setUp(self):
-        num_sounds = 4
-        self.A = 7.3
-        self.sound_df = pd.DataFrame()
-
-        self.sound_df['start'] = np.random.random_integers(0,10,num_sounds)
-        self.sound_df['stop'] = self.sound_df['start'] + 3
-        self.sound_df['level'] = [100,96,90,84]
-        self.sound_df['theta'] = [0,90,180,270]
-
-        # temporal masking and spatial unmasking functions :
-        timegap_ms = np.arange(10,-3,-1)
-        fwd_masking_deltadB = np.linspace(-10,-1,10)
-        bkwd_masking_deltadB = np.linspace(0,-2,3)
-        deltadB = np.concatenate( (fwd_masking_deltadB,bkwd_masking_deltadB ))
-        temp_masking = np.column_stack((timegap_ms,deltadB))
-        self.temporalmasking_fn = pd.DataFrame(temp_masking)
-        self.temporalmasking_fn.columns = ['timegap_ms','deltadB']
-
-        # spatial release function - make everything linear
-
-        deltatheta = np.linspace(0,25)
-        release_dB = np.linspace(0,-25,deltatheta.size)
-        self.spatialrelease_fn = pd.DataFrame(index = range(deltatheta.size) )
-        self.spatialrelease_fn['deltatheta'] = deltatheta
-        self.spatialrelease_fn['dB_release'] = release_dB
-
-    def test_implementcalldirectionality(self):
-        '''check fi the call directionality switch works as expected
-        '''
-        original_levels = np.copy(self.sound_df['level'])
-        emsn_angle = np.pi - np.deg2rad(self.sound_df['theta'])
-        cd_factor = []
-
-        for angle in emsn_angle:
-            cd_factor.append(call_directionality_factor(self.A,angle))
-
-        implement_call_directionality(self.sound_df,self.A)
-        expected = original_levels + cd_factor
-
-        self.assertTrue(np.all(expected==self.sound_df['level']))
-
-    def test_populatesounds_withcalldirectionalityswitch(self):
-        '''Implement the call directionality switch in the
-        test populate sounds
-        '''
-        common_seednumber = 11
-        np.random.seed(common_seednumber)
-        timerange = np.arange(200)
-        duration = 3
-        intensityrange = (90,100)
-        arrivalangles = (0,90)
-        numsounds = 4
-
-        calldirn = {'A':7.0}
-
-        dirnl_output = populate_sounds(timerange,duration,intensityrange,
-                                                    arrivalangles,numsounds,
-                                                    with_dirnlcall=calldirn)
-        # run populate_sound with the previous parameters without call
-        # directionality
-        np.random.seed(common_seednumber)
-
-        wodirnl_output = populate_sounds(timerange,duration,intensityrange,
-                                             arrivalangles,numsounds)
-        # and now implement call directionality
-        implement_call_directionality(wodirnl_output,calldirn['A'])
-
-        levels_aresame = wodirnl_output['level'] == dirnl_output['level']
-        self.assertTrue(np.all(levels_aresame))
-
-    def test_runonetrialworkswithcalldirectionalityswitch(self):
-        '''Run run_one_trial with call directionality and check if expected
-        outcome is produced
-        '''
-
-        numheard = run_one_trial(2,  self.temporalmasking_fn,
-                                 self.spatialrelease_fn,spatial_unmasking=True,
-                                 with_dirnlcall={'A':self.A})
-        self.assertTrue(numheard<5)
-
-    def test_populatesoundswithpoissondisk(self):
-        '''Spread the emitting bats uniformly according to the poisson disk
-        sampling and check that the correct number of points are produced
-        '''
-
-        common_seednumber = 11
-        np.random.seed(common_seednumber)
-        timerange = np.arange(200)
-        duration = 3
-        intensityrange = (90,100)
-        arrivalangles = (0,90)
-        numsounds = 100
-
-
-        sourcelevel = {'ref_distance':0.1,'intensity':120}
-        nbr_dist = 0.6
-        poisdisk = {'source_level':sourcelevel, 'min_nbrdist': nbr_dist }
-
-        received_sounds = populate_sounds(timerange,duration,intensityrange,
-                                             arrivalangles,numsounds,
-                                             poisson_disk = poisdisk)
-
-        num_rows,num_cols = received_sounds.shape
-        self.assertEqual(num_rows, numsounds)
-        self.assertEqual(num_cols, 4)
-
-        # Also just check that the populate sounds with poisson disk accepts
-        # None for the other arguments
-
-        received_sounds_nonecheck = populate_sounds(timerange,duration,
-                                                    None,
-                                             None,numsounds,
-                                             poisson_disk = poisdisk)
-
-        num_rowsnonecheck, num_colsnonecheck = received_sounds_nonecheck.shape
-
-        self.assertEqual(num_rowsnonecheck, numsounds)
-        self.assertEqual(num_colsnonecheck, 4)
-
-
-
-class TestingRunMultipleTrials(unittest.TestCase):
-
-    def setUp(self):
-        # temporal masking and spatial unmasking functions :
-        timegap_ms = np.arange(10,-3,-1)
-        fwd_masking_deltadB = np.linspace(-10,-1,10)
-        bkwd_masking_deltadB = np.linspace(0,-2,3)
-        deltadB = np.concatenate( (fwd_masking_deltadB,bkwd_masking_deltadB ))
-        temp_masking = np.column_stack((timegap_ms,deltadB))
-        self.temporalmasking_fn = pd.DataFrame(temp_masking)
-        self.temporalmasking_fn.columns = ['timegap_ms','deltadB']
-
-        # spatial release function - make everything linear
-
-        deltatheta = np.linspace(0,25)
-        release_dB = np.linspace(0,-25,deltatheta.size)
-        self.spatialrelease_fn = pd.DataFrame(index = range(deltatheta.size) )
-        self.spatialrelease_fn['deltatheta'] = deltatheta
-        self.spatialrelease_fn['dB_release'] = release_dB
-
-        self.calldensities = [1,5,10]
-
-        A_param = 7
-        self.calldirectionality = {'A':A_param}
-        self.numtrials = 1
-
-    def test_runmultipletrials_onerun(self):
-
-        echoesheard = run_multiple_trials(2, [10], self.temporalmasking_fn,
-                        self.spatialrelease_fn,
-                        spatial_unmasking=True,
-                        echo_level_range=(90,100))
-        #print(echoesheard)
-
-    def test_catchinappropriatesizedfunctions(self):
-        '''If a temporal masking  or spatial unmasking function
-        with != 2 columns - then raise error.
-        '''
-
-        self.temporalmasking_fn['nonsensecolumn'] = 0
-
-
-        with self.assertRaises(IndexError):
-            run_multiple_trials(2, [10], self.temporalmasking_fn,
-                                          self.spatialrelease_fn,
-                                          spatial_unmasking=True,
-                                          echo_level_range=(90,100))
-
-    def test_runmultipletrials_onerunwithpoissondisksampling(self):
-        '''
-        '''
-        sourcelevel = {'ref_distance':0.1,'intensity':120}
-        nbr_dist = 0.6
-        poisdisk_params = {'source_level':sourcelevel, 'min_nbrdist': nbr_dist}
-
-        seed_number = 203
-        np.random.seed(seed_number)
-        multip_result = run_multiple_trials(2, [10], self.temporalmasking_fn,
-                                          self.spatialrelease_fn,
-                                          spatial_unmasking=True,
-                                          echo_level_range=(90,100),
-                                            poisson_disk=poisdisk_params)
-        print('multip_result',multip_result)
-
-    def test_runmultipletrials_onehot(self):
-        '''Run the simulations with the onehot switch activated 
-        '''
-        sourcelevel = {'ref_distance':0.1,'intensity':120}
-        nbr_dist = 0.6
-        poisdisk_params = {'source_level':sourcelevel, 'min_nbrdist': nbr_dist}
-
-        seed_number = 203
-        np.random.seed(seed_number)
-        multip_result = run_multiple_trials(5, [10], self.temporalmasking_fn,
-                                          self.spatialrelease_fn,
-                                          spatial_unmasking=True,
-                                          echo_level_range=(90,100),
-                                            poisson_disk=poisdisk_params,
-                                            one_hot=True)
-        num_echoes_heard = multip_result[0]
-        echoes_id = multip_result[1]
-        numechoes_heard_fromid = np.apply_along_axis(np.sum, 2, echoes_id)
-        num_heardechoes_match = np.allclose(numechoes_heard_fromid, num_echoes_heard)
-        self.assertTrue(num_heardechoes_match)
-
-    def test_runmultipletrials_onehot_multicalldensities(self):
-        ''' Run onehot switch at multiple call densities
-        '''
-        sourcelevel = {'ref_distance':0.1,'intensity':120}
-        nbr_dist = 0.6
-        poisdisk_params = {'source_level':sourcelevel, 'min_nbrdist': nbr_dist}
-
-        seed_number = 203
-        np.random.seed(seed_number)
-        multip_result = run_multiple_trials(5, [1,10,20], self.temporalmasking_fn,
-                                          self.spatialrelease_fn,
-                                          spatial_unmasking=True,
-                                          echo_level_range=(90,100),
-                                            poisson_disk=poisdisk_params,
-                                            one_hot=True)
-        num_echoes_heard = multip_result[0]
-        echoes_id = multip_result[1]
-        num_densities, num_trials, num_echoes = echoes_id.shape
-        
-        sum_echoes_heard = np.zeros(num_echoes_heard.shape)
-        for i, each_density in enumerate(range(num_densities)):
-            for j, each_trial in enumerate(range(num_trials)):
-                sum_echoes_heard[i,j] = np.sum(echoes_id[i,j,:])
-        self.assertTrue(np.allclose(sum_echoes_heard, num_echoes_heard))
-        
  
 class TestingCalcNumTimes(unittest.TestCase):
 
@@ -821,135 +467,6 @@ class TestingCalcNumTimes(unittest.TestCase):
         self.assertRaises(TypeError,
                                   lambda : calc_num_times(self.ntrials,self.p))
 
-
-class TestingSpatialArrangementHexagonal(unittest.TestCase):
-    '''Testing the component functions that implement spatial arrangement
-    in the form of a hexagonal array
-    '''
-
-    def test_filluphexagonalrings(self):
-        nbats = 5
-        expected_rings = 1
-
-        ringnums,numbats = fillup_hexagonalrings(nbats)
-
-        self.assertEqual(numbats,nbats)
-        self.assertEqual(expected_rings,ringnums.size)
-
-        nbats = 29
-
-        ringnums,numbats = fillup_hexagonalrings(nbats)
-
-        expected_numbats = np.array([6,12,11])
-        expected_numrings = np.array([1,2,3])
-
-        values_equal = expected_numbats == numbats
-        rings_equal = expected_numrings == ringnums
-
-
-        self.assertTrue(np.all(values_equal))
-        self.assertTrue(np.all(rings_equal))
-
-        self.assertRaises(ValueError,lambda : fillup_hexagonalrings(-1))
-
-    def test_calcRL(self):
-        '''
-        '''
-        SL = 120
-        ref_dist = 0.1
-        dist = 1.0
-
-
-        rl_calculated = calc_RL(dist, SL, ref_dist)
-        rl_expected = 100.0
-
-        self.assertEqual(rl_expected, rl_calculated)
-
-        self.assertRaises(ValueError,
-                          lambda : calc_RL(-0.1, SL, ref_dist))
-
-        self.assertRaises(ValueError,
-                          lambda : calc_RL(0.1, SL, -ref_dist))
-
-        self.assertRaises(ValueError,
-                          lambda : calc_RL(-0.1, SL, -ref_dist))
-
-
-
-
-    def test_calculate_receivedlevels(self):
-        '''
-        '''
-        source_level = {'intensity':120,'ref_distance':0.1}
-
-        rls = calculate_receivedlevels(1.0,source_level)
-
-        self.assertEqual(rls,100.0)
-
-        distances = np.array([1.0,2.0,0.5])
-
-        rls_distances = calculate_receivedlevels(distances,source_level)
-
-        expected_distances = np.apply_along_axis(calc_RL,0,
-                                            distances.reshape(1,-1),
-                                            source_level['intensity'],
-                                            source_level['ref_distance']
-                                            )
-        values_equal = np.array_equal(expected_distances, rls_distances)
-
-        self.assertTrue(np.all(values_equal))
-
-
-    def test_implement_hexagonal_spatial_arrangement(self):
-        '''
-        '''
-        bat_source_level = {'intensity':100, 'ref_distance':1.0}
-        nbr_distance = 0.5
-
-        self.assertRaises(ValueError,
-                          lambda: implement_hexagonal_spatial_arrangement(-1,
-                                                            nbr_distance,
-                                                            bat_source_level) )
-
-        self.assertRaises(ValueError,
-                          lambda: implement_hexagonal_spatial_arrangement(0,
-                                                            nbr_distance,
-                                                            bat_source_level) )
-
-        numbats = 5
-        received_levels, num_calls = implement_hexagonal_spatial_arrangement(
-                                                            numbats,
-                                                            nbr_distance,
-                                                            bat_source_level)
-
-        exp_levels = calc_RL(nbr_distance,
-                             bat_source_level['intensity'],
-                            bat_source_level['ref_distance']  ).reshape(1,-1)
-
-        levels_equal = np.array_equal(exp_levels, received_levels)
-        numcalls_equal = np.array_equal( np.array(numbats),
-                                        num_calls)
-        self.assertTrue(levels_equal)
-        self.assertTrue(numcalls_equal)
-
-
-        manybats = 25
-        manyreceived_levels, many_calls =implement_hexagonal_spatial_arrangement(
-                                                            manybats,
-                                                            nbr_distance,
-                                                            bat_source_level)
-
-        num_rings, numinrings = fillup_hexagonalrings(manybats)
-        distances = num_rings*nbr_distance
-        received_levelscalc = calculate_receivedlevels(distances,
-                                                       bat_source_level)
-
-        multibatlevels_equal = np.array_equal(received_levelscalc,
-                                                          manyreceived_levels)
-        multibats_numsequal = np.array_equal(numinrings, many_calls)
-
-        self.assertTrue(multibatlevels_equal)
-        self.assertTrue(multibats_numsequal)
 
 
 
@@ -1058,7 +575,7 @@ class TestingSpatialArrangementPoissondisk(unittest.TestCase):
             gen_pts,centrepts = generate_surroundpoints_w_poissondisksampling(
                                                         npoints, nbr_dist)
             numrows,numcols = gen_pts.shape
-            num_genpoints[index] = numrows
+            num_genpoints[index] = numrows + 1 
 
 
         proper_numpointsgenerated = np.array_equal(num_genpoints, numpoints)
@@ -1109,23 +626,6 @@ class TestingSpatialArrangementPoissondisk(unittest.TestCase):
 
         self.assertTrue(distances_match)
         self.assertTrue(angles_match)
-
-
-
-    def test_implementpoissondiskspatialarrangement(self):
-        '''Only do testing of the output pd.DataFrame dimensions
-        '''
-
-        nbats = 40
-        min_dist = 0.5
-        source_level = {'intensity':100,'ref_distance':1.0}
-
-        thetas, intensities = implement_poissondisk_spatial_arrangement(nbats,
-                                                                min_dist,
-                                                                 source_level)
-
-        self.assertEqual(thetas.size,nbats)
-        self.assertEqual(intensities.size,nbats)
 
 
 # TODO:
@@ -1196,7 +696,7 @@ class Testing2ndaryEchoPaths(unittest.TestCase):
             self.kwargs['bats_orientations'] = np.random.normal(0,90,num_bats)
             self.kwargs['focal_bat'] = self.kwargs['bats_xy'][num_bats-1]
     
-            secondechoes_paths = calculate_2ndary_echopaths(**self.kwargs)
+            secondechoes_paths = calculate_echopaths('secondary_echoes',**self.kwargs)
             expected_number = (num_bats-1)*(num_bats-2)
 
             self.assertEqual(expected_number, len(secondechoes_paths['sound_routes']))
@@ -1205,7 +705,7 @@ class Testing2ndaryEchoPaths(unittest.TestCase):
     def test_basic_2ndaryechoes(self):
         ''' 3 bats in a triangle confuguration
         '''
-        secondechoes_paths = calculate_2ndary_echopaths(**self.kwargs)
+        secondechoes_paths = calculate_echopaths('secondary_echoes',**self.kwargs)
         output_paths = pd.DataFrame(secondechoes_paths)
 
         expected_paths = pd.DataFrame(data=[], index=range(2),
@@ -1239,7 +739,7 @@ class Testing2ndaryEchoPaths(unittest.TestCase):
 
         self.calc_distmat()
 
-        self.output = calculate_2ndary_echopaths(**self.kwargs)
+        self.output = calculate_echopaths('secondary_echoes',**self.kwargs)
         exp_R_in = []
         exp_R_out = []
         exp_theta_em = []
@@ -1247,7 +747,7 @@ class Testing2ndaryEchoPaths(unittest.TestCase):
         exp_theta_in = []
         exp_theta_out = []
 
-        for echo_id, each_echo in enumerate(output['sound_routes']):
+        for echo_id, each_echo in enumerate(self.output['sound_routes']):
             emitter, target, focal = each_echo
             
             exp_R_in.append(self.distance_matrix[emitter, target])
@@ -1311,7 +811,7 @@ class TestingSecondaryEchoReceivedLevels(unittest.TestCase):
         output_received_levels = np.array(secondary_echoes['level']).flatten()
 
         # calculate the expected received levels of the 2dary echoes
-        paths = calculate_2ndary_echopaths(**self.kwargs)
+        paths = calculate_echopaths('secondary_echoes',**self.kwargs)
         ref_dist = np.unique(self.kwargs['reflection_function']['ref_distance'])
 
         reflection_strength = np.unique(self.kwargs['reflection_function']['reflection_strength'])
@@ -1398,17 +898,16 @@ class TestPropagateSound(unittest.TestCase):
         
         # calculate the received levels and angles of arrivals of the sounds
         conspecific_calls = propagate_sounds('conspecific_calls', **self.kwargs)
-        secondary_echoes = propagate_sounds('2ndary_echoes', **self.kwargs)
-
-        num_conspecificcalls, num_2daryechoes = conspecific_calls.shape[0], secondary_echoes.shape[0]
+        secondary_echoes = propagate_sounds('secondary_echoes', **self.kwargs)
         
+        num_conspecificcalls, num_2daryechoes = conspecific_calls.shape[0], secondary_echoes.shape[0]
+
         nbats = self.kwargs['bats_xy'].shape[0]
         exp_numcalls = nbats-1
         exp_num2daryechoes = (nbats-2)*(nbats-1)
 
         self.assertTrue(np.array_equal([num_conspecificcalls, num_2daryechoes],
                                        [exp_numcalls, exp_num2daryechoes]))
-
 
 class TestCombineSounds(unittest.TestCase):
     '''
@@ -1417,7 +916,7 @@ class TestCombineSounds(unittest.TestCase):
         # generate two empty DFs with no data yet. 
         self.A = pd.DataFrame(data=[], index=range(10), columns=['start', 'stop',
                          'theta', 'level','id'])
-        self.B = A.copy()
+        self.B = self.A.copy()
         self.B['identity'] = np.nan
 
     def test_basic(self):
@@ -1432,6 +931,37 @@ class TestCombineSounds(unittest.TestCase):
                                        list(combined_sounds.shape)))
       
 
+class TestRunCPN(unittest.TestCase):
+    '''
+    '''
+    def setUp(self):
+        ''' basic set of kwargs to initiate runCPN
+        '''
+        self.A = 7
+        self.B = 2 
+
+        self.kwargs={}
+        self.kwargs['call_directionality'] = lambda X : self.A*(np.cos(np.deg2rad(X))-1)
+        self.kwargs['hearing_directionality'] = lambda X : self.B*(np.cos(np.deg2rad(X))-1)
+        reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
+        thetas = np.linspace(-180,180,12)
+        input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
+        reflectionfunc['reflection_strength'] = np.random.normal(-40,5,
+                                                  input_output_angles.shape[0])
+        reflectionfunc['incoming_theta'] = input_output_angles[:,0]
+        reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
+        reflectionfunc['ref_distance'] = 0.1
+        self.kwargs['reflection_function'] = reflectionfunc
+        self.kwargs['heading_variation'] = 10 
+        self.kwargs['min_spacing'] = 0.5
+        self.kwargs['Nbats'] = 10
+        self.kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
+    
+    def test_basicrunCPN(self):
+        '''Check if an integer is the output of a single runCPN
+        '''
+        num_echoesheard = run_CPN(**self.kwargs)
+        self.assertTrue(isinstance(num_echoesheard, int))
 
 if __name__ == '__main__':
 

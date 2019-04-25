@@ -45,7 +45,9 @@ class TestingCheckIfEchoHeard(unittest.TestCase)    :
         col_names = ['start','stop','theta','level']
         self.call = pd.DataFrame(index=[0],columns=col_names)
         self.echo = pd.DataFrame(index=[0],columns=col_names)
-
+        
+        self.kwargs= {}
+        self.kwargs['simtime_resolution'] = 10**-4
 
     def test_echocallveryseparated(self):
         self.call['start'] = 00; self.call['stop'] =10
@@ -55,7 +57,7 @@ class TestingCheckIfEchoHeard(unittest.TestCase)    :
         # check the case where the echo and call are *very* far away.
 
         call_far_away = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
-                                            self.spatialrelease_fn)
+                                            self.spatialrelease_fn, **self.kwargs)
         self.assertTrue(call_far_away)
 
     def test_echocallcloseby(self):
@@ -70,7 +72,7 @@ class TestingCheckIfEchoHeard(unittest.TestCase)    :
         self.call['stop'] = self.echo['stop']-20
 
         call_nearby = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
-                                            self.spatialrelease_fn)
+                                            self.spatialrelease_fn, **self.kwargs)
         self.assertFalse(call_nearby)
 
     def test_simultaneousmask_wSUm(self):
@@ -101,7 +103,7 @@ class TestingCheckIfEchoHeard(unittest.TestCase)    :
 
 
         function_result = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
-                                                    self.spatialrelease_fn)
+                                                    self.spatialrelease_fn, **self.kwargs)
 
         expected_as_calculated = np.all([function_result,heard_ornot])
 
@@ -141,7 +143,7 @@ class TestingCheckIfEchoHeard(unittest.TestCase)    :
         expected_outcome = deltadB_echocall > deltadB_threshold
 
         function_outcome = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
-                                                    self.spatialrelease_fn)
+                                                    self.spatialrelease_fn, **self.kwargs)
 
         exp_and_outcome_True = np.all([expected_outcome, function_outcome])
         self.assertTrue( exp_and_outcome_True )
@@ -182,6 +184,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
         self.calls = pd.DataFrame()
         self.echoes = pd.DataFrame()
 
+        self.kwargs= {}
+        self.kwargs['simtime_resolution'] = 10**-5
 
     def test_calculate_num_heard_echoes_with_single_call(self):
         #calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn)
@@ -199,7 +203,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         num_echoes = calculate_num_heardechoes(self.echoes,self.calls,
                                                self.temporalmasking_fn,
-                                               self.spatialrelease_fn)
+                                               self.spatialrelease_fn, 
+                                               **self.kwargs)
 
         self.assertEqual(num_echoes,0)
 
@@ -210,7 +215,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         num_louder_echoes = calculate_num_heardechoes(self.echoes,self.calls,
                                                self.temporalmasking_fn,
-                                               self.spatialrelease_fn)
+                                               self.spatialrelease_fn, 
+                                               **self.kwargs)
 
         self.assertEqual(num_louder_echoes,2)
 
@@ -222,15 +228,17 @@ class TestingNumEchoesHeard(unittest.TestCase):
         expected_outcome = []
         for each_echo in range(2):
             expected_outcome.append(check_if_echo_heard(
-                            self.echoes.iloc[each_echo,:], self.calls.iloc[0,:],
-                            self.temporalmasking_fn, self.spatialrelease_fn))
+                                self.echoes.iloc[each_echo,:], self.calls.iloc[0,:],
+                                self.temporalmasking_fn, self.spatialrelease_fn, 
+                                **self.kwargs))
 
 
         expected_heardechoes = sum(expected_outcome)
 
         numheardechoes = calculate_num_heardechoes(
                                     self.echoes,self.calls, self.temporalmasking_fn,
-                                    self.spatialrelease_fn)
+                                    self.spatialrelease_fn, 
+                                    **self.kwargs)
 
 
 
@@ -250,7 +258,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         numheardechoes = calculate_num_heardechoes(
                                     self.echoes,self.calls, self.temporalmasking_fn,
-                                    self.spatialrelease_fn)
+                                    self.spatialrelease_fn, 
+                                    **self.kwargs)
 
         self.assertEqual(numheardechoes,0)
 
@@ -261,7 +270,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         expect1echo = calculate_num_heardechoes(
                                     self.echoes,self.calls, self.temporalmasking_fn,
-                                    self.spatialrelease_fn)
+                                    self.spatialrelease_fn, 
+                                    **self.kwargs)
 
         self.assertEqual(expect1echo,1)
 
@@ -279,7 +289,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         noechoes = calculate_num_heardechoes(self.echoes, self.calls,
                                              self.temporalmasking_fn,
-                                             self.spatialrelease_fn)
+                                             self.spatialrelease_fn,
+                                             **self.kwargs)
 
         self.assertEqual(noechoes,0)
 
@@ -289,7 +300,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         noechoes_dummyfn = calculate_num_heardechoes(self.echoes, self.calls,
                                              self.temporalmasking_fn,
-                                             self.nomaskingrelease_fn)
+                                             self.nomaskingrelease_fn, 
+                                             **self.kwargs)
 
         self.assertEqual(noechoes_dummyfn,0)
 
@@ -297,7 +309,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         oneecho_heard = calculate_num_heardechoes(self.echoes, self.calls,
                                              self.temporalmasking_fn,
-                                             self.spatialrelease_fn)
+                                             self.spatialrelease_fn,
+                                             **self.kwargs)
 
         self.assertEqual(oneecho_heard,1)
 
@@ -312,21 +325,24 @@ class TestingNumEchoesHeard(unittest.TestCase):
 
         bothechoes_notheard = calculate_num_heardechoes(self.echoes,self.calls,
                                                 self.temporalmasking_fn,
-                                                self.spatialrelease_fn)
+                                                self.spatialrelease_fn, 
+                                               **self.kwargs)
         self.assertEqual(bothechoes_notheard,0)
 
         # with one echo having different angle of arrival :
         self.echoes['theta'] = [80, 90]
         oneecho_heard = calculate_num_heardechoes(self.echoes,self.calls,
                                                 self.temporalmasking_fn,
-                                                self.spatialrelease_fn)
+                                                self.spatialrelease_fn, 
+                                               **self.kwargs)
         self.assertEqual(oneecho_heard,1)
 
         # with one echo having different angle of arrival + dummy spatial unmasking
 
         noneheard_dummyfn = calculate_num_heardechoes(self.echoes,self.calls,
                                                 self.temporalmasking_fn,
-                                                self.nomaskingrelease_fn)
+                                                self.nomaskingrelease_fn, 
+                                               **self.kwargs)
         self.assertEqual(noneheard_dummyfn,0)
     
     def test_onehotcoding_switch_positive(self):
@@ -347,7 +363,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
         oneecho_heard, obtained_outcome = calculate_num_heardechoes(self.echoes,self.calls,
                                                 self.temporalmasking_fn,
                                                 self.spatialrelease_fn,
-                                                one_hot=True)
+                                                one_hot=True, 
+                                               **self.kwargs)
         self.assertEqual(oneecho_heard,2)
         expected_outcome = np.array([1,1])
         outcomes_match_positive = np.sum(obtained_outcome - expected_outcome) == 0
@@ -371,7 +388,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
         noecho_heard, obtained_outcome = calculate_num_heardechoes(self.echoes,self.calls,
                                                 self.temporalmasking_fn,
                                                 self.spatialrelease_fn,
-                                                one_hot=True)
+                                                one_hot=True, 
+                                               **self.kwargs)
         self.assertEqual(noecho_heard,0)
         expected_outcome = np.array([0,0])
         outcomes_match_negative = np.sum(obtained_outcome - expected_outcome) == 0
@@ -395,7 +413,8 @@ class TestingNumEchoesHeard(unittest.TestCase):
         oneecho_heard, obtained_outcome = calculate_num_heardechoes(self.echoes,self.calls,
                                                 self.temporalmasking_fn,
                                                 self.spatialrelease_fn,
-                                                one_hot=True)
+                                                one_hot=True, 
+                                               **self.kwargs)
         self.assertEqual(oneecho_heard,1)
         expected_outcome = np.array([0,1])
         outcomes_match_oneheard = np.sum(obtained_outcome - expected_outcome) == 0
@@ -807,7 +826,7 @@ class TestingSecondaryEchoReceivedLevels(unittest.TestCase):
     def test_basic(self):
         '''
         '''
-        secondary_echoes = calculate_2ndaryecho_levels(**self.kwargs)
+        secondary_echoes = calculate_secondaryecho_levels(**self.kwargs)
         output_received_levels = np.array(secondary_echoes['level']).flatten()
 
         # calculate the expected received levels of the 2dary echoes
@@ -944,6 +963,10 @@ class TestRunCPN(unittest.TestCase):
         self.B = 2 
 
         self.kwargs={}
+        self.kwargs['interpulse_interval'] = 0.1
+        self.kwargs['v_sound'] = 330
+        self.kwargs['simtime_resolution'] = 10**-6
+        self.kwargs['echocall_duration'] = 0.003
         self.kwargs['call_directionality'] = lambda X : self.A*(np.cos(np.deg2rad(X))-1)
         self.kwargs['hearing_directionality'] = lambda X : self.B*(np.cos(np.deg2rad(X))-1)
         reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))

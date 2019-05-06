@@ -4,6 +4,7 @@ Created on Tue Dec 12 22:07:22 2017
 
 @author: tbeleyur
 """
+np.random.seed(82319)
 
 import unittest
 import numpy as np
@@ -1084,6 +1085,58 @@ class TestAssignRealArrivalTimes(unittest.TestCase):
 
         self.assertTrue(np.array_equal(exp_start_stop, got_start_stop))
         
+class TestCheckCumSPL(unittest.TestCase):
+
+    def setUp(self):
+        self.echo = pd.DataFrame(data={'start':[50], 'stop':[53], 'level':[50]})
+        fwd_masking_region = np.linspace(-27, -7, 21)        
+        bkwd_masking_region = np.linspace(-10, -24, 3)
+        simult_masking_regio = np.array([-8])
+        self.temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
+                                            bkwd_masking_region)
+
+        self.kwargs = {}
+        self.kwargs['temporal_masking_thresholds'] = self.temporal_masking_fn
+        self.cum_SPL = np.ones(100) * -8
+        self.kwargs['simtime_resolution'] = 10**-3
+        self.kwargs['echocall_duration'] = 3*10**-3
+        
+    
+    def test_basic_echo_heard(self):
+        '''Echo should be heard when delta echo-masker is above the threshold all throughout
+        '''
+        echo_heard = check_if_cum_SPL_above_masking_threshold(self.echo, self.cum_SPL, 
+                                                              **self.kwargs)
+        self.assertTrue(echo_heard)
+    
+    def test_echo_at_edges1(self):
+        '''Test what happens when the echo is at the edges of the ipi:
+        '''
+        self.echo = pd.DataFrame(data={'start':[0], 'stop':[3], 'level':[50]})
+        echo_heard = check_if_cum_SPL_above_masking_threshold(self.echo, self.cum_SPL, 
+                                                              **self.kwargs)
+        self.assertTrue(echo_heard)
+        
+    def test_echo_at_edges2(self):
+        '''Test what happens when the echo is at the edges of the ipi Part2
+        '''
+        self.echo = pd.DataFrame(data={'start':[97], 'stop':[99], 'level':[50]})
+        echo_heard = check_if_cum_SPL_above_masking_threshold(self.echo, self.cum_SPL, 
+                                                              **self.kwargs)
+        self.assertTrue(echo_heard)
+    
+    def test_heard_w_complex_echomasker_profile(self):
+        '''What happens when the echmasker profile falls below the 
+        threshold for < echocall duraiton but varies in genera. This is 
+        a no-brainer - but needs to be checked. 
+        '''
+        self.cum_SPL = np.ones(100) * -5
+        self.cum_SPL += np.random.normal(0,0.5,100)
+        self.cum_SPL[self.echo['start']] = -90 # one timestep has a strong drop in echomasker ratio 
+        echo_heard = check_if_cum_SPL_above_masking_threshold(self.echo, self.cum_SPL, 
+                                                              **self.kwargs)
+        self.assertFalse(echo_heard)
+    
         
         
         

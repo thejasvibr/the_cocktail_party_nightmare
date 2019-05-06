@@ -502,7 +502,8 @@ TODO:
     echoes_heard = []
 
     for echoindex,each_echo in echoes.iterrows():
-        this_echoheard = check_if_echo_heard(each_echo)
+        this_echoheard = check_if_echo_heard(each_echo, other_sounds, 
+                                                     **kwargs)
         echoes_heard.append(this_echoheard)
 
     num_echoes = sum(echoes_heard)
@@ -562,46 +563,97 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_spl,
     '''Check an echo is ehard or not based on whether the 
     echo-masker delta dB is satisfied in the temporal masking window.
 
-    Parameters:
-        echo : 1 x 4 sound_df. 
+    ATTENTION : this function *assumes* that the echo is placed in the interpulse
+    interval - which is a sensible assumption for the most part -- and it
+    may not work for secondary echoes and other such echoes that are beyond 
+    the ipi.
 
-        cumulative_spl : 1D x Ntimesteps. 
+
+
+    Parameters:
+
+    echo : 1 x 4 sound_df. 
+
+    cumulative_spl : 1D x Ntimesteps. 
 
     Keyword Arguments: 
+    
+    simtime_resolution : float>0. Duration of one simultation timestep
 
-        simtime_resolution :
+    temporal_masking_thresholds :  tuple with 3 np.arrays as entries (forward_deltadB, simultaneous_deltadB, 
+                           backward_deltadB) - in that order. The np.arrays have the delta dB
+                           thresholds required for echo detection in the presence of maskers.
+                           Each value is assumed to be the value for that time delay at
+                           the simtime_resolution being used.
+                        
 
-        temporal_masking_fn :  Ntimepoints x 2 pd.DataFrame with following column
-                        names :
-                        |timegap_ms|delta_dB|
+   Returns:
 
-   Return:
-       echo_heard : Boolean . True if echo-masker SPL ratios were above the tmeporal 
+   echo_heard : Boolean . True if echo-masker SPL ratios were above the tmeporal 
                     masking function. 
+
     '''
-    # echo masker ratios 
-    delta_echo_masker = echo['level'] - cumulative_spl 
-    delta_echo_masker[np.isnan(delta_echo_masker)] = 0 # get rid of nans which will propagate through
+    delta_echo_masker = float(echo['level']) - cumulative_spl
+    echo_start, echo_stop = int(echo['start']), int(echo['stop'])
+    fwd, simultaneous, bkwd = kwargs['temporal_masking_thresholds']
+    ipi_timesteps = cumulative_spl.size
+    # choose the snippet relevant to the temporal masking function:
+    fwd_left, fwd_right = check_if_in_ipi([echo_start-fwd.size, echo_start], 
+                                          ipi_timesteps)
+    bkwd_left, bkwd_right = check_if_in_ipi([echo_stop, echo_stop+bkwd.size],
+                                            ipi_timesteps)
 
-    # centre the temporal masking function over the echo.
-    temporal_masking = kwargs['temporal_masking_fn']
-    
-    
+    delta_echomasker_snippet = delta_echo_masker[fwd_left:bkwd_right+1]
+
+    temp_masking_snippet = np.concatenate((fwd[:fwd_right-fwd_left],
+                                           np.tile(simultaneous, echo_stop-echo_start+1),
+                                           bkwd[:bkwd_right-bkwd_left]))    
     
 
+    # compare to see if the overall duration above the threshold is >= echo_duration
+    masked_time = np.sum(delta_echomasker_snippet < temp_masking_snippet)*kwargs['simtime_resolution']
 
-def split_temp_masking(temp_masking_function):
+    if masked_time <= kwargs['echocall_duration']*0.75:
+        echo_heard = True
+    else :
+        echo_heard = False
+
+    return(echo_heard)
+
+
+def check_if_in_ipi(indices, ipi_size):
+    '''Checks if the start,stop list is within the ipi indices
+
+    Parameters:
+
+        indices : list with 2 integers. The start, stop indices are given 
+                  for the different masking zones around an echo
+
+        ipi_size : integer. The maximum possible integer size that the indices 
+                   can have. 
+
+    Returns:
+
+        indices : modified if the indices presented are < 0 or > ipi_indices
+
+    eg. if 
+    
+    check_if_in_ipi([-20, 300], 2000) --> [0,300]
     '''
-    '''
+    start, stop = indices 
+    if start < 0:
+        start = 0
+    elif start > ipi_size -1:
+        start = ipi_size -1 
     
+    if stop > ipi_size-1:
+        stop = ipi_size -1 
+    elif stop <0:
+        raise ValueError('stop index cannot be <0! : '+ str(stop))
     
-    pass
-
+    indices = [start, stop]
+    return(indices)
     
-    
-    
-
-
     
 def quantify_temporalmasking(echo, call):
     '''
@@ -622,6 +674,7 @@ def quantify_temporalmasking(echo, call):
 
 
     Returns:
+
             timegap : integer delay in integers.
     '''
 
@@ -734,7 +787,7 @@ def apply_spatial_unmasking_on_sounds(echo_theta,
 
         sound_df : pd.DataFrame. a sound DataFrame
 
-    Returns;
+    Returns:
 
         sound_df : the input sound_df with an extra column 'post_SUM'. This column refers
                     to the effective masker received level after spatial unmasking.
@@ -2243,7 +2296,7 @@ TODO :
 
            echo_properties : pd.DatFrame. A 'sound'df -- see previous documentation
 
-           temporal_masking_fn : ?? . temporal masking funciton
+           temporal_masking_thresholds : ?? . temporal masking funciton
 
            spatial_release_fn : ?? . spatial release function. 
 
@@ -2269,7 +2322,6 @@ TODO :
     kwargs['bats_orientations'] = bats_orientations
     kwargs['focal_bat'] = focal_bat
 
-    print(kwargs.keys())
     # calculate the received levels and angles of arrivals of the sounds
     conspecific_calls = propagate_sounds('conspecific_calls', **kwargs)
     secondary_echoes = propagate_sounds('secondary_echoes', **kwargs)
@@ -2292,7 +2344,7 @@ TODO :
 #                              kwargs['spatial_release_fn'],
 #                              one_hot=True,
 #                              **kwargs)
-#    return(num_echoes_heard)
+        
     return(secondary_echoes, conspecific_calls, target_echoes)
 
 
@@ -2332,7 +2384,7 @@ if __name__ == '__main__':
     
 
     spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
-    kwargs['temporal_masking_fn'] = temp_masking_fn
+    kwargs['temporal_masking_fn'] = tm_high_res
     kwargs['spatial_release_fn'] = spatial_unmasking_fn
     
     secondary_echoes, consp_calls, echoes = run_CPN(**kwargs)

@@ -4,10 +4,10 @@ Created on Tue Dec 12 22:07:22 2017
 
 @author: tbeleyur
 """
-np.random.seed(82319)
 
 import unittest
 import numpy as np
+np.random.seed(82319)
 import pandas as pd
 import matplotlib.pyplot as plt
 from the_cocktail_party_nightmare_MC import *
@@ -20,408 +20,154 @@ class TestingCheckIfEchoHeard(unittest.TestCase)    :
     def setUp(self):
         # temporal masking function -  make everything linear to ease
         # quick calculation of expected results
+        self.kwargs = {}
+        self.kwargs['hearing_threshold'] = 0 
+        fwd_masking_region = np.linspace(-27, -7, 20000)        
+        bkwd_masking_region = np.linspace(-10, -24, 3000)
+        simult_masking_regio = np.array([-8])
+        self.temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
+                                            bkwd_masking_region)
+        self.echo = pd.DataFrame(data={'start':[100], 'stop':[3100],
+                                       'level':[50], 'theta' : [10]})
 
-        timegap_ms = np.arange(0.010,-0.003,-0.001)
-        fwd_masking_deltadB = np.linspace(-10,-1,10)
-        bkwd_masking_deltadB = np.linspace(0,-2,3)
-        deltadB = np.concatenate( (fwd_masking_deltadB,bkwd_masking_deltadB ))
-        temp_masking = np.column_stack((timegap_ms,deltadB))
-        self.temporalmasking_fn = pd.DataFrame(temp_masking)
-        self.temporalmasking_fn.columns = ['timegap_ms','deltadB']
-
-        # spatial release function - make everything linear
-
-        deltatheta = np.linspace(0,25)
-        release_dB = np.linspace(0,-25,deltatheta.size)
-        self.spatialrelease_fn = pd.DataFrame(index = range(deltatheta.size) )
-        self.spatialrelease_fn['deltatheta'] = deltatheta
-        self.spatialrelease_fn['dB_release'] = release_dB
-
-        # dummy spatial release function - with 0 dB release
-
-        self.nomaskingrelease_fn = self.spatialrelease_fn.copy()
-        self.nomaskingrelease_fn['dB_release'] = 0
-
-        # the calls and echoes objects
-        col_names = ['start','stop','theta','level']
-        self.call = pd.DataFrame(index=[0],columns=col_names)
-        self.echo = pd.DataFrame(index=[0],columns=col_names)
+        self.kwargs['temporal_masking_thresholds'] = self.temporal_masking_fn
+        self.kwargs['simtime_resolution'] = 10**-6
+        self.kwargs['interpulse_interval'] = 0.1
         
-        self.kwargs= {}
-        self.kwargs['simtime_resolution'] = 10**-4
+        spl_masking = pd.DataFrame(data={'deltatheta':np.linspace(0,30,30),
+                                         'dB_release':np.linspace(-1,-30,30)})
+        self.kwargs['spatial_release_fn'] = spl_masking
+        self.kwargs['echocall_duration'] = 0.003
+        self.cumulative_spl = np.tile(-9, 1000) + np.random.normal(0,1,1000)
 
-    def test_echocallveryseparated(self):
-        self.call['start'] = 00; self.call['stop'] =10
-        self.echo['start'] = 5000000; self.echo['stop'] = 5000100
-        self.call['theta'] = 60; self.echo['theta'] = 60
-        self.call['level'] = 80 ; self.echo['level'] = 60
-        # check the case where the echo and call are *very* far away.
+        self.other_sounds = pd.DataFrame(data=[], index=range(10),
+                                                 columns=['start','stop',
+                                                     'level','theta'])
+        
 
-        call_far_away = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
-                                            self.spatialrelease_fn, **self.kwargs)
-        self.assertTrue(call_far_away)
-
-    def test_echocallcloseby(self):
-        '''No SUm and call is closeby
+    def test_basic_noechoheard(self):
+        '''Check that a sub threshold echo is not heard
         '''
-        self.echo['start'] = 5000000; self.echo['stop'] = 5000100
-        self.call['theta'] = 60; self.echo['theta'] = 60
-        self.call['level'] = 80 ; self.echo['level'] = 60
-        # not so far away : this will be false
+        self.echo['level']  = -10
+        echo_heard = check_if_echo_heard(self.echo, self.cumulative_spl, **self.kwargs)
+        self.assertFalse(echo_heard)
+    
+    def test_basic_echoheard(self):
+        '''A very loud echo that should be heard
+        '''
+        self.echo['level']  = 130
+        # make the other sounds :
+        for i in range(10):
+            self.other_sounds['start'][i] = np.random.choice(np.arange(0,50))
+            self.other_sounds['stop'][i] = self.other_sounds['start'][i] + 3
+            self.other_sounds['level'][i] = np.random.choice(np.arange(20,30))
+            self.other_sounds['theta'][i] = np.random.choice(np.arange(-180,180))
 
-        self.call['start'] = self.echo['start']-20
-        self.call['stop'] = self.echo['stop']-20
+        echo_heard = check_if_echo_heard(self.echo, self.other_sounds, **self.kwargs)
+        self.assertTrue(echo_heard)
 
-        call_nearby = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
-                                            self.spatialrelease_fn, **self.kwargs)
-        self.assertFalse(call_nearby)
+    def test_overlapping_calls(self):
+        '''What happens when a bunch of calls completely overlap the ipi from end to 
+        end
+        '''
+        self.other_sounds = pd.DataFrame(data=[], index=range(2),
+                                                 columns=['start','stop',
+                                                     'level','theta'])
+        self.other_sounds['start'] = [0,49999]
+        self.other_sounds['stop'] = [49999,99999]
+        self.other_sounds['level'] = [130, 130]
+        self.other_sounds['theta'] = [-35, -35]
 
-    def test_simultaneousmask_wSUm(self):
+        self.echo['level'] = 20
 
-        # simultaneous masking with spatial unmasking  :
-        timeres = 10**-4; durn = 0.003;
-        call_timesteps = int(durn/timeres)
-
-        self.call['theta'] = 50; self.echo['theta'] = 60
-        self.call['level'] = 80 ; self.echo['level'] = 70
-        self.call['start'] = 15
-        self.call['stop'] = self.call['start']+call_timesteps
-        self.echo['start'] = self.call['start']
-        self.echo['stop'] = self.call['stop']
-
-        angle_diff = abs(self.call['level'] - self.echo['level'])
-
-        colloc_echocalldeltadB = get_collocalised_deltadB(0,self.temporalmasking_fn)
-
-        spat_release = calc_spatial_release(angle_diff[0], self.spatialrelease_fn)
-
-        threshold_deltadB_spatrelease = colloc_echocalldeltadB + spat_release
-
-
-        echocall_deltadB = float(self.echo['level'] - self.call['level'])
-
-        heard_ornot = echocall_deltadB >= threshold_deltadB_spatrelease
-
-
-        function_result = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
-                                                    self.spatialrelease_fn, **self.kwargs)
-
-        expected_as_calculated = np.all([function_result,heard_ornot])
-
-        self.assertTrue(expected_as_calculated)
-
-    def test_nonoverlap_wSUm(self):
-
-        # temporal masking with spatial unmasking:
-        timeres = 10**-4;
-        call_arrival_delay = 5*10**-3 # seconds
-        delay_timesteps = int(call_arrival_delay/timeres)
-
-        self.echo['start'] = 100 ; self.echo['stop'] = 129
-        self.call['stop'] = self.echo['start'] - delay_timesteps
-        self.call['start'] = self.call['stop'] - 29
-        self.call['theta'] = 40 ; self.echo['theta'] = 70
-        self.echo['level'] = 80 ; self.call['level'] = 107
-
-        angle_diff = calc_angular_separation(self.call['theta'],self.echo['theta'])
-
-        # required deltadB from temporal masking :
-        tg = quantify_temporalmasking(self.echo,self.call)
-
-        deltadb_tempomasking = get_collocalised_deltadB(call_arrival_delay,
-                                                    self.temporalmasking_fn)
-
-        # drop in deltadB due to spatial release from spatial unmasking :
-        spat_release = calc_spatial_release(angle_diff,self.spatialrelease_fn)
-
-
-        # threshold deltadB :
-        deltadB_threshold = deltadb_tempomasking + spat_release
-
-        # current deltadB :
-        deltadB_echocall = float(self.echo['level'] - self.call['level'])
-
-        expected_outcome = deltadB_echocall > deltadB_threshold
-
-        function_outcome = check_if_echo_heard(self.echo,self.call,self.temporalmasking_fn,
-                                                    self.spatialrelease_fn, **self.kwargs)
-
-        exp_and_outcome_True = np.all([expected_outcome, function_outcome])
-        self.assertTrue( exp_and_outcome_True )
-
-
-
+        echo_heard = check_if_echo_heard(self.echo, self.other_sounds,
+                                         **self.kwargs)
+        self.assertFalse(echo_heard)
+      
+        
 
 class TestingNumEchoesHeard(unittest.TestCase):
 
     def setUp(self):
-
         # temporal masking function -  make everything linear to ease
         # quick calculation of expected results
+        self.kwargs = {}
+        self.kwargs['hearing_threshold'] = 0 
+        fwd_masking_region = np.linspace(-27, -7, 20000)        
+        bkwd_masking_region = np.linspace(-10, -24, 3000)
+        simult_masking_regio = np.array([-8])
+        self.temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
+                                            bkwd_masking_region)
+        self.echoes = pd.DataFrame(data={'start':[100,4000], 'stop':[3100, 7000],
+                                       'level':[-50, 0], 'theta' : [10, -10]})
 
-        timegap_ms = np.arange(0.010,-0.003,-0.001)
-        fwd_masking_deltadB = np.linspace(-10,-1,10)
-        bkwd_masking_deltadB = np.linspace(0,-2,3)
-        deltadB = np.concatenate( (fwd_masking_deltadB,bkwd_masking_deltadB ))
-        temp_masking = np.column_stack((timegap_ms,deltadB))
-        self.temporalmasking_fn = pd.DataFrame(temp_masking)
-        self.temporalmasking_fn.columns = ['timegap_ms','deltadB']
+        self.kwargs['temporal_masking_thresholds'] = self.temporal_masking_fn
+        self.kwargs['simtime_resolution'] = 10**-6
+        self.kwargs['interpulse_interval'] = 0.1
+        
+        spl_masking = pd.DataFrame(data={'deltatheta':np.linspace(0,30,30),
+                                         'dB_release':np.linspace(-1,-30,30)})
+        self.kwargs['spatial_release_fn'] = spl_masking
+        self.kwargs['echocall_duration'] = 0.003
+        self.cumulative_spl = np.tile(-9, 1000) + np.random.normal(0,1,1000)
 
-        # spatial release function - make everything linear
-
-        deltatheta = np.linspace(0,25)
-        release_dB = np.linspace(0,-25,deltatheta.size)
-        self.spatialrelease_fn = pd.DataFrame(index = range(deltatheta.size) )
-        self.spatialrelease_fn['deltatheta'] = deltatheta
-        self.spatialrelease_fn['dB_release'] = release_dB
-
-        # dummy spatial release function - with 0 dB release
-
-        self.nomaskingrelease_fn = self.spatialrelease_fn.copy()
-        self.nomaskingrelease_fn['dB_release'] = 0
-
-        # the calls and echoes objects
-        col_names = ['start','stop','theta','level']
-        self.calls = pd.DataFrame()
-        self.echoes = pd.DataFrame()
-
-        self.kwargs= {}
-        self.kwargs['simtime_resolution'] = 10**-5
-
-    def test_calculate_num_heard_echoes_with_single_call(self):
-        #calculate_num_heardechoes(echoes,calls,temporalmasking_fn,spatialrelease_fn)
+        self.other_sounds = pd.DataFrame(data=[], index=range(10),
+                                                 columns=['start','stop',
+                                                     'level','theta'])
 
 
-        self.calls['start'] = [0]; self.calls['stop'] = [10]
-        self.echoes['start'] = [20,40]; self.echoes['stop'] = [30,50]
-        self.calls['theta'] = [50]; self.echoes['theta'] = [60,90]
-
-        # echo intensities are *very* low in comparison to the
-
-        self.calls['level'] = [90] ; self.echoes['level'] = [0,10]
-
-
-
-        num_echoes = calculate_num_heardechoes(self.echoes,self.calls,
-                                               self.temporalmasking_fn,
-                                               self.spatialrelease_fn, 
-                                               **self.kwargs)
-
-        self.assertEqual(num_echoes,0)
-
-        # the very obvious case where the self.echoes are equal to and louder than
-        # the masking call
-
-        self.echoes['level'] = [90,100]
-
-        num_louder_echoes = calculate_num_heardechoes(self.echoes,self.calls,
-                                               self.temporalmasking_fn,
-                                               self.spatialrelease_fn, 
-                                               **self.kwargs)
-
-        self.assertEqual(num_louder_echoes,2)
-
-        # echo intensities are influenced by temporal separation and angle of
-        # angle of arrival
-
-        self.echoes['level'] = [70,65]
-
-        expected_outcome = []
-        for each_echo in range(2):
-            expected_outcome.append(check_if_echo_heard(
-                                self.echoes.iloc[each_echo,:], self.calls.iloc[0,:],
-                                self.temporalmasking_fn, self.spatialrelease_fn, 
-                                **self.kwargs))
-
-
-        expected_heardechoes = sum(expected_outcome)
-
-        numheardechoes = calculate_num_heardechoes(
-                                    self.echoes,self.calls, self.temporalmasking_fn,
-                                    self.spatialrelease_fn, 
-                                    **self.kwargs)
-
-
-
-        self.assertEqual(numheardechoes,expected_heardechoes)
-
-    def test_calculate_num_heard_echoes_with_softechoes_and_multicalls(self):
-
-        # all calls overlapping with echoes exactly and echoes very soft
-
-        self.echoes['start'] = [20,40,60]; self.echoes['stop'] = [30,50,70]
-        self.calls['start'] = self.echoes['start']
-        self.calls['stop'] = self.echoes['stop']
-        thetas = [90,100,120];self.calls['theta'] = thetas
-        self.echoes['theta'] = thetas
-        self.calls['level']=[100,103,102];
-        self.echoes['level'] = [0,0,0];
-
-        numheardechoes = calculate_num_heardechoes(
-                                    self.echoes,self.calls, self.temporalmasking_fn,
-                                    self.spatialrelease_fn, 
-                                    **self.kwargs)
-
-        self.assertEqual(numheardechoes,0)
-
-        # all calls temporally overlapping exactly and
-        # one echo very loud - at 0 deltadB
-
-        self.echoes['level'][0] = self.calls['level'][0]+2
-
-        expect1echo = calculate_num_heardechoes(
-                                    self.echoes,self.calls, self.temporalmasking_fn,
-                                    self.spatialrelease_fn, 
-                                    **self.kwargs)
-
-        self.assertEqual(expect1echo,1)
-
-    def test_withandwithoutspatialunmasking(self):
-        '''Echo-call with and without spatial unmasking included.
+    def test_subthreshold_notheard(self):
+        '''all echoes are subthreshold
         '''
+        self.other_sounds = pd.DataFrame(data=[], index=range(2),
+                                             columns=['start','stop',
+                                                 'level','theta'])
+        self.other_sounds['start'] = [0,49999]
+        self.other_sounds['stop'] = [49999,99999]
+        self.other_sounds['level'] = [130, 130]
+        self.other_sounds['theta'] = [-35, -35]
+        num_heard, _  = calculate_num_heardechoes(self.echoes,
+                                              self.other_sounds, 
+                                              **self.kwargs)
+        self.assertEqual(num_heard, 0)
 
-        # with no difference in angle of arrival :
-        self.calls['start'] = [0]; self.calls['stop'] = [29]
-        self.echoes['start'] = [60] ; self.echoes['stop'] = [89]
-
-        self.calls['theta'] = [80] ; self.echoes['theta'] = [80]
-
-        self.calls['level'] = [90] ; self.echoes['level'] = [86]
-
-        noechoes = calculate_num_heardechoes(self.echoes, self.calls,
-                                             self.temporalmasking_fn,
-                                             self.spatialrelease_fn,
-                                             **self.kwargs)
-
-        self.assertEqual(noechoes,0)
-
-        # with angular difference but dummy spatial unmasking function :
-
-        self.echoes['theta'] = 90
-
-        noechoes_dummyfn = calculate_num_heardechoes(self.echoes, self.calls,
-                                             self.temporalmasking_fn,
-                                             self.nomaskingrelease_fn, 
-                                             **self.kwargs)
-
-        self.assertEqual(noechoes_dummyfn,0)
-
-        # with angular difference and proper spatial unmasking function :
-
-        oneecho_heard = calculate_num_heardechoes(self.echoes, self.calls,
-                                             self.temporalmasking_fn,
-                                             self.spatialrelease_fn,
-                                             **self.kwargs)
-
-        self.assertEqual(oneecho_heard,1)
-
-    def test_withandwithoutspatialunmasking_multiechoes(self):
-        self.calls['start'] = [0]  ; self.calls['stop'] = [29]
-        self.calls['theta'] = [80] ; self.calls['level'] = [90]
-
-        # with multiple echoes - same angle of arrival :
-
-        self.echoes['start'] = [60, 100] ; self.echoes['stop'] = [89,129]
-        self.echoes['theta'] = [80,80]   ; self.echoes['level'] = [86,82 ]
-
-        bothechoes_notheard = calculate_num_heardechoes(self.echoes,self.calls,
-                                                self.temporalmasking_fn,
-                                                self.spatialrelease_fn, 
-                                               **self.kwargs)
-        self.assertEqual(bothechoes_notheard,0)
-
-        # with one echo having different angle of arrival :
-        self.echoes['theta'] = [80, 90]
-        oneecho_heard = calculate_num_heardechoes(self.echoes,self.calls,
-                                                self.temporalmasking_fn,
-                                                self.spatialrelease_fn, 
-                                               **self.kwargs)
-        self.assertEqual(oneecho_heard,1)
-
-        # with one echo having different angle of arrival + dummy spatial unmasking
-
-        noneheard_dummyfn = calculate_num_heardechoes(self.echoes,self.calls,
-                                                self.temporalmasking_fn,
-                                                self.nomaskingrelease_fn, 
-                                               **self.kwargs)
-        self.assertEqual(noneheard_dummyfn,0)
-    
-    def test_onehotcoding_switch_positive(self):
+    def test_loudechoesheard(self):
+        '''all echoes are *very* loud
         '''
-        Checks if the one-hot coding option activated by the keyword argument
-        gives the expected output when all echoes are heard
+        self.other_sounds = pd.DataFrame(data=[], index=range(2),
+                                             columns=['start','stop',
+                                                 'level','theta'])
+        self.other_sounds['start'] = [0,49999]
+        self.other_sounds['stop'] = [49999,99999]
+        self.other_sounds['level'] = [30, 30]
+        self.other_sounds['theta'] = [-35, -35]
+
+        self.echoes['level'] = [90,90]
+        num_heard, _  = calculate_num_heardechoes(self.echoes,
+                                              self.other_sounds, 
+                                              **self.kwargs)
+        self.assertEqual(num_heard, 2)
+
+    def test_oneecho_heard(self):
+        ''' 1/3 echoes should be heard
         '''
-        # copy the test with spatial unmasking multiechoes
-        self.calls['start'] = [0]  ; self.calls['stop'] = [29]
-        self.calls['theta'] = [80] ; self.calls['level'] = [90]
+        self.echoes = pd.DataFrame(data={'start':[100,4000,10000],
+                                         'stop':[3100, 7000, 13000],
+                                         'level':[-50, 0, 60], 
+                                         'theta' : [10, -10, 0]})
 
-        # with multiple echoes - same angle of arrival :
+        self.other_sounds = pd.DataFrame(data=[], index=range(2),
+                                             columns=['start','stop',
+                                                 'level','theta'])
+        self.other_sounds['start'] = [0,49999]
+        self.other_sounds['stop'] = [49999,99999]
+        self.other_sounds['level'] = [30, 30]
+        self.other_sounds['theta'] = [30, 30]
 
-        self.echoes['start'] = [1500, 10000] ; self.echoes['stop'] = [1600,10600]
-        self.echoes['theta'] = [0, 0]   ; self.echoes['level'] = [86,86]
+        num_heard, _ = calculate_num_heardechoes(self.echoes, self.other_sounds,
+                                                 **self.kwargs)
+        self.assertEqual(num_heard,1)
 
-
-        oneecho_heard, obtained_outcome = calculate_num_heardechoes(self.echoes,self.calls,
-                                                self.temporalmasking_fn,
-                                                self.spatialrelease_fn,
-                                                one_hot=True, 
-                                               **self.kwargs)
-        self.assertEqual(oneecho_heard,2)
-        expected_outcome = np.array([1,1])
-        outcomes_match_positive = np.sum(obtained_outcome - expected_outcome) == 0
-        self.assertTrue(outcomes_match_positive)
-    
-    def test_onehotcoding_switch_negative(self):
-        '''
-        Checks if the one-hot coding option activated by the keyword argument
-        gives the expected output when no echoes are heard
-        '''
-        # copy the test with spatial unmasking multiechoes
-        self.calls['start'] = [0]  ; self.calls['stop'] = [29]
-        self.calls['theta'] = [80] ; self.calls['level'] = [90]
-
-        # with multiple echoes - same angle of arrival :
-
-        self.echoes['start'] = [0, 15] ; self.echoes['stop'] = [10,20]
-        self.echoes['theta'] = [80, 80]   ; self.echoes['level'] = [5,2]
-
-
-        noecho_heard, obtained_outcome = calculate_num_heardechoes(self.echoes,self.calls,
-                                                self.temporalmasking_fn,
-                                                self.spatialrelease_fn,
-                                                one_hot=True, 
-                                               **self.kwargs)
-        self.assertEqual(noecho_heard,0)
-        expected_outcome = np.array([0,0])
-        outcomes_match_negative = np.sum(obtained_outcome - expected_outcome) == 0
-        self.assertTrue(outcomes_match_negative)
-    
-    def test_onehotcoding_switch_secondechoheard(self):
-        '''
-        Checks if the one-hot coding option activated by the keyword argument
-        gives the expected output when the second of two echoes is heard
-        '''
-        # copy the test with spatial unmasking multiechoes
-        self.calls['start'] = [0]  ; self.calls['stop'] = [29]
-        self.calls['theta'] = [80] ; self.calls['level'] = [90]
-
-        # with multiple echoes - same angle of arrival :
-
-        self.echoes['start'] = [0, 10000] ; self.echoes['stop'] = [16,10600]
-        self.echoes['theta'] = [0, 0]   ; self.echoes['level'] = [1,86]
-
-
-        oneecho_heard, obtained_outcome = calculate_num_heardechoes(self.echoes,self.calls,
-                                                self.temporalmasking_fn,
-                                                self.spatialrelease_fn,
-                                                one_hot=True, 
-                                               **self.kwargs)
-        self.assertEqual(oneecho_heard,1)
-        expected_outcome = np.array([0,1])
-        outcomes_match_oneheard = np.sum(obtained_outcome - expected_outcome) == 0
-        self.assertTrue(outcomes_match_oneheard)
-
- 
 class TestingCalcNumTimes(unittest.TestCase):
 
     def setUp(self):
@@ -981,13 +727,25 @@ class TestRunCPN(unittest.TestCase):
         self.kwargs['reflection_function'] = reflectionfunc
         self.kwargs['heading_variation'] = 10 
         self.kwargs['min_spacing'] = 0.5
-        self.kwargs['Nbats'] = 10
+        self.kwargs['Nbats'] = 5
         self.kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
-    
-    def test_basicrunCPN(self):
+        self.kwargs['hearing_threshold'] = 10
+        
+        fwd_masking_region = np.linspace(-27, -7, 20000)        
+        bkwd_masking_region = np.linspace(-10, -24, 3000)
+        simult_masking_regio = np.array([-8])
+        temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
+                                                bkwd_masking_region)
+        self.kwargs['temporal_masking_thresholds'] = temporal_masking_fn
+        
+        spl_um = pd.DataFrame(data={'deltatheta':np.linspace(0,30,30),
+                                    'dB_release':np.linspace(0, -30,30)})
+        self.kwargs['spatial_release_fn'] = spl_um
+
+    def test_checkif_type_correct(self):
         '''Check if an integer is the output of a single runCPN
         '''
-        num_echoesheard = run_CPN(**self.kwargs)
+        num_echoesheard, _ = run_CPN(**self.kwargs)
         self.assertTrue(isinstance(num_echoesheard, int))
 
 
@@ -1100,6 +858,8 @@ class TestCheckCumSPL(unittest.TestCase):
         self.cum_SPL = np.ones(100) * -8
         self.kwargs['simtime_resolution'] = 10**-3
         self.kwargs['echocall_duration'] = 3*10**-3
+        self.kwargs['hearing_threshold'] = 0.0
+        
         
     
     def test_basic_echo_heard(self):
@@ -1125,14 +885,12 @@ class TestCheckCumSPL(unittest.TestCase):
                                                               **self.kwargs)
         self.assertTrue(echo_heard)
     
-    def test_heard_w_complex_echomasker_profile(self):
+    def test_heard_w_loudburst(self):
         '''What happens when the echmasker profile falls below the 
-        threshold for < echocall duraiton but varies in genera. This is 
-        a no-brainer - but needs to be checked. 
+        threshold for < echocall duraiton but is above it in general.
         '''
-        self.cum_SPL = np.ones(100) * -5
-        self.cum_SPL += np.random.normal(0,0.5,100)
-        self.cum_SPL[self.echo['start']] = -90 # one timestep has a strong drop in echomasker ratio 
+        self.cum_SPL = np.ones(100) *5
+        self.cum_SPL[int(self.echo['start']):int(self.echo['stop'])] = 90 # one timestep has a strong drop in echomasker ratio 
         echo_heard = check_if_cum_SPL_above_masking_threshold(self.echo, self.cum_SPL, 
                                                               **self.kwargs)
         self.assertFalse(echo_heard)

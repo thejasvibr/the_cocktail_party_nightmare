@@ -1,14 +1,6 @@
 # -*- coding: utf-8 -*-
-""" A clean approach to making Monte-Carlo simulations of
-the cocktail party nightmare
-
-TODO :
-1) implement the effect of spatial arrangement on the cocktail party nightmare
-2) hearing directionality
-3) include switch to make each bat call in a different direction
-4) calculate 2dary echoes 
-5) many calculations assume all bats fly in the same direction - fix this assumption
-   by including a switch to allow different flight directions
+""" Simulating what echolocating bats as they fly in groups - AKA the 
+'cocktail party nightmare'
 
 Created on Tue Dec 12 21:55:48 2017
 
@@ -20,8 +12,8 @@ import time
 folder = 'C:\\Users\\tbeleyur\\Google Drive\\Holger Goerlitz- IMPRS\\PHD_2015\\projects and analyses\\2016_jamming response modelling\\analytical_modelling\\poisson-disc-master\\poisson-disc-master\\'
 sys.path.append(folder)
 
-import matplotlib.pyplot as plt
-plt.rcParams['agg.path.chunksize'] = 100000
+#import matplotlib.pyplot as plt
+#plt.rcParams['agg.path.chunksize'] = 100000
 import numpy as np
 np.random.seed(82319)
 import pandas as pd
@@ -30,28 +22,27 @@ import scipy.spatial as spl
 import scipy.interpolate as interpolate
 from poisson_disc import Grid
 
-
-class MissingKeyword(ValueError):
-    '''raised when there's a missing keywork argument
-    '''
-    pass
+ 
 
 
 def assign_random_arrival_times(sound_df, **kwargs):
     '''Assigns a random arrival time to the sounds in the input sound_df. 
     The sound_df can be either conspecific calls or secondary echoes. 
     
-    Parameters:
+     Parameters
+    ----------
 
         sound_df : pd.DataFrame with at least the following columns:
                     'start', 'stop'
     
-    Keyword Arguments:
+    Keyword Arguments
+    ----------------
         simtime_resolution
         interpulse_interval
         echocall_duration
 
-    Returns: 
+      Returns
+    ------- 
         sound_df with values assigned to the start and stop columns
 
     '''
@@ -69,10 +60,12 @@ def assign_random_arrival_times(sound_df, **kwargs):
 
 def calc_num_timesteps_in_IPI(**kwargs):
     '''Calculates the number of time steps in an IPI given the simtime resolution
-    Keyword Arguments:
+     Keyword Arguments
+    ----------------
         simtime_resolution
         interpulse_interval
-    Returns:
+      Returns
+    -------
         num_timesteps : integer.         
     '''
     num_timesteps = int(np.ceil(kwargs['interpulse_interval']/kwargs['simtime_resolution']))
@@ -82,19 +75,22 @@ def assign_real_arrival_times(sound_df, **kwargs):
     '''Assigns a random arrival time to the sounds in the input sound_df. 
     The sound_df can be either conspecific calls or secondary echoes. 
     
-    Parameters:
+     Parameters
+    ----------
 
         sound_df : pd.DataFrame with at least the following columns:
                     'start', 'stop'
     
-    Keyword Arguments:
+     Keyword Arguments
+    ----------------
         v_sound
         bats_xy
         simtime_resolution
         interpulse_interval
         echocall_duration
 
-    Returns: 
+      Returns
+    ------- 
         sound_df with values assigned to the start and stop columns
 
     '''
@@ -124,7 +120,8 @@ def place_sounds_randomly_in_IPI(timeline ,calldurn_steps, Nsounds = 1):
     '''Randomly places 
     
 
-    Inputs:
+     Parameters
+    ----------
 
     timeline: list. range object with iteration numbers ranging from 0 to the
              the number of iterations the inter pulse interval consists of.
@@ -172,13 +169,15 @@ def calc_pechoesheard(num_echoes_heard, total_echoes):
     interval acting as maskers
 
 
-    Parameters:
+     Parameters
+    ----------
 
     num_echoes_heard : array like. Entries are the number of echoes heard.
     total_echoes : integer. Total number of echoes placed in the interpulse
                                                                     interval
 
-    Returns:
+      Returns
+    -------
 
     heard_probs : 1 x (Nechoes+1). Probability of hearing 0,1,2,..N echoes
 
@@ -215,7 +214,8 @@ def calc_echoes2Pgeqechoes(many_heardechoes, num_echoes, geqN):
     '''Calculates P of hearing >= Nechoes for multiple heard_echo objects
     laid row on row
 
-    Parameters:
+     Parameters
+    ----------
 
     many_heardechoes : ncases x Ntrials np.array. Each row contains an integer
                     number of values with the echoes heard for each trial.
@@ -272,7 +272,8 @@ def calc_echoes2Pgeqechoes(many_heardechoes, num_echoes, geqN):
 def calc_PgeqNechoes(heard_probs,geqN):
     '''Calculates probability of at least >=N echoes being heard.
 
-    Parameters:
+     Parameters
+    ----------
 
     heard_probs : 1 x (Nechoes+1 ) array-like. Contains probabilities of hearing
                  0,1,....Nechoes in that order.
@@ -306,7 +307,8 @@ def populate_sounds(time_range, sound_duration,
     '''Creates properties for a set of sounds (echo/call) given the
     limits in kwargs. The output is considered a 'sound' DataFrame
 
-    Parameters:
+     Parameters
+    ----------
 
     time_range : np.array with integer numbers of the discretised timesteps
                 of the pulse interval.
@@ -357,7 +359,8 @@ def populate_sounds(time_range, sound_duration,
 
 
 
-    Returns:
+      Returns
+    -------
 
     all_sounds : pd.DataFrame with the following column names :
                 start | stop | theta | level |
@@ -410,14 +413,16 @@ def implement_call_directionality(sound_df,A):
 
     This function assumes all bats are flying in the same direction.
 
-    Parameters:
+     Parameters
+    ----------
         sound_df: pandas dataframe with the following column names :
                 |start|stop|theta|level|
                 (see populate_sounds documentation for more details)
 
         A : float>0. Asymmetry parameter from Giuggioli et al. 2015 The higher
             this value, the more drop there is off-axis.
-    Returns:
+      Returns
+    -------
         sound_df : returns the input dataframe with altered level values post
                 incorporation of call directionality factor.
 
@@ -438,39 +443,42 @@ def calculate_num_heardechoes(echoes,other_sounds,
     echoes that a bat might have heard.
 
 TODO:
-    1) split all sounds into angular bins and calculate the cumulative sound pressure levels
-    2) apply the spatial unmasking release for each angular bin 
-    3) check if the echo is above the expected temporal masking function for all angles
-    4) if echo is 
+    1) add the other echoes into the other_sounds df each time ! 
+   
+     Parameters
+    ----------
 
-    Parameters:
-
-    echoes : pandas.DataFrame. It is a 'sound' DataFrame with >=1 echoes and 4
+    echoes : pandas.DataFrame. 
+             It is a 'sound' DataFrame with >=1 echoes and 4
              columns (see 'populate_sounds' for more documentation)
 
-    other_sounds : pandas.DataFrame. It is a 'sound' DataFrame with >=1 calls and secondary echoes
+    other_sounds : pandas.DataFrame.
+                   It is a 'sound' DataFrame with >=1 calls and secondary echoes
                    and 4 columns (see 'populate_sounds' for more documentation)
 
-    temporalmasking_fn : pandas.DataFrame. The DataFrame has 2 columns:
-                        |time_delay_ms|delta_dB|.
+    temporalmasking_fn : pandas.DataFrame.
+                        The DataFrame has 2 columns:
+                        'time_delay_ms' &  'delta_dB':
 
-                    time_delay_ms: positive values are a forward masking regime,
-                                and stand for the time gap between the end
-                                of the masker and beginning of the echo.
+                        time_delay_ms: positive values are a forward masking regime,
+                                    and stand for the time gap between the end
+                                    of the masker and beginning of the echo.
+    
+                                    Negative values are backward masking regimes
+                                    and stand for the time gap between the start
+                                    of the echo and start of the masker.
+    
+                                    0 time delay is in the case of simultaneous mas-
+                                    king.
+    
+                        delta_dB : the difference between the intensity of the echo
+                                    and masker: echo_dBSPL - masker_dBSPL
 
-                                Negative values are backward masking regimes
-                                and stand for the time gap between the start
-                                of the echo and start of the masker.
+    spatial_release_fn : pandas.DataFrame.
+                         ????
 
-                                0 time delay is in the case of simultaneous mas-
-                                king.
-
-                    delta_dB : the difference between the intensity of the echo
-                                and masker: echo_dBSPL - masker_dBSPL
-
-    spatial_release_fn : pandas.DataFrame
-
-    Keyword arguments:
+     Keyword Arguments
+    ----------------
 
         interpulse_interval : 
 
@@ -479,17 +487,14 @@ TODO:
         temp masking funciton
         spatial unmasking function
             
-        
-    
-        one_hot : boolean. If True then the echoes that are heard are 
-                  output as an 1 x Nechoes one-hot binary array. 
 
         simtime_resolution : float>0. The time resolution of each timestep in
                              the simulation. This needs to be commensurate to 
                              the auditory temporal resolution of the bat
                              auditory system. 
 
-    Returns:
+      Returns
+    -------
 
     num_echoes: integer. number of echoes that are heard.
 
@@ -501,24 +506,22 @@ TODO:
 
     echoes_heard = []
 
-    for echoindex,each_echo in echoes.iterrows():
+    for echoindex, each_echo in echoes.iterrows():
         this_echoheard = check_if_echo_heard(each_echo, other_sounds, 
                                                      **kwargs)
         echoes_heard.append(this_echoheard)
 
     num_echoes = sum(echoes_heard)
+    heardechoes_id = np.array(echoes_heard).astype('int')
 
-    if 'one_hot' in kwargs.keys():
-        heardechoes_id = np.array(echoes_heard).astype('int')
-        return(num_echoes, heardechoes_id)
-    else:
-        return(num_echoes)
+    return(num_echoes, heardechoes_id)
 
 
 def check_if_echo_heard(echo, other_sounds,
                          **kwargs):
     '''Check if an echo is heard by calculating the echo-masker dB difference 
     in the interpulse interval. 
+    
     
     The dB difference is calculated after spatial unmasking, and if the
     delata dB profile lies above the temporal masking baseline for an echo,
@@ -528,7 +531,8 @@ def check_if_echo_heard(echo, other_sounds,
     and the delta dB SPL profile is         [-2, 0, 1,-1, 0, 0, -1, -2] 
     then the echo is heard as the 'signal-to-noise' ratio is high. 
 
-    Parameters:
+     Parameters
+    ----------
 
     echo : 1 x 4 pd.DataFrame
 
@@ -536,29 +540,42 @@ def check_if_echo_heard(echo, other_sounds,
                    refers to the reduction in required echo-masker delta dB SPL
                    because of spatial unmasking. 
 
-    Keyword Arguments:
+     Keyword Arguments
+    ----------------
 
     simtime_resolution     
-    temporalmasking_fn : Ntimepoints x 2 pd.DataFrame with following column
-                        names :
-                        |timegap_ms|delta_dB|
 
-    spatial_unmasking_fn : 
+    temporalmasking_fn : Ntimepoints x 2 pd.DataFrame 
+                         with following column
+                         names :
+                         |timegap_ms|delta_dB|
 
-    Returns :
+    spatial_unmasking_fn : pd.DataFrame
+                           |deltatheta|dB_release|
 
-    echo_heard : Boolean. True if echo is heard, False if it could be masked
+    Returns
+    ----------
+
+    echo_heard : Boolean.
+                 True if echo is heard, False if it could be masked
     '''
-    apply_spatial_unmasking_on_sounds(echo['theta'], 
-                                      other_sounds, **kwargs)
-    cumulative_spl = dB(ipi_soundpressure_levels(other_sounds, 'post_SUM'))
-    echo_heard = check_if_cum_SPL_above_masking_threshold(echo, cumulative_spl,
-                                                                      **kwargs)
+    if float(echo['level']) >= kwargs['hearing_threshold']:
+        apply_spatial_unmasking_on_sounds(float(echo['theta']), 
+                                          other_sounds, **kwargs)
+        cumulative_spl = ipi_soundpressure_levels(other_sounds, 'post_SUM',
+                                                                  **kwargs)
+        cumulative_dbspl = dB(cumulative_spl)
+        echo_heard = check_if_cum_SPL_above_masking_threshold(echo, 
+                                                              cumulative_dbspl,
+                                                              **kwargs)
+        return(echo_heard)
+    else:
+        return(False)
 
-    return(echo_heard)
+    
 
 
-def check_if_cum_SPL_above_masking_threshold(echo, cumulative_spl,
+def check_if_cum_SPL_above_masking_threshold(echo, cumulative_dbspl,
                                                           **kwargs):
     '''Check an echo is ehard or not based on whether the 
     echo-masker delta dB is satisfied in the temporal masking window.
@@ -570,13 +587,15 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_spl,
 
 
 
-    Parameters:
+     Parameters
+    ----------
 
     echo : 1 x 4 sound_df. 
 
-    cumulative_spl : 1D x Ntimesteps. 
+    cumulative_dbspl : 1D x Ntimesteps. 
 
-    Keyword Arguments: 
+     Keyword Arguments
+    ---------------- 
     
     simtime_resolution : float>0. Duration of one simultation timestep
 
@@ -587,16 +606,17 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_spl,
                            the simtime_resolution being used.
                         
 
-   Returns:
+     Returns
+    -------
 
    echo_heard : Boolean . True if echo-masker SPL ratios were above the tmeporal 
                     masking function. 
 
     '''
-    delta_echo_masker = float(echo['level']) - cumulative_spl
+    delta_echo_masker = float(echo['level']) - cumulative_dbspl
     echo_start, echo_stop = int(echo['start']), int(echo['stop'])
     fwd, simultaneous, bkwd = kwargs['temporal_masking_thresholds']
-    ipi_timesteps = cumulative_spl.size
+    ipi_timesteps = cumulative_dbspl.size
     # choose the snippet relevant to the temporal masking function:
     fwd_left, fwd_right = check_if_in_ipi([echo_start-fwd.size, echo_start], 
                                           ipi_timesteps)
@@ -611,7 +631,8 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_spl,
     
 
     # compare to see if the overall duration above the threshold is >= echo_duration
-    masked_time = np.sum(delta_echomasker_snippet < temp_masking_snippet)*kwargs['simtime_resolution']
+    timesteps_echo_below_masker = delta_echomasker_snippet < temp_masking_snippet
+    masked_time = np.sum(timesteps_echo_below_masker)*kwargs['simtime_resolution']
 
     if masked_time <= kwargs['echocall_duration']*0.75:
         echo_heard = True
@@ -624,7 +645,8 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_spl,
 def check_if_in_ipi(indices, ipi_size):
     '''Checks if the start,stop list is within the ipi indices
 
-    Parameters:
+     Parameters
+    ----------
 
         indices : list with 2 integers. The start, stop indices are given 
                   for the different masking zones around an echo
@@ -632,11 +654,13 @@ def check_if_in_ipi(indices, ipi_size):
         ipi_size : integer. The maximum possible integer size that the indices 
                    can have. 
 
-    Returns:
+      Returns
+    -------
 
         indices : modified if the indices presented are < 0 or > ipi_indices
 
-    eg. if 
+    Example
+    -------
     
     check_if_in_ipi([-20, 300], 2000) --> [0,300]
     '''
@@ -653,126 +677,7 @@ def check_if_in_ipi(indices, ipi_size):
     
     indices = [start, stop]
     return(indices)
-    
-    
-def quantify_temporalmasking(echo, call):
-    '''
-    Gives the timedelay according to the temporal masking function.
-
-    If the values are positive, it is forward masking.
-    If negative, it is backward masking.
-
-    Note : Any forward/backward masking overlap of less than 10% of the echoes
-    length is considered equivalent to simultaneous masking.
-
-    Parameters:
-
-    echo: a 1X4 pd.DataFrame row with the indices of the echo's location accessed with
-                    'start' and 'stop' keys.
-
-    call : Ncalls x 4 pd.DataFrame, with same columns names as echo.
-
-
-    Returns:
-
-            timegap : integer delay in integers.
-    '''
-
-    try:
-        echo_range = set(range(echo['start'],echo['stop']+1))
-        call_range = set(range(call['start'],call['stop']+1))
-    except :
-        # because pd.iterrows() converts the whole row into a float if there
-        # is even a single float value in the midst of int entries
-        echo_range = set(range(int(echo['start']),int(echo['stop']+1)))
-        call_range = set(range(int(call['start']),int(call['stop']+1)))
-
-    # Check for overlap :
-    overlap = echo_range & call_range
-
-    # if the length of overlap is 90% of the whole echoes duration,
-    # then treat it as a simultaneous overlap ..as '0' time gap
-
-    if len(overlap) >= int(0.9*len(echo_range)):
-        return(0)
-
-    time_gap = which_masking(call,echo)
-
-    return(time_gap)
-
-
-def which_masking(call,echo):
-    '''Decides which kind of masking is occuring and how much timegap there is
-    between the call and echo.
-
-    If the timegap is >0 then it is forward masking, if timegap<0, then it is
-    backward masking, if it is 0 -then it is simultaneous masking.
-
-    Parameters:
-
-    call: dictionary with (at least the) following keys:
-        start: simulation index of call start
-        stop:  simulation index of call stop
-
-    echo: same as above.
-
-
-    Returns:
-
-    timegap : integer. number of iterations length of forward/backward masking
-
-
-    Example :
-
-    eg_call, eg_echo, where eg_call edge is 10ms from the eg_echo in a case
-    of potential forward masking
-
-    which_masking(eg_call, eg_echo) --> 100 # iterations, with time resolution
-                                        of 10**-4 seconds per iteration.
-
-    '''
-
-    fwd_nonoverlap = (call['stop'] < echo['start']) & (call['start'] < echo['start'])
-    # to do:  refactor to avoid the multiple try except clauses
-    try:
-        if fwd_nonoverlap.bool():
-            timegap = echo['start'] - call['stop']
-            return(timegap)
-    except:
-        if fwd_nonoverlap:
-            timegap = echo['start'] - call['stop']
-            return(timegap)
-
-
-    fwd_overlap = (call['stop'] >= echo['start']) & (call['start'] < echo['start'])
-
-    try:
-        if fwd_overlap.bool():
-            # In the absence of data -  treat a slight forward fringe masking
-            # conservatively as if it were simultaneous masking.
-            timegap = 0
-            return(timegap)
-    except:
-        if fwd_overlap:
-            # In the absence of data -  treat a slight forward fringe masking
-            # conservatively as if it were simultaneous masking.
-            timegap = 0
-            return(timegap)
-
-
-    bkwd_nonoverlap = (call['start'] < echo['stop']) & (call['stop'] > echo['stop'])
-
-    bkwd_overlap = (call['start'] > echo['start']) & (call['stop'] > echo['stop'])
-
-    try:
-
-        if bkwd_nonoverlap.bool() or bkwd_overlap.bool():
-            timegap = echo['start'] - call['start']
-            return(timegap)
-    except:
-        if bkwd_nonoverlap or bkwd_overlap:
-            timegap = echo['start'] - call['start']
-            return(timegap)
+ 
 
 
 def apply_spatial_unmasking_on_sounds(echo_theta, 
@@ -780,14 +685,26 @@ def apply_spatial_unmasking_on_sounds(echo_theta,
     '''Calculate angular separation between a target echo and the surrounding sounds
     in the ipi and get the spatial release obtained from the angular separation. 
 
-    Parameters:
+     Parameters
+    ----------
 
         echo_theta : 180 <= degrees <= -180. The arrival angle of the target echo in degrees. 
                      Sounds arriving from the left are -ve and from the right are +ve. 
 
         sound_df : pd.DataFrame. a sound DataFrame
 
-    Returns:
+    Keyword Arguments
+    -----------------
+
+        spatial_release_fn : pd.DataFrame
+                             two columns with the angular separation and the 
+                             reduction in exho-masker level due to it. 
+    
+        
+
+
+      Returns
+    -------
 
         sound_df : the input sound_df with an extra column 'post_SUM'. This column refers
                     to the effective masker received level after spatial unmasking.
@@ -804,7 +721,8 @@ def apply_spatial_unmasking_on_sounds(echo_theta,
 def ipi_soundpressure_levels(sound_df, spl_columnname, **kwargs):
     '''add the SPL of sounds and get a 'cumulative; ipi SPL profile.
 
-    Parameters:
+     Parameters
+    ----------
 
         sound_df : 1 x 5 pd.DataFrame. With the columns start, stop, theta, level, post_SUM
 
@@ -814,33 +732,31 @@ def ipi_soundpressure_levels(sound_df, spl_columnname, **kwargs):
                          If 'post_SUM' is used, then it is the effective
                          lowered sound pressure level modelled by spatial unmasking. 
 
-    Returns:
+      Returns
+    -------
 
-        ipi : 1 x Ntimesteps np.array. An 1D array with the sound pressure level for each
-              timestep. One timestep is interpulse_interval/simtime_resolution long. The
-              sound pressures are added coherently first and returned in the 
+        ipi_soundpressure : 1 x Ntimesteps np.array.
+               An 1D array with the sound pressure level factor re 20muPa for
+               each timestep. One timestep is interpulse_interval/simtime_resolution 
+               long. The sound pressures are added coherently first and returned in the 
               pressure scale 
 
-    Keyword Arguments:
+     Keyword Arguments
+    ----------------
 
         interpulse_interval : float >0. time between one bat call and anotehr
 
         simtime_resolution : float >0. Duration of one timestep - this decides how
                              many timesteps there are in an interpulse interval.
 
-
-
-
-
-
     '''
     
-    ipi = np.zeros(int(kwargs['interpulse_interval']/kwargs['simtime_resolution']))
-    ipi += np.random.normal(0,10**-9, ipi.size)
+    ipi_soundpressure = np.zeros(int(kwargs['interpulse_interval']/kwargs['simtime_resolution']))
+    ipi_soundpressure += np.random.normal(0,10**-10, ipi_soundpressure.size) #prevent 0's from messing up the dB
     for i in range(sound_df.shape[0]):
         start, stop = sound_df['start'][i], sound_df['stop'][i]
-        ipi[start:stop] += 10**(sound_df[spl_columnname][i]/20.0)
-    return(ipi)
+        ipi_soundpressure[start:stop] += 10**(sound_df[spl_columnname][i]/20.0)
+    return(ipi_soundpressure)
 
 
 
@@ -860,14 +776,16 @@ def get_relative_echo_angular_separation(echo_angle,sound_angle):
     The output is the angular separation between two sound w ref to an
     echoes arrival angle.
 
-    Parameters:
+     Parameters
+    ----------
 
         echo_angle : -180 <= angle <= 180. Relative arrival angle of an echo
 
         sound_angle : -180 <= angle <= 180.Relative arrival angle of another sound
                       - either a conspecific call or secondary echo.
 
-    Returns:
+      Returns
+    -------
         angular_separation : 0>= angle>=180. Angular separation in degrees, relative to
                              the angle of arrival of the echo.
     '''
@@ -882,13 +800,15 @@ def get_relative_echo_angular_separation(echo_angle,sound_angle):
 def calc_angular_separation(angle1,angle2):
     '''Calculates the minimum separation between two angles, the 'inner' angle.
 
-    Parameters:
+     Parameters
+    ----------
 
         angle1: float. degrees
 
         angle2: float. degrees
 
-    Returns:
+      Returns
+    -------
 
         diff_angle. float.
 
@@ -909,7 +829,8 @@ def calc_angular_separation(angle1,angle2):
 def calc_spatial_release(angular_separation,spatial_release):
     '''Gives the spatial release value closest to the input
 
-    Parameters:
+     Parameters
+    ----------
 
     angular_separation: integer. angular separation in degrees.
 
@@ -918,7 +839,8 @@ def calc_spatial_release(angular_separation,spatial_release):
                     and the 1st column has the spatial release value:
                     |deltatheta|dB_release|
 
-    Returns:
+      Returns
+    -------
 
     dB_release: float. Amount of spatial release due to spatial unmasking in dB
 
@@ -978,7 +900,8 @@ def calculate_directionalcall_level(call_params, receiver_distance):
     Note. This calculation DOES NOT include atmospheric attenuation !
     - and is therefore an overly pessimistic calculation
 
-    Parameters:
+     Parameters
+    ----------
 
     call_params: dictioanry with following keys:
             A : float>0. Asymmetry parameter
@@ -1008,11 +931,13 @@ def call_directionality_factor(A,theta):
     The function calculates the drop using the third term
     in equation 11 of Giuggioli et al. 2015
 
-    Parameters:
+     Parameters
+    ----------
     A : float >0. Asymmetry parameter
     theta : float. Angle at which the call directionality factor is
             to be calculated in radians. 0 radians is on-axis.
-    Returns:
+      Returns
+    -------
 
     call_dirn : float <=0. The amount of drop in dB which occurs when the call
                 is measured off-axis.
@@ -1029,13 +954,15 @@ def calc_num_times(Ntrials,p):
     in an inter-pulse interval) happening when the trial is repeated Ntrials
     times.
 
-    Parameters:
+     Parameters
+    ----------
 
         Ntrials : integer >0. Number of trials that are played.
 
         p : 0<=float<=1. probability of an event occuring.
 
-    Returns:
+      Returns
+    -------
 
     prob_occurence : pd.DataFrame with the following columns.
 
@@ -1144,7 +1071,8 @@ def fillup_hexagonalrings(numbats):
     are added to the outer rings.
 
 
-    Parameters:
+     Parameters
+    ----------
 
     numbats : integer >0. The total number of neighbouring bats being simulated
 
@@ -1204,7 +1132,8 @@ def calc_RL(distance, SL, ref_dist):
     ref_dist : float >0. distance at which source level was measured in metres.
 
 
-    Returns:
+      Returns
+    -------
 
     RL : received level in dB SPL re 20muPa.
 
@@ -1223,13 +1152,15 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
     considered the centremost point. The closest points to the centremost point
     are then chosen.
 
-    Parameters:
+     Parameters
+    ----------
 
     npoints: integer. Number of neighbouring points around the focal point
 
     nbr_distance : float>0. Minimum distance between adjacent points.
 
-    Returns:
+      Returns
+    -------
 
     nearby_points : npoints x 2 np.array. XY coordinates of neighbouring points
                     around the centremost point.
@@ -1285,14 +1216,16 @@ def calculate_r_theta(target_points, focal_point):
     default.
 
 
-    Parameters:
+     Parameters
+    ----------
 
     target_points: Npoints x 2 np.array. XY coordinates of the target points.
 
     focal_point : 1 x 2 np.array. XY coordinates of the focal point.
 
 
-    Returns:
+      Returns
+    -------
 
     radial_distances : Npoints x 1 np.array. The radial distance between each
                         of the target points and the focal point.
@@ -1335,11 +1268,13 @@ def calculate_r_theta(target_points, focal_point):
 def calculate_radialdistance(sourcepoint, focalpoint):
     '''
 
-    Parameters:
+     Parameters
+    ----------
 
     sourcepoint, focalpoint : 1 x Ndimensions np.arraya with coordinates
 
-    Returns:
+      Returns
+    -------
 
     radialdist : float > 0. radial distance between sourcepoint and focalpoint
 
@@ -1406,13 +1341,15 @@ def find_rowindex(multirow_array, target_array):
     '''Given a multi-row array and a target 2D array which is one of the rows
     from the multi-row array - gets the row index of the target array.
 
-    Parameters:
+     Parameters
+    ----------
 
     multirow_array : N x 2 np.array.
 
     target_array : 1 x 2 np.array.
 
-    Returns:
+      Returns
+    -------
 
     row_index : integer. row index of the target_array within the multirow_array
     '''
@@ -1436,11 +1373,13 @@ def choose_centremostpoint(points):
     one of them is assigned arbitrarily.
 
 
-    Parameters:
+     Parameters
+    ----------
 
     points : Npoints x 2 np.array. With X and Y coordinates of points
 
-    Returns:
+      Returns
+    -------
 
     centremost_point : 1 x 2 np.array.
 
@@ -1491,7 +1430,8 @@ def find_nearbypoints(all_points, focalpoint_index, numnearpoints):
     '''Given a set of points choose a fixed number of them that are closest
     to a focal point among them.
 
-    Parameters:
+     Parameters
+    ----------
 
     all_points : Npoints x 2 np.array. All generated points.
 
@@ -1499,7 +1439,8 @@ def find_nearbypoints(all_points, focalpoint_index, numnearpoints):
 
     numnearpoints : integer. Number of neighbouring points that must be chosen.
 
-    Returns:
+      Returns
+    -------
 
     nearbypoints : numnearpoints x 2 np.array.
 
@@ -1551,13 +1492,16 @@ def propagate_sounds(sound_type, **kwargs):
     interval. Primary echoes are placed according to their calculated time of
     arrival by the distances at which the neighbouring bats are at. 
 
-    Parameters:
-        sound_type : str. defines which kind of sound is being propagated. 
+     Parameters
+    ----------
+        sound_type : str.
+                     Defines which kind of sound is being propagated. 
                      The valid entries are either 'secondary_echoes',
                                                   'conspecific_calls' OR
                                                   'primary_echoes'
 
-    Keyword Arguments:
+     Keyword Arguments
+    ----------------
         focal_bat
         bats_xy
         bats_orientations
@@ -1566,8 +1510,10 @@ def propagate_sounds(sound_type, **kwargs):
         hearing_directionality,
         reflection_strength 
 
-    Returns:
-        received_sounds : pd.DataFrame . A 'sound' DataFrame - see populate_sounds
+      Returns
+    -------
+        received_sounds : pd.DataFrame 
+                          A 'sound' DataFrame - see populate_sounds
 
     '''
   
@@ -1586,7 +1532,8 @@ def propagate_sounds(sound_type, **kwargs):
 def calculate_conspecificcall_levels(**kwargs):
     '''Calculates the received levels and angles of reception of conspecific calls
 
-     Keyword Arguments:
+      Keyword Arguments
+    ----------------
         focal_bat
         bats_xy
         bats_orientations
@@ -1595,9 +1542,11 @@ def calculate_conspecificcall_levels(**kwargs):
         call_directionality
         source_level
     
-    Returns:
+      Returns
+    -------
 
-        conspecific_calls : pd.DataFrame. A 'sound' df with received level, angle of arrival
+        conspecific_calls : pd.DataFrame.
+                            A 'sound' df with received level, angle of arrival
                                        and other related attributes of the sound : 
                                        start | stop | theta | level |
     '''
@@ -1623,7 +1572,8 @@ def calculate_secondaryecho_levels(**kwargs):
     bouncing off conspecifics once and reaching the focal bat
 
 
-    Keyword Arguments:
+     Keyword Arguments
+    ----------------
         focal_bat
         bats_xy
         bats_orientations
@@ -1632,7 +1582,8 @@ def calculate_secondaryecho_levels(**kwargs):
         call_directionality
         source_level
     
-    Returns:
+      Returns
+    -------
 
         secondary_echoes : pd.DataFrame. A 'sound' df with received level, angle of arrival
                                        and other related attributes of the sound : 
@@ -1671,7 +1622,8 @@ def calculate_primaryecho_levels(**kwargs):
     bouncing off conspecifics once and reaching the focal bat
 
 
-    Keyword Arguments:
+     Keyword Arguments
+    ----------------
         focal_bat
         bats_xy
         bats_orientations
@@ -1680,9 +1632,11 @@ def calculate_primaryecho_levels(**kwargs):
         call_directionality
         source_level
     
-    Returns:
+      Returns
+    -------
 
-        secondary_echoes : pd.DataFrame. A 'sound' df with received level, angle of arrival
+        secondary_echoes : pd.DataFrame.
+                           A 'sound' df with received level, angle of arrival
                                        and other related attributes of the sound : 
                                        start | stop | theta | level |
        
@@ -1715,7 +1669,8 @@ def calculate_conspecificcallreceived_levels(conspecificcall_paths,
     '''Calculates the final sound pressure levels at the focal receiver bat
     of a conspecific call emitted by a group member. 
 
-    Parameters:
+     Parameters
+    ----------
 
         bats_xy :
         conspecificall_paths :  dictionary with the following keys:
@@ -1742,7 +1697,8 @@ def calculate_conspecificcallreceived_levels(conspecificcall_paths,
     
     Returns :
 
-        conspecific_calls : pd.DataFrame.  A 'sound' df with received level, angle of arrival
+        conspecific_calls : pd.DataFrame.
+                            A 'sound' df with received level, angle of arrival
                                        and other related attributes of the sound : 
                                        start | stop | theta | level |
         
@@ -1772,7 +1728,8 @@ def calculate_echoreceived_levels(echopaths,
     '''Calculates the final sound pressure levels at the focal receiver bat given
     the geometry of the problem for primary and secondary echoes
 
-    Parameters:
+     Parameters
+    ----------
 
         echopaths : dictionary with geometry related entries. 
                               See calculate_2ndary_echopaths for details.
@@ -1807,11 +1764,13 @@ def calculate_echoreceived_levels(echopaths,
                         ref_distance : float >0. the reference distance at which the bat's source
                                 level is specified at. 
 
-    Returns:
+      Returns
+    -------
 
-        secondaryechoes : pd.DataFrame. A 'sound' df with received level, angle of arrival
-                                       and other related attributes of the sound : 
-                                       start | stop | theta | level | route|
+        secondaryechoes : pd.DataFrame.
+                          A 'sound' df with received level, angle of arrival
+                          and other related attributes of the sound : 
+                          start | stop | theta | level | route|
 
     '''
     reflection_ref_distance = np.unique(reflection_function['ref_distance'])
@@ -1874,9 +1833,11 @@ def get_reflection_strength(reflection_function,
     This function tries to choose the angle pair which matches the
     unmeasured theta incoming and outgoing to best possible extent. 
 
-    Parameters:
+     Parameters
+    ----------
 
-        reflection_function : pd.DataFrame with the following columns:
+        reflection_function : pd.DataFrame 
+                    with the following columns:
             
                     ref_distance : float>0. Distance at which the reflection strength is calculated in metres.
 
@@ -1898,9 +1859,11 @@ def get_reflection_strength(reflection_function,
                               incoming sound when measured at a 10 cm radius around the centre
                               of the target object. 
 
-    Returns:
+      Returns
+    -------
 
-        reflection_strength : float <=0. The ratio of incoming and outgoing sound pressure levels in dB
+        reflection_strength : float <=0
+                              The ratio of incoming and outgoing sound pressure levels in dB
 
     
 
@@ -1936,18 +1899,21 @@ def calculate_conspecificcall_paths(**kwargs):
     The straight line distances are calculated without assuming any occlusion
     by conspecifics. 
 
-    Keyword Arguments:
+     Keyword Arguments
+    ----------------
 
         focal_bat :
         bats_xy
         bats_orientations
 
-    Returns:
-        conspecificall_paths : dictionary with the following keys:
-            call_routes
-            R_incoming
-            theta_emission
-            theta_reception
+      Returns
+    -------
+        conspecificall_paths : dictionary.
+                            with the following keys
+                                call_routes
+                                R_incoming
+                                theta_emission
+                                theta_reception
     '''
     bats_xy = kwargs['bats_xy']
     bats_orientations = kwargs['bats_orientations']
@@ -1981,20 +1947,25 @@ def calculate_echopaths(echo_type, **kwargs):
     For Nbats the total number of secondary echoes a focal bat will hear is:
         N_emitters x N_targets -->  (Nbats-1) x (Nbats-2)
     
-    Parameters:
+     Parameters
+    ----------
 
         echo_type : string. Either 'primary_echo' or 'secondary_echo'
 
-    Keyword Arguments:
-        focal_bat : 1x2 np.array. xy position of focal bat. This is the end point of all the 2ndary
+     Keyword Arguments
+    ----------------
+        focal_bat : 1x2 np.array.
+                    xy position of focal bat. This is the end point of all the 2ndary
                     paths that are calculated
 
-        bats_xy : Nbats x 2 np.array. xy positions of bats 
+        bats_xy : Nbats x 2 np.array.
+                  xy positions of bats 
 
         bats_orientations : np.array. heading directions of all bats. This direction is with reference to 
                             a global zero which is set at 3 o'clock. 
 
-    Returns:
+      Returns
+    -------
 
         echo_paths : dictionary with following 7 keys - each with 
                     sound_routes|theta_emission|R_incoming|theta_incoming|theta_outgoing|R_outgoing|theta_reception
@@ -2071,7 +2042,8 @@ def calc_R_in_out(distance_matrix, sound_routes):
     '''Calculates the direct path length that a sound needs to travel between
     an emitter bat to target bat (R_in) and target bat to focal receiver bat (R_out)
     
-    Parameters:
+     Parameters
+    ----------
 
         distance_matrix : Nbats x Nbats np.array. Distance between each of the bats in metres. 
 
@@ -2080,7 +2052,8 @@ def calc_R_in_out(distance_matrix, sound_routes):
                         Eg. (20, 10, 5) refers to a sound emitted by bat 20 onto bat 10 and then 
                         reflecting and reaching bat 5. 
 
-    Returns:
+      Returns
+    -------
 
         R_in : tuple with (Nbats-1)x(Nbats-2) floats. Distances of sound on its inbound journey from emitter to target
         R_in : tuple with (Nbats-1)x(Nbats-2) floats. Distances of sound on its outbound journey from target to receiver
@@ -2103,7 +2076,8 @@ def  get_conspecificcall_Rin(distance_matrix, conspecificcall_routes):
 def calc_conspecificcall_thetas(bats_xy, bat_orientations, conspecificcall_routes):
     '''Calculates the relative angle of conspecific call emission and reception. 
 
-    Parameters:
+     Parameters
+    ----------
 
         bats_xy
 
@@ -2111,7 +2085,8 @@ def calc_conspecificcall_thetas(bats_xy, bat_orientations, conspecificcall_route
 
         conspecificcall_routes
 
-    Returns:
+      Returns
+    -------
         theta_emission : tuple with Nbats-1 abs(floats) <= 180 . Relative angle of call emission with reference to the
                          heading direction of the calling bat. -ve angles are to the left and +ve are to the right
 
@@ -2139,7 +2114,8 @@ def calc_echo_thetas(bats_xy, bat_orientations, sound_routes, which_angles):
     The switch 'which_angles' decides if the theta_ingoing and theta_outgoing 
     or theta_emission and theta_reception pairs are calculated.
 
-    Parameters:
+     Parameters
+    ----------
 
         bats_xy : Nbats x 2 np.array. XY positions of bats. 
 
@@ -2168,7 +2144,8 @@ def calc_echo_thetas(bats_xy, bat_orientations, sound_routes, which_angles):
                      heading direction of the target bat
                        
 
-    Returns:
+      Returns
+    -------
 
         theta_towardstarget : tuple with Nbats-1 x Nbats-2 floats. Angle of incoming sound with reference to heading direction
                          of target bat or emitting bat (see which_angles). Heading direction is zero and it increases off-axis till +/- 180 degrees.
@@ -2220,7 +2197,8 @@ def place_bats_inspace(**kwargs):
     This is achieved through Poisson disk sampling.
     
 
-    Keyword Arguments:
+     Keyword Arguments
+    ----------------
         Nbats : integer >0. Number of bats in the group
 
         min_spacing : float> 0. Minimum distance between neighbouring bats in metres.
@@ -2253,61 +2231,105 @@ def run_CPN(**kwargs):
     This version of the simulation places bats in space, calculates the 
     received conspecific call levels and the 2dary echoes that may arrive at a
     focal bat. 
-
-TODO : 
-    1) make switch to choose which is the focal bat 
     
-    Keyword Arguments:
+    TODO
+    --------
+        1) implement the effect of spatial arrangement on the cocktail party nightmare
+        2) hearing directionality
+        3) include switch to make each bat call in a different direction
+        4) calculate 2dary echoes 
+        5) many calculations assume all bats fly in the same direction - fix this assumption
+           by including a switch to allow different flight directions
+        6) make switch to choose which is the focal bat 
 
-            simtime_resolution : float >0. The time resolution of the simulations in seconds. 
 
-            v_sound : float>0. speed of sound in metres/second. 
+     Keyword Arguments
+    ----------------
 
-            Nbats : integer. Number of bats in the group.
+            simtime_resolution : float >0
+                                 The time resolution of the simulations in seconds. 
 
-            min_spacing : float>0. Minimum distance between one bat and its closest neighbour
+            v_sound : float>0
+                      speed of sound in metres/second. 
 
-            heading_variation : float>0. Variation in heading direction of each bat in degrees. 
-                            The reference direction is 90 degrees (3 o'clock is 0 degrees), and 
-                            all bat headings are within +/- heading_variation of 90 degrees. 
-                            This is also assumed to be the direction in which the bat is calling and hearing at.
-                            Example  : a heading variation of 10 degrees will mean that all bats in the group
-                            are facing between 100-80 degrees with uniform probability.
+            Nbats : integer
+                    Number of bats in the group.
 
-           interpulse_interval : float>0. Duration of the interpulse interval in seconds. 
+            min_spacing : float>0
+                          Minimum distance between one bat and its closest neighbour
 
-           echocall_duration : float>0. Duration of the echo and call in seconds.                               
+            heading_variation : float>0
+                                Variation in heading direction of each bat in degrees. 
+                                The reference direction is 90 degrees (3 o'clock is 0 degrees), and 
+                                all bat headings are within +/- heading_variation of 90 degrees. 
+                                This is also assumed to be the direction in which the bat is calling and hearing at.
+                                Example  : a heading variation of 10 degrees will mean that all bats in the group
+                                are facing between 100-80 degrees with uniform probability.
 
-           source_level : dictionary with the following keys and entries:
+           interpulse_interval : float>0
+                                 Duration of the interpulse interval in seconds. 
+
+           echocall_duration : float>0
+                               Duration of the echo and call in seconds.                               
+
+           source_level : dictionary
+                          with the following keys and entries
                           'dB_SPL' : float. Sound pressure level in dB with 20microPascals as reference
+
                           'ref_distance' : float. Reference distance in metres. 
 
-           call_directionality : function. Relates the decrease in source level in dB with emission angle
-                          The on-axis angle is set to 0 here, and the angle right behind the bat is 180 degrees. 
+           call_directionality : function 
+                                  Relates the decrease in source level in dB with emission angle
+                                  The on-axis angle is set to 0 here, and the angle right behind the bat is 180 degrees. 
 
            hearing_directionality : function. Relates the change in received level in dB with sound arrival angle
                           The heading angle is set to 0 here, and the angle right behind the bat is 180 degrees. 
 
-           reflection_function : function. Describes the reflection characteristics of echoes bouncing off
+           reflection_function : function.
+                               Describes the reflection characteristics of echoes bouncing off
                                bats. This is different from the target_strength because the position of
                                reception and position of emission are different. 
 
-           N_echoes : integer >0. The number of target echoes to be placed in the interpulse interval
+           N_echoes : integer >0.
+                      The number of target echoes to be placed in the interpulse interval
 
-           echo_properties : pd.DatFrame. A 'sound'df -- see previous documentation
+           echo_properties : pd.DatFrame.
+                             A 'sound'df -- see previous documentation
 
-           temporal_masking_thresholds : ?? . temporal masking funciton
+           temporal_masking_thresholds : tuple with three 1D np.arrays.
+                             The tuple contains the following temporal masking
+                             thresholds:
+                                 (forward_masking, simultaneous_masking, backward_masking)
+                             Each 1 D np.array has the values of echo-masker dB ratio
+                             at which bats can hear the echo.
 
-           spatial_release_fn : ?? . spatial release function. 
+                             The forward masking line is 'flipped' in that the 
+                             last array index refers to one timestep delay between
+                             the start of the echo and the maskers.
 
-           angular_bins : 360 > float > 0 . The angular resolution of a bat. All primary, secondary,
+                             The simultaneous_masking is a single value with 
+                             the echo-masker ratio when overlapped.
+
+                             The backward_masking line has the 1st timestep 
+                             starting at one timestep delay between the end of the
+                             echo and the maskers.
+                             
+                             
+
+           spatial_release_fn : ?? .
+                                spatial release function. 
+
+           angular_bins : 360 > float > 0 .
+                          The angular resolution of a bat. All primary, secondary,
                           and conspecific calls' arrival angles are put into bins of this width. 
                           
                           Example: if the 
 
-    Returns:
+      Returns
+    -------
 
-        num_echoes_heard : Number of echoes heard        
+        num_echoes_heard : int.
+                          Number of echoes heard        
 
     '''
     assert kwargs['Nbats'] >= 1, 'The cocktail party nightmare has to have >= 1 bats! '
@@ -2339,13 +2361,10 @@ TODO :
     target_echoes = propagate_sounds('primary_echoes', **kwargs)
     assign_real_arrival_times(target_echoes, **kwargs)
 
-#    num_echoes_heard, echo_ids = calculate_num_heardechoes(target_echoes, maskers,
-#                              kwargs['temporal_masking_fn'],
-#                              kwargs['spatial_release_fn'],
-#                              one_hot=True,
-#                              **kwargs)
-        
-    return(secondary_echoes, conspecific_calls, target_echoes)
+    num_echoes_heard, echo_ids = calculate_num_heardechoes(target_echoes, maskers,
+                              **kwargs)
+    sounds = [secondary_echoes, conspecific_calls, target_echoes]        
+    return(num_echoes_heard, [echo_ids, sounds])
 
 
 if __name__ == '__main__':
@@ -2371,55 +2390,59 @@ if __name__ == '__main__':
     kwargs['reflection_function'] = reflectionfunc
     kwargs['heading_variation'] = 0
     kwargs['min_spacing'] = 0.5
-    kwargs['Nbats'] = 10
+    kwargs['Nbats'] = 5
     kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
+    kwargs['hearing_threshold'] = 10
 
-    tm = pd.read_csv('data/temporal_masking_fn.csv')
-    tm_intp = interpolate.interp1d(tm['timegap_ms'], tm['dB_leveldiff'])
-    new_time = np.arange(np.min(tm['timegap_ms']), np.max(tm['timegap_ms']), 10**-6)
-    tm_high_res = pd.DataFrame(data=[], index = range(new_time.size), columns=tm.columns)
-    tm_high_res['timegap_ms'] = new_time
-    tm_high_res['dB_leveldiff'] = tm_intp(new_time)
-    
-    
+#    tm = pd.read_csv('data/temporal_masking_fn.csv')
+#    tm_intp = interpolate.interp1d(tm['timegap_ms'], tm['dB_leveldiff'])
+#    new_time = np.arange(np.min(tm['timegap_ms']), np.max(tm['timegap_ms']), 10**-6)
+#    tm_high_res = pd.DataFrame(data=[], index = range(new_time.size), columns=tm.columns)
+#    tm_high_res['timegap_ms'] = new_time
+#    tm_high_res['dB_leveldiff'] = tm_intp(new_time)
+    fwd_masking_region = np.linspace(-27, -7, 20000)        
+    bkwd_masking_region = np.linspace(-10, -24, 3000)
+    simult_masking_regio = np.array([-8])
+    temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
+                                            bkwd_masking_region)
 
     spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
-    kwargs['temporal_masking_fn'] = tm_high_res
+    kwargs['temporal_masking_thresholds'] = temporal_masking_fn
     kwargs['spatial_release_fn'] = spatial_unmasking_fn
     
-    secondary_echoes, consp_calls, echoes = run_CPN(**kwargs)
-    ipi_spl = 20*np.log10(ipi_soundpressure_levels(pd.concat([secondary_echoes, consp_calls],
-                                                             ignore_index=True), **kwargs))
-    index = np.random.choice(np.arange(0, kwargs['Nbats']-1))
-    echo_masker_spl = echoes['level'][index]-ipi_spl
-    echo_masker_spl[np.isnan(ipi_spl)]= 0 
-    echo_masker_spl[echo_masker_spl>0] = 0
-    plt.figure()
-    plt.plot(echo_masker_spl)
-    start, stop = echoes['start'][index], echoes['stop'][index]
-    echo_block = np.arange(start,stop+1)
-    plt.plot(echo_block, np.tile(0,echo_block.size))
-    plt.hlines(-8, start, stop)
-#    plt.hlines(-8, 0, 10**5)
-    # the temp masking line:
-    fwd_masking = temp_masking_fn['timegap_ms'] >=0
-    fwdmasking_fn = temp_masking_fn[fwd_masking]
-    plt.plot(start-fwdmasking_fn['timegap_ms']*10**5, fwdmasking_fn['dB_leveldiff'])
-#    for index, row in echoes.iterrows():
-#        start, stop, theta, level, _  = row 
-
-    
-#    
+    num_echoes, b = run_CPN(**kwargs)
+#    ipi_spl = 20*np.log10(ipi_soundpressure_levels(pd.concat([secondary_echoes, consp_calls],
+#                                                             ignore_index=True), **kwargs))
+#    index = np.random.choice(np.arange(0, kwargs['Nbats']-1))
+#    echo_masker_spl = echoes['level'][index]-ipi_spl
+#    echo_masker_spl[np.isnan(ipi_spl)]= 0 
+#    echo_masker_spl[echo_masker_spl>0] = 0
 #    plt.figure()
-#    plt.xlim(0,10**5)
-#    for i,row in c.iterrows():
-#        y = 0 + np.random.normal(0,0.5,1)
-#        plt.plot([row['start'], row['stop']],[y,y],'g', linewidth=row['level']*0.1)
-#    for j, row in b.iterrows():
-#        y = 0 + np.random.normal(0,1,1)
-#        plt.plot([row['start'], row['stop']],[y,y], 'r', alpha=0.5, linewidth=row['level']*0.1)
-#    for j, row in a.iterrows():
-#        y = 0 + np.random.normal(0,1,1)
+#    plt.plot(echo_masker_spl)
+#    start, stop = echoes['start'][index], echoes['stop'][index]
+#    echo_block = np.arange(start,stop+1)
+#    plt.plot(echo_block, np.tile(0,echo_block.size))
+#    plt.hlines(-8, start, stop)
+##    plt.hlines(-8, 0, 10**5)
+#    # the temp masking line:
+#    fwd_masking = temp_masking_fn['timegap_ms'] >=0
+#    fwdmasking_fn = temp_masking_fn[fwd_masking]
+#    plt.plot(start-fwdmasking_fn['timegap_ms']*10**5, fwdmasking_fn['dB_leveldiff'])
+##    for index, row in echoes.iterrows():
+##        start, stop, theta, level, _  = row 
+#
+#    
+##    
+##    plt.figure()
+##    plt.xlim(0,10**5)
+##    for i,row in c.iterrows():
+##        y = 0 + np.random.normal(0,0.5,1)
+##        plt.plot([row['start'], row['stop']],[y,y],'g', linewidth=row['level']*0.1)
+##    for j, row in b.iterrows():
+##        y = 0 + np.random.normal(0,1,1)
+##        plt.plot([row['start'], row['stop']],[y,y], 'r', alpha=0.5, linewidth=row['level']*0.1)
+##    for j, row in a.iterrows():
+##        y = 0 + np.random.normal(0,1,1)
 #        plt.plot([row['start'], row['stop']],[y,y], 'y', alpha=0.5, linewidth=row['level']*0.1)
 #    
 #

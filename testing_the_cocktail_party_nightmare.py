@@ -747,6 +747,12 @@ class TestRunCPN(unittest.TestCase):
         '''
         num_echoesheard, _ = run_CPN(**self.kwargs)
         self.assertTrue(isinstance(num_echoesheard, int))
+    
+    def test_check_w_just_2_bats(self):
+        '''Make sure that the NaNs are removed in the 2 bat case because
+        the 2dary echoes sound dfs are output w Nans.
+        '''
+        self.assertTrue(False)
 
 
 class TestPlaceSoundsRandomlyinIPI(unittest.TestCase):

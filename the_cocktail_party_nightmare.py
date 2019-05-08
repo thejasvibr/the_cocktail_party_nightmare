@@ -30,7 +30,7 @@ def assign_random_arrival_times(sound_df, **kwargs):
     The sound_df can be either conspecific calls or secondary echoes. 
     
      Parameters
-    ----------
+    ---------- 
 
         sound_df : pd.DataFrame with at least the following columns:
                     'start', 'stop'
@@ -710,9 +710,10 @@ def apply_spatial_unmasking_on_sounds(echo_theta,
                     to the effective masker received level after spatial unmasking.
     '''
     num_sounds = sound_df.shape[0]
-    sound_df['post_SUM'] = np.nan
+    sound_df['post_SUM'] = np.tile(np.nan, num_sounds)
     for each_sound in  xrange(num_sounds):
-        angular_separation = get_relative_echo_angular_separation(echo_theta, sound_df['theta'][each_sound])
+        angular_separation = get_relative_echo_angular_separation(echo_theta,
+                                                                  sound_df['theta'][each_sound])
         spatial_release = calc_spatial_release(angular_separation, kwargs['spatial_release_fn'])   
         sound_df['post_SUM'][each_sound] = sound_df['level'][each_sound] + spatial_release
     return(sound_df)
@@ -826,7 +827,7 @@ def calc_angular_separation(angle1,angle2):
 
     return(diff_angle)
 
-def calc_spatial_release(angular_separation,spatial_release):
+def calc_spatial_release(angular_separation, spatial_release):
     '''Gives the spatial release value closest to the input
 
      Parameters
@@ -867,8 +868,8 @@ def calc_spatial_release(angular_separation,spatial_release):
         return(np.min(spatial_release['dB_release']))
 
     else:
-        closest_index = np.argmin( np.abs( spatial_release.iloc[:,0] - angular_separation )  )
-        dB_release = spatial_release.iloc[closest_index,1]
+        closest_index = np.argmin(np.abs(spatial_release['deltatheta'] - angular_separation))
+        dB_release = spatial_release['dB_release'][closest_index]
         return(dB_release)
         
 
@@ -1488,7 +1489,7 @@ def make_focal_first(xy_posns, focal_xy):
 
 def propagate_sounds(sound_type, **kwargs):
     '''Propagates a sound and calculates the received levels and angles.
-    Conspecific calls and primary echoes are placed randomly in the interpulse
+    Conspecific calls and secondary echoes are placed randomly in the interpulse
     interval. Primary echoes are placed according to their calculated time of
     arrival by the distances at which the neighbouring bats are at. 
 
@@ -1850,9 +1851,9 @@ def get_reflection_strength(reflection_function,
                     reflection_strength : float. The ratio of incoming and outgoing sound pressure levels in dB (20log10)
 
                     For example, one row entry could be :
-                                ref_distance | incoming_theta | outgoing_theta | reflection_strength 
-                                      0.1    |       30       |       90       |       -60  
-            
+                                ref_distance  incoming_theta  outgoing_theta reflection_strength 
+                                      0.1          30              90               -60  
+
                               The above example refers to a situation where sound
                               arrives at the object at 30 degrees and its reflection
                               is received at 90 degrees. The outgoing sound id 60 dB fainter than the 
@@ -2187,7 +2188,7 @@ def combine_sounds(sounddf_list):
         theta : 
 
     '''
-    combined_sounds = pd.concat(sounddf_list, ignore_index=True)
+    combined_sounds = pd.concat(sounddf_list, ignore_index=True).dropna(thresh=3)
     return(combined_sounds)
 
 def place_bats_inspace(**kwargs):
@@ -2372,7 +2373,7 @@ if __name__ == '__main__':
 
     kwargs={}
     kwargs['interpulse_interval'] = 0.1
-    kwargs['v_sound'] = 330
+    kwargs['v_sound'] = 330.0
     kwargs['simtime_resolution'] = 10**-6
     kwargs['echocall_duration'] = 0.003
     kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
@@ -2388,16 +2389,10 @@ if __name__ == '__main__':
     kwargs['reflection_function'] = reflectionfunc
     kwargs['heading_variation'] = 0
     kwargs['min_spacing'] = 0.5
-    kwargs['Nbats'] = 5
+    kwargs['Nbats'] = 10
     kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
     kwargs['hearing_threshold'] = 10
 
-#    tm = pd.read_csv('data/temporal_masking_fn.csv')
-#    tm_intp = interpolate.interp1d(tm['timegap_ms'], tm['dB_leveldiff'])
-#    new_time = np.arange(np.min(tm['timegap_ms']), np.max(tm['timegap_ms']), 10**-6)
-#    tm_high_res = pd.DataFrame(data=[], index = range(new_time.size), columns=tm.columns)
-#    tm_high_res['timegap_ms'] = new_time
-#    tm_high_res['dB_leveldiff'] = tm_intp(new_time)
     fwd_masking_region = np.linspace(-27, -7, 20000)        
     bkwd_masking_region = np.linspace(-10, -24, 3000)
     simult_masking_regio = np.array([-8])
@@ -2407,7 +2402,7 @@ if __name__ == '__main__':
     spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
     kwargs['temporal_masking_thresholds'] = temporal_masking_fn
     kwargs['spatial_release_fn'] = spatial_unmasking_fn
-    
+
     num_echoes, b = run_CPN(**kwargs)
     print(time.time()-start)
 #    ipi_spl = 20*np.log10(ipi_soundpressure_levels(pd.concat([secondary_echoes, consp_calls],

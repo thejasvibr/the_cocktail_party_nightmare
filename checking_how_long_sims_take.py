@@ -46,7 +46,7 @@ spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
 kwargs['temporal_masking_thresholds'] = temporal_masking_fn
 kwargs['spatial_release_fn'] = spatial_unmasking_fn
 
-numbats = [2,3,4]
+numbats = np.array([2, 4, 8, 16,32, 64])
 time_taken = {each : [] for each in numbats}
 
 for each_num in numbats:
@@ -55,7 +55,20 @@ for each_num in numbats:
         start = time.time()
         a, b = run_CPN(**kwargs)
         run_time = time.time() - start
+        print(str(each_num)+' bats, in:' +str(run_time)+' seconds')
         time_taken[each_num].append(run_time)
+
+avg_time = [np.mean(timetaken) for _,timetaken in sorted(time_taken.iteritems())]
+numrows = (numbats-1)**2
+
+dB = lambda X : 20*np.log10(X)
+
+plt.figure()
+plt.plot(dB(numbats/numbats[0]), dB(avg_time/avg_time[0]),'*-', label='time taken')
+plt.plot(dB(numbats/numbats[0]), dB(numrows/numrows[0]), '^-',label='num rows')
+plt.grid()
+plt.legend()
+
         
     
     

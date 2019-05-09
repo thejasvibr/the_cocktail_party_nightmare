@@ -10,9 +10,11 @@ Created on Tue Dec 12 21:55:48 2017
 import sys
 import time
 
-folder = 'C:\\Users\\tbeleyur\\Google Drive\\Holger Goerlitz- IMPRS\\PHD_2015\\projects and analyses\\2016_jamming response modelling\\analytical_modelling\\poisson-disc-master\\poisson-disc-master\\'
-sys.path.append(folder)
+#folder = 'C:\\Users\\tbeleyur\\Google Drive\\Holger Goerlitz- IMPRS\\PHD_2015\\projects and analyses\\2016_jamming response modelling\\analytical_modelling\\poisson-disc-master\\poisson-disc-master\\'
+folder = '/home/tbeleyur/Documents/the_cocktail_party_nightmare/poisson-disc-master/poisson-disc-master/'
 
+sys.path.append(folder)
+#
 #import matplotlib.pyplot as plt
 #plt.rcParams['agg.path.chunksize'] = 100000
 import numpy as np
@@ -505,23 +507,26 @@ TODO:
                   the output will be --> np.array([0,1,1,0,0])
 
     '''
-
-    echoes_heard = []
-    # maybe use the apply method -- apparently its faster !
-    for echoindex, each_echo in echoes.iterrows():
-        this_echoheard = check_if_echo_heard(each_echo, other_sounds, 
-                                                     **kwargs)
-        echoes_heard.append(this_echoheard)
-
+    kwargs['other_sounds'] = other_sounds
+    echoes_heard = echoes.apply(check_if_echo_heard, axis=1, 
+                                **kwargs)
+ 
     num_echoes = sum(echoes_heard)
     heardechoes_id = np.array(echoes_heard).astype('int')
 
     return(num_echoes, heardechoes_id)
 
-apply_check_if_echo_heard = lambda 
+def multiecho_check_if_echo_heard(echo_row, **kwargs):
+    '''Wrapper function that allows the usage of the apply functionality
+    in a pd.DataFrame
+    '''
+
+    this_echoheard = check_if_echo_heard(echo_row,  **kwargs)
+    return(this_echoheard)
+    
 
 
-def check_if_echo_heard(echo, other_sounds,
+def check_if_echo_heard(echo, 
                          **kwargs):
     '''Check if an echo is heard by calculating the echo-masker dB difference 
     in the interpulse interval. 
@@ -540,17 +545,17 @@ def check_if_echo_heard(echo, other_sounds,
 
     echo : 1 x 4 pd.DataFrame
 
+     Keyword Arguments
+    ----------------
+
     other_sounds : 1 x 5 pd.DataFrame.A sound DataFrame with 'post_SUM' column which
                    refers to the reduction in required echo-masker delta dB SPL
                    because of spatial unmasking. 
 
-     Keyword Arguments
-    ----------------
-
     simtime_resolution     
 
     temporalmasking_fn : Ntimepoints x 2 pd.DataFrame 
-                         with following column
+                         with following columnspyder
                          names :
                          |timegap_ms|delta_dB|
 
@@ -565,8 +570,8 @@ def check_if_echo_heard(echo, other_sounds,
     '''
     if float(echo['level']) >= kwargs['hearing_threshold']:
         apply_spatial_unmasking_on_sounds(float(echo['theta']), 
-                                          other_sounds, **kwargs)
-        cumulative_spl = ipi_soundpressure_levels(other_sounds, 'post_SUM',
+                                          kwargs['other_sounds'], **kwargs)
+        cumulative_spl = ipi_soundpressure_levels(kwargs['other_sounds'], 'post_SUM',
                                                                   **kwargs)
         cumulative_dbspl = dB(cumulative_spl)
         echo_heard = check_if_cum_SPL_above_masking_threshold(echo, 
@@ -2390,9 +2395,9 @@ if __name__ == '__main__':
     kwargs['reflection_function'] = reflectionfunc
     kwargs['heading_variation'] = 0
     kwargs['min_spacing'] = 0.5
-    kwargs['Nbats'] = 2
+    kwargs['Nbats'] = 10
     kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
-    kwargs['hearing_threshold'] = 40
+    kwargs['hearing_threshold'] = 20
 
     fwd_masking_region = np.linspace(-27, -7, 20000)        
     bkwd_masking_region = np.linspace(-10, -24, 3000)

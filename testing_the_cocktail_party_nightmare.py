@@ -698,6 +698,23 @@ class TestCombineSounds(unittest.TestCase):
 
         self.assertTrue(np.array_equal([num_expected_rows, num_expected_colnums],
                                        list(combined_sounds.shape)))
+    def test_2batcase(self):
+        '''
+        '''
+        self.A = pd.DataFrame(data={'start':[0,20,30],
+                                    'stop':[20,30,40],
+                                    'level':[90,92,10],
+                                    'theta':[-10,20,1],
+                                    'route':['1-0-1', '2,0,2','3-0-3']}) 
+        self.B = self.A.copy()
+        self.B['route'] = np.tile(np.nan, self.B.shape[0])
+        num_expected_rows = self.A.shape[0] + self.B.shape[0]
+        joined_columns = set(self.A.columns).union(set(self.B.columns))
+        num_expected_colnums = len(joined_columns)
+        combined_sounds = combine_sounds([self.A, self.B])    
+        self.assertTrue(np.array_equal([num_expected_rows, num_expected_colnums],
+                                       list(combined_sounds.shape)))
+        
       
 
 class TestRunCPN(unittest.TestCase):
@@ -738,13 +755,14 @@ class TestRunCPN(unittest.TestCase):
                                                 bkwd_masking_region)
         self.kwargs['temporal_masking_thresholds'] = temporal_masking_fn
         
-        spl_um = pd.DataFrame(data={'deltatheta':np.linspace(0,30,30),
-                                    'dB_release':np.linspace(0, -30,30)})
+        spl_um = pd.DataFrame(data={'deltatheta':np.linspace(0,30,31),
+                                    'dB_release':np.linspace(0, -30,31)})
         self.kwargs['spatial_release_fn'] = spl_um
 
     def test_checkif_type_correct(self):
         '''Check if an integer is the output of a single runCPN
         '''
+        self.kwargs['Nbats'] = 5
         num_echoesheard, _ = run_CPN(**self.kwargs)
         self.assertTrue(isinstance(num_echoesheard, int))
     
@@ -752,7 +770,11 @@ class TestRunCPN(unittest.TestCase):
         '''Make sure that the NaNs are removed in the 2 bat case because
         the 2dary echoes sound dfs are output w Nans.
         '''
-        self.assertTrue(False)
+        self.kwargs['Nbats'] = 2
+        
+        num_echoesheard, _ = run_CPN(**self.kwargs)
+        print('MNIAWMINAWOENAOWENSAKLDNSKDNFSKDF', type(num_echoesheard))
+        self.assertTrue(isinstance(num_echoesheard, int))
 
 
 class TestPlaceSoundsRandomlyinIPI(unittest.TestCase):

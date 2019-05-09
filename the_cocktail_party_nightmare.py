@@ -6,6 +6,7 @@ Created on Tue Dec 12 21:55:48 2017
 
 @author: tbeleyur
 """
+
 import sys
 import time
 
@@ -444,6 +445,7 @@ def calculate_num_heardechoes(echoes,other_sounds,
 
 TODO:
     1) add the other echoes into the other_sounds df each time ! 
+    2) SPEEDUP BY USING APPLY ON EACH ECHO RATHER THAN ITERROWS
    
      Parameters
     ----------
@@ -505,7 +507,7 @@ TODO:
     '''
 
     echoes_heard = []
-
+    # maybe use the apply method -- apparently its faster !
     for echoindex, each_echo in echoes.iterrows():
         this_echoheard = check_if_echo_heard(each_echo, other_sounds, 
                                                      **kwargs)
@@ -515,6 +517,8 @@ TODO:
     heardechoes_id = np.array(echoes_heard).astype('int')
 
     return(num_echoes, heardechoes_id)
+
+apply_check_if_echo_heard = lambda 
 
 
 def check_if_echo_heard(echo, other_sounds,
@@ -709,13 +713,18 @@ def apply_spatial_unmasking_on_sounds(echo_theta,
         sound_df : the input sound_df with an extra column 'post_SUM'. This column refers
                     to the effective masker received level after spatial unmasking.
     '''
-    num_sounds = sound_df.shape[0]
-    sound_df['post_SUM'] = np.tile(np.nan, num_sounds)
-    for each_sound in  xrange(num_sounds):
-        angular_separation = get_relative_echo_angular_separation(echo_theta,
-                                                                  sound_df['theta'][each_sound])
-        spatial_release = calc_spatial_release(angular_separation, kwargs['spatial_release_fn'])   
-        sound_df['post_SUM'][each_sound] = sound_df['level'][each_sound] + spatial_release
+    angular_separations = np.apply_along_axis(get_relative_echo_angular_separation, 0, 
+                                              np.array(sound_df['theta']).reshape(1,-1),
+                                              echo_theta)
+    spatial_release_dB = np.apply_along_axis(calc_spatial_release, 0, angular_separations,
+                                                 kwargs['spatial_release_fn'] )
+    sound_df['post_SUM'] =  sound_df['level'] + spatial_release_dB
+#    for each_sound in  xrange(num_sounds):
+#        
+#        angular_separation = get_relative_echo_angular_separation(echo_theta,
+#                                                                  sound_df['theta'][each_sound])
+#        spatial_release = calc_spatial_release(angular_separation, kwargs['spatial_release_fn'])   
+#        sound_df['post_SUM'][each_sound] = sound_df['level'][each_sound] + spatial_release
     return(sound_df)
         
 
@@ -769,7 +778,7 @@ def get_collocalised_deltadB(timegap_ms, temp_mask_fn):
 
     return(temp_mask_fn.iloc[closest_indx,1])
 
-def get_relative_echo_angular_separation(echo_angle,sound_angle):
+def get_relative_echo_angular_separation(sound_angle, echo_angle):
     '''Outputs the minimum angle between two angles of arrival. 
     Any sound arriving to the left of the bat is 0<angle<-180 degrees
     and any sound arriving to the right of the abt is 0>angle>180 degrees.
@@ -779,11 +788,12 @@ def get_relative_echo_angular_separation(echo_angle,sound_angle):
 
      Parameters
     ----------
-
-        echo_angle : -180 <= angle <= 180. Relative arrival angle of an echo
-
+    
         sound_angle : -180 <= angle <= 180.Relative arrival angle of another sound
                       - either a conspecific call or secondary echo.
+
+
+        echo_angle : -180 <= angle <= 180. Relative arrival angle of an echo
 
       Returns
     -------
@@ -868,13 +878,9 @@ def calc_spatial_release(angular_separation, spatial_release):
         return(np.min(spatial_release['dB_release']))
 
     else:
-        closest_index = np.argmin(np.abs(spatial_release['deltatheta'] - angular_separation))
+        closest_index =abs(spatial_release['deltatheta'] - angular_separation).astype('float32').idxmin()
         dB_release = spatial_release['dB_release'][closest_index]
         return(dB_release)
-        
-
-
-
 
 # helper functions to separate out tuples 
 extract_numechoesheard = lambda X : X[0]
@@ -2173,11 +2179,6 @@ def calc_echo_thetas(bats_xy, bat_orientations, sound_routes, which_angles):
 
     return(tuple(theta_towardstarget), tuple(theta_fromtarget))
 
-def implement_hearing_directionality(arrival_angle, hearing_dirnlty):
-    '''
-    '''
-    
-    pass
 
 def combine_sounds(sounddf_list):
     '''Combine 2>= sound dfs into one df. 
@@ -2188,7 +2189,7 @@ def combine_sounds(sounddf_list):
         theta : 
 
     '''
-    combined_sounds = pd.concat(sounddf_list, ignore_index=True).dropna(thresh=3)
+    combined_sounds = pd.concat(sounddf_list, ignore_index=True).dropna(axis=0,thresh=3)
     return(combined_sounds)
 
 def place_bats_inspace(**kwargs):
@@ -2360,7 +2361,7 @@ def run_CPN(**kwargs):
     num_echoes_heard, echo_ids = calculate_num_heardechoes(target_echoes, maskers,
                               **kwargs)
     sounds_in_ipi = {'2dary_echoes':secondary_echoes,
-                     'conspecfici_calls':conspecific_calls,
+                     'conspecific_calls':conspecific_calls,
                      'target_echoes':target_echoes}
 
     return(num_echoes_heard, [echo_ids, sounds_in_ipi])
@@ -2389,9 +2390,9 @@ if __name__ == '__main__':
     kwargs['reflection_function'] = reflectionfunc
     kwargs['heading_variation'] = 0
     kwargs['min_spacing'] = 0.5
-    kwargs['Nbats'] = 10
+    kwargs['Nbats'] = 2
     kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
-    kwargs['hearing_threshold'] = 10
+    kwargs['hearing_threshold'] = 40
 
     fwd_masking_region = np.linspace(-27, -7, 20000)        
     bkwd_masking_region = np.linspace(-10, -24, 3000)

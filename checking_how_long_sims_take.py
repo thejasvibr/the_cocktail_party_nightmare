@@ -7,7 +7,8 @@ Created on Wed May 08 15:37:10 2019
 import time
 import numpy as np 
 import pandas as pd
-
+import matplotlib.pyplot as plt
+plt.rcParams['agg.path.chunksize'] = 100000
 from the_cocktail_party_nightmare import run_CPN
 
 

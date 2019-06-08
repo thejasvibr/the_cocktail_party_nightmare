@@ -1814,9 +1814,9 @@ def calculate_echoreceived_levels(echopaths,
                                                       echoes['theta_outgoing'])
 
     echoes['outgoing_SPL'] = echoes['incoming_SPL'] + reflection_strengths
-    
+
     hearing_directionality_factor = np.apply_along_axis(hearing_directionality,0, np.array(echoes['theta']))
-    echoes['level'] = echoes.apply(calc_outgoingSPL_by_row, axis=1) + hearing_directionality_factor
+    echoes['level'] = echoes.apply(calcreceivedSPL_by_row, axis=1) + hearing_directionality_factor
 
     return(echoes)
 
@@ -1828,10 +1828,11 @@ def calc_incomingSPL_by_row(row_df):
     RL = calc_RL(delta_R, row_df['emitted_SPL'], row_df['sourcelevel_ref_distance'])
     return(RL)
 
-def calc_outgoingSPL_by_row(row_df):
+def calcreceivedSPL_by_row(row_df):
     '''
     '''
-    RL = calc_RL(row_df['R_outgoing'] , row_df['incoming_SPL'],row_df['sourcelevel_ref_distance'])
+    RL = calc_RL(row_df['R_outgoing'] , row_df['outgoing_SPL'],
+                     row_df['sourcelevel_ref_distance'])
     return(RL)
 
 def get_reflection_strength(reflection_function, 
@@ -1840,7 +1841,7 @@ def get_reflection_strength(reflection_function,
                             max_theta_error = 30):
     '''The reflection_function is a mapping between the reflection strength
     and the input + output angles of the sound. 
-    
+
     In simulatoins, the incoming and outgoing angles will likely vary continuously.
     However, experimental measurements of course cannot handle all possible values. 
     This function tries to choose the angle pair which matches the
@@ -2390,41 +2391,41 @@ def run_CPN(**kwargs):
     return(num_echoes_heard, [echo_ids, sounds_in_ipi, group_geometry])
 
 
-if __name__ == '__main__':
-    start = time.time()
-    A = 7
-    B = 2 
-
-    kwargs={}
-    kwargs['interpulse_interval'] = 0.1
-    kwargs['v_sound'] = 330.0
-    kwargs['simtime_resolution'] = 10**-6
-    kwargs['echocall_duration'] = 0.003
-    kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
-    kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
-    reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
-    thetas = np.linspace(-180,180,12)
-    input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
-    reflectionfunc['reflection_strength'] = np.random.normal(-60,5,
-                                              input_output_angles.shape[0])
-    reflectionfunc['incoming_theta'] = input_output_angles[:,0]
-    reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
-    kwargs['reflection_function'] = reflectionfunc
-    kwargs['heading_variation'] = 90
-    kwargs['min_spacing'] = 0.5
-    kwargs['Nbats'] = 25
-    kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
-    kwargs['hearing_threshold'] = 20
-
-    fwd_masking_region = np.linspace(-27, -7, 20000)        
-    bkwd_masking_region = np.linspace(-10, -24, 3000)
-    simult_masking_regio = np.array([-8])
-    temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
-                                            bkwd_masking_region)
-
-    spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
-    kwargs['temporal_masking_thresholds'] = temporal_masking_fn
-    kwargs['spatial_release_fn'] = spatial_unmasking_fn
-
-    num_echoes, b = run_CPN(**kwargs)
-    print(time.time()-start)
+#if __name__ == '__main__':
+#    #    start = time.time()
+#    #    A = 7
+#    #    B = 2 
+#    #
+#    #    kwargs={}
+#    #    kwargs['interpulse_interval'] = 0.1
+#    #    kwargs['v_sound'] = 330.0
+#    #    kwargs['simtime_resolution'] = 10**-6
+#    #    kwargs['echocall_duration'] = 0.003
+#    #    kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
+#    #    kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
+#    #    reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
+#    #    thetas = np.linspace(-180,180,12)
+#    #    input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
+#    #    reflectionfunc['reflection_strength'] = np.random.normal(-60,5,
+#    #                                              input_output_angles.shape[0])
+#    #    reflectionfunc['incoming_theta'] = input_output_angles[:,0]
+#    #    reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
+#    #    kwargs['reflection_function'] = reflectionfunc
+#    #    kwargs['heading_variation'] = 90
+#    #    kwargs['min_spacing'] = 0.5
+#    #    kwargs['Nbats'] = 25
+#    #    kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
+#    #    kwargs['hearing_threshold'] = 20
+#    #
+#    #    fwd_masking_region = np.linspace(-27, -7, 20000)        
+#    #    bkwd_masking_region = np.linspace(-10, -24, 3000)
+#    #    simult_masking_regio = np.array([-8])
+#    #    temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
+#    #                                            bkwd_masking_region)
+#    #
+#    #    spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
+#    #    kwargs['temporal_masking_thresholds'] = temporal_masking_fn
+#    #    kwargs['spatial_release_fn'] = spatial_unmasking_fn
+#    #
+#    #    num_echoes, b = run_CPN(**kwargs)
+#    #    print(time.time()-start)

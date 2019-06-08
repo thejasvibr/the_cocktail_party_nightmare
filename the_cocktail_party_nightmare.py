@@ -1744,12 +1744,10 @@ def calculate_echoreceived_levels(echopaths,
     ----------
 
         echopaths : dictionary with geometry related entries. 
-                              See calculate_2ndary_echopaths for details.
+                              See calculate_echopaths for details.
 
         reflection_function : pd.DataFrame with the following columns:
             
-                    ref_distance : float>0. Distance at which the reflection strength is calculated in metres.
-
                     incoming_theta : float. Angle at which the incoming sound arrives at. This 
                                      angle is with relation to the heading direciton of the target bat. 
 
@@ -1785,8 +1783,6 @@ def calculate_echoreceived_levels(echopaths,
                           start | stop | theta | level | route|
 
     '''
-    reflection_ref_distance = np.unique(reflection_function['ref_distance'])
-
     num_echoes = len(echopaths['sound_routes'])
     echoes = pd.DataFrame(data=[], index=range(num_echoes),
                                    columns= ['start','stop','theta','level',
@@ -1794,7 +1790,7 @@ def calculate_echoreceived_levels(echopaths,
                                              'R_outgoing', 'theta_emission',
                                              'theta_incoming','theta_outgoing',
                                              'emitted_SPL', 'incoming_SPL',
-                                             'reflection_ref_distance'])
+                                             ])
     
     echoes['theta'] = echopaths['theta_reception']
     echoes['R_incoming'] = echopaths['R_incoming']
@@ -1803,14 +1799,15 @@ def calculate_echoreceived_levels(echopaths,
     echoes['theta_incoming'] = echopaths['theta_incoming']
     echoes['theta_outgoing'] = echopaths['theta_outgoing']
     echoes['route'] = echopaths['sound_routes']
-    echoes['reflection_ref_distance'] = float(reflection_ref_distance)
     echoes['sourcelevel_ref_distance'] = source_level['ref_distance']
     
     # the emitted SPL and teh SPL near the target bat before reflection.
     call_directionality_factor = np.apply_along_axis(call_directionality,0, np.array(echoes['theta_emission']))
+    # source level emitted at the reference distance, reduced due to call directionality
     echoes['emitted_SPL'] = source_level['dBSPL'] + call_directionality_factor
+    # calculate spherical spreading
     echoes['incoming_SPL'] = echoes.apply(calc_incomingSPL_by_row, axis=1)
-    
+
     # the reflection strength at each set of incoming and outgoing angles
     reflection_strengths = get_reflection_strength(reflection_function,
                                                       echoes['theta_incoming'],
@@ -1821,71 +1818,21 @@ def calculate_echoreceived_levels(echopaths,
     hearing_directionality_factor = np.apply_along_axis(hearing_directionality,0, np.array(echoes['theta']))
     echoes['level'] = echoes.apply(calc_outgoingSPL_by_row, axis=1) + hearing_directionality_factor
 
-#    # for each secondary echo
-#    for echo_id, echo_route in enumerate(echopaths['sound_routes']):
-#        
-#        R_incoming = echopaths['R_incoming'][echo_id]
-#        R_outgoing = echopaths['R_outgoing'][echo_id]
-#        theta_emission = echopaths['theta_emission'][echo_id]
-#        theta_reception = echopaths['theta_reception'][echo_id]
-#        theta_incoming = echopaths['theta_incoming'][echo_id]
-#        theta_outgoing = echopaths['theta_outgoing'][echo_id]
-        
-        # calculate soundpressure level at the reference radius around the target.
-        
-#        emitted_SPL = source_level['dBSPL'] + call_directionality(theta_emission)
-#
-#        
-#        # calculate the incoming SPL at the reference distance of the 
-#        if R_incoming < reflection_ref_distance:
-#            raise ValueError('The distance is less than the reference distance \
-#                             unable to calculate incoming SPL')
-#        else:
-#            effective_incoming_R = R_incoming - reflection_ref_distance
-#            incoming_SPL = calc_RL(effective_incoming_R, emitted_SPL,
-#                                   source_level['ref_distance'])
-#
-#        # calculate the reflection strength given the incoming and outgoing angle 
-#        reflection_strength = get_reflection_strength(reflection_function,
-#                                                      theta_incoming,
-#                                                      theta_outgoing)
-#
-#        # calculate the received level:
-#        if R_outgoing <= reflection_ref_distance:
-#            raise ValueError('The outgoing distance is less than the reference distance \
-#                             unable to calculate outgoing SPL')
-#        else:
-#            outgoing_SPL = incoming_SPL + reflection_strength
-#            received_level = calc_RL(R_outgoing, outgoing_SPL, reflection_ref_distance) + hearing_directionality(theta_reception)
-#
-#        echoes['theta'][echo_id] = theta_reception
-#        echoes['level'][echo_id] = float(received_level)
-#        echoes['route'][echo_id] = echo_route
-
     return(echoes)
 
 def calc_incomingSPL_by_row(row_df):
     '''
     '''
-    if row_df['R_incoming'] < row_df['reflection_ref_distance']:
-        raise ValueError('R_incoming is < reflection reference distance!')
-    else:
-        # the SPL is calculated till the ref distance only!
-        effective_incoming_R = row_df['R_incoming'] - row_df['reflection_ref_distance']
-        RL = calc_RL(effective_incoming_R, row_df['emitted_SPL'], row_df['sourcelevel_ref_distance'])
-        return(RL)
+    # the SPL is calculated till the ref distance only!
+    delta_R = abs(row_df['R_incoming']-row_df['sourcelevel_ref_distance'])
+    RL = calc_RL(delta_R, row_df['emitted_SPL'], row_df['sourcelevel_ref_distance'])
+    return(RL)
 
 def calc_outgoingSPL_by_row(row_df):
     '''
     '''
-    if row_df['R_outgoing'] < row_df['reflection_ref_distance']:
-        raise ValueError('R_outgoing is < reflection reference distance!')
-    else:
-        effective_outgoing_R = row_df['R_outgoing'] 
-        RL = calc_RL(effective_outgoing_R, row_df['incoming_SPL'], row_df['reflection_ref_distance'])
-        return(RL)
-        
-    
+    RL = calc_RL(row_df['R_outgoing'] , row_df['incoming_SPL'],row_df['sourcelevel_ref_distance'])
+    return(RL)
 
 def get_reflection_strength(reflection_function, 
                             theta_ins,
@@ -2438,8 +2385,9 @@ def run_CPN(**kwargs):
     sounds_in_ipi = {'2dary_echoes':secondary_echoes,
                      'conspecific_calls':conspecific_calls,
                      'target_echoes':target_echoes}
-
-    return(num_echoes_heard, [echo_ids, sounds_in_ipi])
+    group_geometry = {'positions':bats_xy,
+                              'orientations':bats_orientations }
+    return(num_echoes_heard, [echo_ids, sounds_in_ipi, group_geometry])
 
 
 if __name__ == '__main__':
@@ -2457,15 +2405,14 @@ if __name__ == '__main__':
     reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
     thetas = np.linspace(-180,180,12)
     input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
-    reflectionfunc['reflection_strength'] = np.random.normal(-40,5,
+    reflectionfunc['reflection_strength'] = np.random.normal(-60,5,
                                               input_output_angles.shape[0])
     reflectionfunc['incoming_theta'] = input_output_angles[:,0]
     reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
-    reflectionfunc['ref_distance'] = 0.1
     kwargs['reflection_function'] = reflectionfunc
-    kwargs['heading_variation'] = 0
+    kwargs['heading_variation'] = 90
     kwargs['min_spacing'] = 0.5
-    kwargs['Nbats'] = 100
+    kwargs['Nbats'] = 25
     kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
     kwargs['hearing_threshold'] = 20
 
@@ -2481,38 +2428,3 @@ if __name__ == '__main__':
 
     num_echoes, b = run_CPN(**kwargs)
     print(time.time()-start)
-#    ipi_spl = 20*np.log10(ipi_soundpressure_levels(pd.concat([secondary_echoes, consp_calls],
-#                                                             ignore_index=True), **kwargs))
-#    index = np.random.choice(np.arange(0, kwargs['Nbats']-1))
-#    echo_masker_spl = echoes['level'][index]-ipi_spl
-#    echo_masker_spl[np.isnan(ipi_spl)]= 0 
-#    echo_masker_spl[echo_masker_spl>0] = 0
-#    plt.figure()
-#    plt.plot(echo_masker_spl)
-#    start, stop = echoes['start'][index], echoes['stop'][index]
-#    echo_block = np.arange(start,stop+1)
-#    plt.plot(echo_block, np.tile(0,echo_block.size))
-#    plt.hlines(-8, start, stop)
-##    plt.hlines(-8, 0, 10**5)
-#    # the temp masking line:
-#    fwd_masking = temp_masking_fn['timegap_ms'] >=0
-#    fwdmasking_fn = temp_masking_fn[fwd_masking]
-#    plt.plot(start-fwdmasking_fn['timegap_ms']*10**5, fwdmasking_fn['dB_leveldiff'])
-##    for index, row in echoes.iterrows():
-##        start, stop, theta, level, _  = row 
-#
-#    
-##    
-##    plt.figure()
-##    plt.xlim(0,10**5)
-##    for i,row in c.iterrows():
-##        y = 0 + np.random.normal(0,0.5,1)
-##        plt.plot([row['start'], row['stop']],[y,y],'g', linewidth=row['level']*0.1)
-##    for j, row in b.iterrows():
-##        y = 0 + np.random.normal(0,1,1)
-##        plt.plot([row['start'], row['stop']],[y,y], 'r', alpha=0.5, linewidth=row['level']*0.1)
-##    for j, row in a.iterrows():
-##        y = 0 + np.random.normal(0,1,1)
-#        plt.plot([row['start'], row['stop']],[y,y], 'y', alpha=0.5, linewidth=row['level']*0.1)
-#    
-#

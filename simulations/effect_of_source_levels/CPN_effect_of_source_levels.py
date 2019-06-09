@@ -9,8 +9,9 @@ Created on Sat Jun 08 16:59:26 2019
 import multiprocessing as mp
 from multiprocessing import Pool
 import os
-import sys
 import time
+import sys
+sys.path.append('..//..//poisson-disc-master//')
 sys.path.append('..//..//')
 sys.path.append('..//')
 from the_cocktail_party_nightmare import run_CPN

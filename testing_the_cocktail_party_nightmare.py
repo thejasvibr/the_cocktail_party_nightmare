@@ -4,13 +4,16 @@ Created on Tue Dec 12 22:07:22 2017
 
 @author: tbeleyur
 """
-
+import sys
 import unittest
 import numpy as np
 np.random.seed(82319)
 import pandas as pd
 #import matplotlib.pyplot as plt
 from the_cocktail_party_nightmare import *
+
+sys.path.append('.//poisson-disc-master//')
+
 
 
 class TestingCheckIfEchoHeard(unittest.TestCase)    :
@@ -563,8 +566,8 @@ class TestingSecondaryEchoReceivedLevels(unittest.TestCase):
         self.kwargs['reflection_function']['reflection_strength'] = np.tile(-10, 360*360)
         all_angles = np.array(np.meshgrid(range(-180,180), range(-180,180))).T.reshape(-1,2)
         
-        self.kwargs['reflection_function']['incoming_theta'] = all_angles[:,0]
-        self.kwargs['reflection_function']['outgoing_theta'] = all_angles[:,1]
+        self.kwargs['reflection_function']['theta_incoming'] = all_angles[:,0]
+        self.kwargs['reflection_function']['theta_outgoing'] = all_angles[:,1]
         self.kwargs['reflection_function']['ref_distance'] = np.tile(0.1, 360*360)
         
         self.kwargs['call_directionality'] = lambda X : 0 
@@ -657,9 +660,10 @@ class TestPropagateSound(unittest.TestCase):
         all_angles = np.array(np.meshgrid(np.linspace(-180,180,36),
                                           np.linspace(-180,180,36))).T.reshape(-1,2)
         
-        self.kwargs['reflection_function']['incoming_theta'] = all_angles[:,0]
-        self.kwargs['reflection_function']['outgoing_theta'] = all_angles[:,1]
+        self.kwargs['reflection_function']['theta_incoming'] = all_angles[:,0]
+        self.kwargs['reflection_function']['theta_outgoing'] = all_angles[:,1]
         self.kwargs['reflection_function']['ref_distance'] = np.tile(0.1, 36*36)
+        self.kwargs['hearing_threshold'] = 20
 
     def test_numberofsounds(self):
         
@@ -686,6 +690,7 @@ class TestCombineSounds(unittest.TestCase):
         # generate two empty DFs with no data yet. 
         self.A = pd.DataFrame(data=[], index=range(10), columns=['start', 'stop',
                          'theta', 'level','id'])
+        self.A.loc[:,:] = np.random.normal(0,1,10*5).reshape(-1,5)
         self.B = self.A.copy()
         self.B['identity'] = np.nan
 
@@ -739,8 +744,8 @@ class TestRunCPN(unittest.TestCase):
         input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
         reflectionfunc['reflection_strength'] = np.random.normal(-40,5,
                                                   input_output_angles.shape[0])
-        reflectionfunc['incoming_theta'] = input_output_angles[:,0]
-        reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
+        reflectionfunc['theta_incoming'] = input_output_angles[:,0]
+        reflectionfunc['theta_outgoing'] = input_output_angles[:,1]
         reflectionfunc['ref_distance'] = 0.1
         self.kwargs['reflection_function'] = reflectionfunc
         self.kwargs['heading_variation'] = 10 
@@ -763,7 +768,7 @@ class TestRunCPN(unittest.TestCase):
     def test_checkif_type_correct(self):
         '''Check if an integer is the output of a single runCPN
         '''
-        self.kwargs['Nbats'] = 5
+        self.kwargs['Nbats'] = 6
         num_echoesheard, _ = run_CPN(**self.kwargs)
         self.assertTrue(isinstance(num_echoesheard, int))
     

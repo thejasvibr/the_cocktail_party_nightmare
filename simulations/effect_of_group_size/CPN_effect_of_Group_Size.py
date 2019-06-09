@@ -8,6 +8,7 @@ Created on Sat Jun 08 16:59:26 2019
 """
 import multiprocessing as mp
 from multiprocessing import Pool
+import time
 import os
 import sys
 sys.path.append('..//..//')
@@ -31,9 +32,12 @@ common_kwargs.keys()
 common_kwargs['call_directionality'] = call_directionality_fn
 common_kwargs['hearing_directionality'] = hearing_directionality_fn
 
-def run_each_groupsize(group_size,  num_replicates = 100, kwargs=common_kwargs):
+def run_each_groupsize(group_size,  num_replicates = 1, kwargs=common_kwargs):
     '''
+    
     '''
+    start = time.time()
+
     simoutput_container = {(group_size,i) : None for i in range(num_replicates)}
     
     # set the varying factor - group size 
@@ -43,6 +47,7 @@ def run_each_groupsize(group_size,  num_replicates = 100, kwargs=common_kwargs):
         num_echoes, sim_output = run_CPN(**kwargs)
         simoutput_container[(group_size, replicate_run)] = sim_output
     picklefilename = 'results//' +'group_size_effect_'+str(group_size)+'bats_CPN.pkl'
+    print('did ' + str(group_size)+ ' in ' + str(time.time()-start))
     try:
         with open(picklefilename, 'wb') as picklefile:
             pickle.dump(simoutput_container, picklefile)

@@ -21,7 +21,7 @@ import pandas as pd
 import scipy.misc as misc
 import scipy.spatial as spl
 import scipy.interpolate as interpolate
-from poisson_disc import Grid
+from poisson_disc import Grid # source code by IHautal in https://github.com/IHautaI/poisson-disc
 
  
 
@@ -2210,7 +2210,7 @@ def combine_sounds(sounddf_list):
         theta : 
 
     '''
-    combined_sounds = pd.concat(sounddf_list, ignore_index=True).dropna(axis=0,thresh=3)
+    combined_sounds = pd.concat(sounddf_list, ignore_index=True, sort=False).dropna(axis=0,thresh=3)
     return(combined_sounds)
 
 def place_bats_inspace(**kwargs):
@@ -2410,9 +2410,9 @@ if __name__ == '__main__':
 #        reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
         reflection_func = pd.read_csv('data//bistatic_TS_bat.csv')
         kwargs['reflection_function'] = reflection_func
-        kwargs['heading_variation'] = 90
+        kwargs['heading_variation'] = 10
         kwargs['min_spacing'] = 0.5
-        kwargs['Nbats'] = 50
+        kwargs['Nbats'] = 10
         kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
         kwargs['hearing_threshold'] = 20
     

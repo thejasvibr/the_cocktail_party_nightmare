@@ -9,12 +9,10 @@ Created on Tue Dec 12 21:55:48 2017
 import pickle
 import sys
 import time
-
-folder = 'C:\\Users\\tbeleyur\\Google Drive\\Holger Goerlitz- IMPRS\\PHD_2015\\projects and analyses\\2016_jamming response modelling\\analytical_modelling\\poisson-disc-master\\poisson-disc-master\\'
-#folder = '/home/tbeleyur/Documents/the_cocktail_party_nightmare/poisson-disc-master/poisson-disc-master/'
-
-sys.path.append(folder)
 #
+folder = './/poisson-disc-master//'
+sys.path.append(folder)
+
 import matplotlib.pyplot as plt
 plt.rcParams['agg.path.chunksize'] = 100000
 import numpy as np

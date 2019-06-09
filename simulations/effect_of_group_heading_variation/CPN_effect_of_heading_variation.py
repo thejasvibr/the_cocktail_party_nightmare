@@ -21,7 +21,6 @@ import numpy as np
 np.random.seed(82319)
 
 
-
 # load the common simulation parameters 
 
 common_paramsfile = '..//' + 'commonsim_params.pkl' 

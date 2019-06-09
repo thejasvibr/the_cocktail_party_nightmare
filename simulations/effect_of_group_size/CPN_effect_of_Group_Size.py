@@ -11,7 +11,7 @@ from multiprocessing import Pool
 import time
 import os
 import sys
-sys.path.append('..//..//')
+sys.path.append('..//..//poisson-disc-master//')
 sys.path.append('..//')
 from the_cocktail_party_nightmare import run_CPN
 from commong_hearing_calling_directionality import hearing_directionality_fn, call_directionality_fn
@@ -32,7 +32,7 @@ common_kwargs.keys()
 common_kwargs['call_directionality'] = call_directionality_fn
 common_kwargs['hearing_directionality'] = hearing_directionality_fn
 
-def run_each_groupsize(group_size,  num_replicates = 1, kwargs=common_kwargs):
+def run_each_groupsize(group_size,  num_replicates = 10, kwargs=common_kwargs):
     '''
     
     '''
@@ -65,7 +65,8 @@ def wrapper_each_group_size(groupsize):
 
 # run simulations for all group sizes of interest
 group_sizes = [5,10,15,20,25]
+start = time.time()
 all_outputs = map(wrapper_each_group_size, group_sizes)
-
+print('OVERALL SIMS TOOK', time.time()-start )
 
     

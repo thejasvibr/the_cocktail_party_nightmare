@@ -8,8 +8,7 @@ import pickle
 import sys
 import time
 
-folder = 'C:\\Users\\tbeleyur\\Google Drive\\Holger Goerlitz- IMPRS\\PHD_2015\\projects and analyses\\2016_jamming response modelling\\analytical_modelling\\poisson-disc-master\\poisson-disc-master\\'
-#folder = '/home/tbeleyur/Documents/the_cocktail_party_nightmare/poisson-disc-master/poisson-disc-master/'
+folder = '.\\poisson-disc-master\\'
 
 sys.path.append(folder)
 

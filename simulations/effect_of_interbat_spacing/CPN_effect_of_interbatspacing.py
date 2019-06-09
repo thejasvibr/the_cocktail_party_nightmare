@@ -31,7 +31,7 @@ with open(common_paramsfile, 'rb') as commonfile:
 common_kwargs.keys()
 common_kwargs['call_directionality'] = call_directionality_fn
 common_kwargs['hearing_directionality'] = hearing_directionality_fn
-common_kwargs['Nbats'] = 10 
+common_kwargs['Nbats'] = 15
 
 
 def run_each_interbat_spacing(r_min, num_replicates = 100, kwargs=common_kwargs):
@@ -44,7 +44,8 @@ def run_each_interbat_spacing(r_min, num_replicates = 100, kwargs=common_kwargs)
     for replicate_run in xrange(num_replicates):
         num_echoes, sim_output = run_CPN(**kwargs)
         simoutput_container[(r_min, replicate_run)] = sim_output
-    picklefilename = 'results//' +'minspacing_effect'+str(r_min)+'bats_CPN.pkl'
+    group_size = 'Nbats_'+str(kwargs['Nbats'])
+    picklefilename = 'results//' +group_size+'_minspacing_effect_'+str(r_min)+'bats_CPN.pkl'
     try:
         with open(picklefilename, 'wb') as picklefile:
             pickle.dump(simoutput_container, picklefile)

@@ -6,7 +6,7 @@ Created on Tue Dec 12 21:55:48 2017
 
 @author: tbeleyur
 """
-
+import pickle
 import sys
 import time
 
@@ -1838,7 +1838,7 @@ def calcreceivedSPL_by_row(row_df):
 def get_reflection_strength(reflection_function, 
                             theta_ins,
                             theta_outs,
-                            max_theta_error = 30):
+                            max_theta_error = 50):
     '''The reflection_function is a mapping between the reflection strength
     and the input + output angles of the sound. 
 
@@ -1855,10 +1855,10 @@ def get_reflection_strength(reflection_function,
             
                     ref_distance : float>0. Distance at which the reflection strength is calculated in metres.
 
-                    incoming_theta : float. Angle at which the incoming sound arrives at. This 
+                    theta_incoming : float. Angle at which the incoming sound arrives at. This 
                                      angle is with relation to the heading direciton of the target bat. 
 
-                    outgoing_theta : float. Angle at which the outgoing sound reflects at. This 
+                    theta_outgoing : float. Angle at which the outgoing sound reflects at. This 
                                      angle is with relation to the heading direciton of the target bat. 
 
                     reflection_strength : float. The ratio of incoming and outgoing sound pressure levels in dB (20log10)
@@ -1899,10 +1899,10 @@ def get_reflection_strength(reflection_function,
 
     '''
     reflection_strengths = []
-    for theta_in, theta_out in zip(theta_ins, theta_outs):
         # get best fit angle pair:
+    for theta_in, theta_out in zip(theta_ins, theta_outs):
         theta_diffs = np.apply_along_axis(angle_difference, 1,
-                                          np.array(reflection_function[['incoming_theta','outgoing_theta']]),
+                                          np.array(reflection_function[['theta_incoming','theta_outgoing']]),
                                           theta_in, theta_out)
     
         if np.min(abs(theta_diffs)) > max_theta_error:
@@ -2391,41 +2391,45 @@ def run_CPN(**kwargs):
     return(num_echoes_heard, [echo_ids, sounds_in_ipi, group_geometry])
 
 
-#if __name__ == '__main__':
-#    #    start = time.time()
-#    #    A = 7
-#    #    B = 2 
-#    #
-#    #    kwargs={}
-#    #    kwargs['interpulse_interval'] = 0.1
-#    #    kwargs['v_sound'] = 330.0
-#    #    kwargs['simtime_resolution'] = 10**-6
-#    #    kwargs['echocall_duration'] = 0.003
-#    #    kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
-#    #    kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
-#    #    reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
-#    #    thetas = np.linspace(-180,180,12)
-#    #    input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
-#    #    reflectionfunc['reflection_strength'] = np.random.normal(-60,5,
-#    #                                              input_output_angles.shape[0])
-#    #    reflectionfunc['incoming_theta'] = input_output_angles[:,0]
-#    #    reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
-#    #    kwargs['reflection_function'] = reflectionfunc
-#    #    kwargs['heading_variation'] = 90
-#    #    kwargs['min_spacing'] = 0.5
-#    #    kwargs['Nbats'] = 25
-#    #    kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
-#    #    kwargs['hearing_threshold'] = 20
-#    #
-#    #    fwd_masking_region = np.linspace(-27, -7, 20000)        
-#    #    bkwd_masking_region = np.linspace(-10, -24, 3000)
-#    #    simult_masking_regio = np.array([-8])
-#    #    temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
-#    #                                            bkwd_masking_region)
-#    #
-#    #    spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
-#    #    kwargs['temporal_masking_thresholds'] = temporal_masking_fn
-#    #    kwargs['spatial_release_fn'] = spatial_unmasking_fn
-#    #
-#    #    num_echoes, b = run_CPN(**kwargs)
-#    #    print(time.time()-start)
+if __name__ == '__main__':
+        start = time.time()
+        A = 7
+        B = 2 
+    
+        kwargs={}
+        kwargs['interpulse_interval'] = 0.1
+        kwargs['v_sound'] = 330.0
+        kwargs['simtime_resolution'] = 10**-6
+        kwargs['echocall_duration'] = 0.003
+        kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
+        kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
+#        reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
+#        thetas = np.linspace(-180,180,12)
+#        input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
+#        reflectionfunc['reflection_strength'] = np.random.normal(-60,5,
+#                                                  input_output_angles.shape[0])
+#        reflectionfunc['incoming_theta'] = input_output_angles[:,0]
+#        reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
+        reflection_func = pd.read_csv('data//bistatic_TS_bat.csv')
+        kwargs['reflection_function'] = reflection_func
+        kwargs['heading_variation'] = 90
+        kwargs['min_spacing'] = 0.5
+        kwargs['Nbats'] = 50
+        kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
+        kwargs['hearing_threshold'] = 20
+    
+#        fwd_masking_region = np.linspace(-27, -7, 20000)        
+#        bkwd_masking_region = np.linspace(-10, -24, 3000)
+#        simult_masking_regio = np.array([-8])
+#        temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
+#                                                bkwd_masking_region)
+        tempmasking_file = 'data//temporal_masking_function.pkl'
+        with open(tempmasking_file, 'rb') as pklfile:
+            temporal_masking_fn = pickle.load(pklfile)
+            
+        spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
+        kwargs['temporal_masking_thresholds'] = temporal_masking_fn
+        kwargs['spatial_release_fn'] = spatial_unmasking_fn
+    
+        num_echoes, b = run_CPN(**kwargs)
+        print(time.time()-start)

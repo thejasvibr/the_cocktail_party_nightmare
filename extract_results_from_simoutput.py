@@ -5,7 +5,6 @@ Created on Sat Jun 08 10:29:30 2019
 @author: tbeleyur
 """
 import pickle
-import json
 import sys
 import time
 

@@ -10,6 +10,7 @@ import multiprocessing as mp
 from multiprocessing import Pool
 import os
 import sys
+import time
 sys.path.append('..//..//')
 sys.path.append('..//')
 from the_cocktail_party_nightmare import run_CPN
@@ -30,37 +31,41 @@ with open(common_paramsfile, 'rb') as commonfile:
 common_kwargs.keys()
 common_kwargs['call_directionality'] = call_directionality_fn
 common_kwargs['hearing_directionality'] = hearing_directionality_fn
+common_kwargs['Nbats'] = 15
 
-def run_each_groupsize(group_size,  num_replicates = 100, kwargs=common_kwargs):
+
+def run_each_sourcelevel(sourcelevel, num_replicates = 100, kwargs=common_kwargs):
     '''
     '''
-    simoutput_container = {(group_size,i) : None for i in range(num_replicates)}
+    start = time.time()
+    simoutput_container = {(sourcelevel,i) : None for i in range(num_replicates)}
     
-    # set the varying factor - group size 
-    common_kwargs['Nbats'] = group_size
-    print('RUNNING '+str(group_size)+' bat simulations now')
+    kwargs['source_level']['dBSPL'] = sourcelevel
+    
+    print('RUNNING '+str(sourcelevel)+' dB SPL source level at 10cm')
     for replicate_run in xrange(num_replicates):
         num_echoes, sim_output = run_CPN(**kwargs)
-        simoutput_container[(group_size, replicate_run)] = sim_output
-    picklefilename = 'results//' +'group_size_effect_'+str(group_size)+'bats_CPN.pkl'
+        simoutput_container[(sourcelevel, replicate_run)] = sim_output
+    group_size = 'Nbats_'+str(kwargs['Nbats'])
+    picklefilename = 'results//' +group_size+'_sourcelevel_'+str(sourcelevel)+'bats_CPN.pkl'
     try:
         with open(picklefilename, 'wb') as picklefile:
             pickle.dump(simoutput_container, picklefile)
+        print('succesful run and saving took', time.time()-start)
         return(True)
     except:
         raise IOError('UNABLE TO SAVE PICKLE FILE!!')
         return(False)
 
 
-
-def wrapper_each_group_size(groupsize):
-    output =  run_each_groupsize(groupsize)
+def wrapper_each_sourcelevel(sourcelevel):
+    output =  run_each_sourcelevel(sourcelevel)
     return(output)
 
 
 # run simulations for all group sizes of interest
-group_sizes = [5,10,15,20,25]
-all_outputs = map(wrapper_each_group_size, group_sizes)
+sourcelevel = [108, 114, 120, 126]
+all_outputs = map(wrapper_each_sourcelevel, sourcelevel)
 
 
     

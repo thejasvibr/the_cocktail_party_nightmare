@@ -29,10 +29,10 @@ if __name__ == '__main__':
     common_kwargs['Nbats'] = 25 # fix group size and vary min spacing 
     
     # run simulations for all group sizes of interest
-    r_min_values = [0.25, 0.5, 0.75, 1.0]
+    r_min_values = [0.5, 0.75, 1.0, 1.5]
     var_and_value = []
     for each_rmin in r_min_values:
-        for i in range(1): # make sure overall 10,000 sims are run 
+        for i in range(10): # make sure overall 10,000 sims are run 
             var_and_value.append((('min_spacing',each_rmin), common_kwargs)) 
     start = time.time()
     #pool = Pool(4)

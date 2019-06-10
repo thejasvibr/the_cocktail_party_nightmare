@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" Changes a single variable and runs 10,000 runs of it. 
+""" Effect of group size 
 Created on Mon Jun 10 13:55:43 2019
 
 @author: tbeleyur
@@ -34,7 +34,7 @@ if __name__ == '__main__':
         for i in range(10): # make sure overall 10,000 sims are run 
             var_and_value.append((('Nbats',each_nbats), common_kwargs)) 
     start = time.time()
-    #pool = Pool(4)
-    #all_outputs = pool.map(wrapper_each_group_size, group_sizes)
-    all_outputs = map(wrapper_each_variable, var_and_value)
+    
+    pool = Pool(4);all_outputs = pool.map(wrapper_each_variable, var_and_value)
+    #all_outputs = map(wrapper_each_variable, var_and_value)
     print('OVERALL SIMS TOOK', time.time()-start )

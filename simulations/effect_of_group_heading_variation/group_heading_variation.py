@@ -38,6 +38,6 @@ if __name__ == '__main__':
             var_and_value.append((('heading_variation',theta_var), common_kwargs)) 
     start = time.time()
     #pool = Pool(4)
-    #all_outputs = pool.map(wrapper_each_group_size, group_sizes)
-    all_outputs = map(wrapper_each_variable, var_and_value)
+    pool = Pool(4);all_outputs = pool.map(wrapper_each_variable, var_and_value)
+    #all_outputs = map(wrapper_each_variable, var_and_value)
     print('OVERALL SIMS TOOK', time.time()-start )

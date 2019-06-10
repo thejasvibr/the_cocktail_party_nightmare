@@ -1,7 +1,7 @@
+
 # -*- coding: utf-8 -*-
 """Running the Sonar Cocktail Party Nightmare:
-    Checking the effect of Group Size. 
-
+    Checking the effect of changing different variables
 Created on Sat Jun 08 16:59:26 2019
 
 @author: tbeleyur
@@ -35,7 +35,7 @@ common_kwargs.keys()
 common_kwargs['call_directionality'] = call_directionality_fn
 common_kwargs['hearing_directionality'] = hearing_directionality_fn
 
-def run_each_groupsize(group_size,  num_replicates = 10, kwargs=common_kwargs):
+def simulate_each_variable(variable_and_value,  num_replicates = 1, kwargs=common_kwargs):
     '''
     
     thanks to Raymond Hettinger for the integer hashing comment
@@ -48,16 +48,18 @@ def run_each_groupsize(group_size,  num_replicates = 10, kwargs=common_kwargs):
     unique_seed = int(hashlib.sha1(file_uuid).hexdigest(), 16) % (10 ** 8)
     np.random.seed(unique_seed)
     unique_name = 'uuid_'+file_uuid+'_numpyseed_'+str(unique_seed)
-    simoutput_container = {(group_size,i) : None for i in range(num_replicates)}
+    
+    variable_name, variable_value = variable_and_value
+    simoutput_container = {(variable_name,i) : None for i in range(num_replicates)}
 
     # set the varying factor - group size 
-    common_kwargs['Nbats'] = group_size
-    print('RUNNING '+str(group_size)+' bat simulations now')
+    common_kwargs[variable_name] = variable_value
+    print('RUNNING ' + variable_name + str(variable_value)+' bat simulations now')
     for replicate_run in xrange(num_replicates):
         num_echoes, sim_output = run_CPN(**kwargs)
-        simoutput_container[(group_size, replicate_run)] = sim_output
-    picklefilename = 'results//'+str(group_size)+'bats_CPN_'+unique_name+'.pkl'
-    print('did ' + str(group_size)+ ' in ' + str(time.time()-start))
+        simoutput_container[(variable_value, replicate_run)] = sim_output
+    picklefilename = 'results//'+str(variable_value)+'bats_CPN_'+unique_name+'.pkl'
+    print('did ' + variable_name+' '+str(variable_value)+ ' in ' + str(time.time()-start))
     try:
         with open(picklefilename, 'wb') as picklefile:
             pickle.dump(simoutput_container, picklefile)
@@ -69,17 +71,18 @@ def run_each_groupsize(group_size,  num_replicates = 10, kwargs=common_kwargs):
 
 
 def wrapper_each_group_size(groupsize):
-    output =  run_each_groupsize(groupsize)
+    output =  simulate_each_variable(groupsize)
     return(output)
 
-
-# run simulations for all group sizes of interest
-group_sizes = [5,10]
-start = time.time()
-#pool = Pool(4)
-#all_outputs = pool.map(wrapper_each_group_size, group_sizes)
-all_outputs = map(wrapper_each_group_size, group_sizes)
-print('OVERALL SIMS TOOK', time.time()-start )
+if __name__ == '__main__':
+	common_kwargs['Nbats'] = 25
+    # run simulations for all group sizes of interest
+	group_sizes = [('heading_variation',5)] *4
+	start = time.time()
+	pool = Pool(4)
+	#all_outputs = pool.map(wrapper_each_group_size, group_sizes)
+	all_outputs = map(wrapper_each_group_size, group_sizes)
+	print('OVERALL SIMS TOOK', time.time()-start )
 
 
 # check 

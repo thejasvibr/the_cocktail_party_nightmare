@@ -39,7 +39,7 @@ class TestingCheckIfEchoHeard(unittest.TestCase)    :
         
         spl_masking = pd.DataFrame(data={'deltatheta':np.linspace(0,30,30),
                                          'dB_release':np.linspace(-1,-30,30)})
-        self.kwargs['spatial_release_fn'] = spl_masking
+        self.kwargs['spatial_release_fn'] = np.array(spl_masking)
         self.kwargs['echocall_duration'] = 0.003
         self.cumulative_spl = np.tile(-9, 1000) + np.random.normal(0,1,1000)
 
@@ -111,7 +111,7 @@ class TestingNumEchoesHeard(unittest.TestCase):
         
         spl_masking = pd.DataFrame(data={'deltatheta':np.linspace(0,30,30),
                                          'dB_release':np.linspace(-1,-30,30)})
-        self.kwargs['spatial_release_fn'] = spl_masking
+        self.kwargs['spatial_release_fn'] = np.array(spl_masking)
         self.kwargs['echocall_duration'] = 0.003
         self.cumulative_spl = np.tile(-9, 1000) + np.random.normal(0,1,1000)
 
@@ -766,7 +766,7 @@ class TestRunCPN(unittest.TestCase):
         
         spl_um = pd.DataFrame(data={'deltatheta':np.linspace(0,30,31),
                                     'dB_release':np.linspace(0, -30,31)})
-        self.kwargs['spatial_release_fn'] = spl_um
+        self.kwargs['spatial_release_fn'] = np.array(spl_um)
 
     def test_checkif_type_correct(self):
         '''Check if an integer is the output of a single runCPN
@@ -894,6 +894,31 @@ class TestAssignRealArrivalTimes(unittest.TestCase):
             assign_real_arrival_times(self.echoes, **self.kwargs)
             
         self.assertTrue('Some echoes are arriving before the call is over' in context.exception)
+
+
+class TestRelativeAngleCalculations(unittest.TestCase):
+    
+    def test_basic(self):
+        incoming = -45
+        outgoing = 45
+        expected = 90.0
+        theta_sep  = get_relative_echo_angular_separation(incoming, outgoing)
+        self.assertEqual(expected, theta_sep)
+    
+    def test_w180(self):
+        incoming = -45
+        outgoing = 180
+        expected = 135.0
+        theta_sep  = get_relative_echo_angular_separation(incoming, outgoing)
+        self.assertEqual(expected, theta_sep)
+    
+    def test_wsameside(self):
+        incoming = 45
+        outgoing = 180
+        expected = 135.0
+        theta_sep  = get_relative_echo_angular_separation(incoming, outgoing)
+        self.assertEqual(expected, theta_sep)
+        
         
         
         

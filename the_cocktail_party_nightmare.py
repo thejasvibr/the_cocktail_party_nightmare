@@ -140,9 +140,7 @@ def place_sounds_randomly_in_IPI(timeline ,calldurn_steps, Nsounds = 1):
 
     Outputs:
 
-    calls : list with sublists. The 1st sublist layer contains calls from multiple
-            replicates. The 2nd layer contains the multiple calls within each replicate
-
+    sound_times : Nsounds x 2 np.array with start and end timesteps
 
     '''
     assert len(timeline) > calldurn_steps, 'Call duration cannot be greater than ipi!!'
@@ -151,20 +149,10 @@ def place_sounds_randomly_in_IPI(timeline ,calldurn_steps, Nsounds = 1):
     # assigned within the inter-pulse interval
     	
     actual_timeline = timeline[:-calldurn_steps]
+    sound_starts = np.random.choice(actual_timeline, Nsounds)
+    sound_stops = sound_starts + calldurn_steps - 1 
 
-    this_replicate = []
-
-    for every_call in range(Nsounds):
-
-        call_start = np.random.choice(actual_timeline)
-        call_end = call_start + calldurn_steps -1
-
-        if call_end > len(timeline):
-            raise Exception('call_end is beyond current timeline')
-        else:
-           this_replicate.append([call_start,call_end])
-    sound_times = np.array(this_replicate)    
-    return(sound_times)
+    return(np.column_stack((sound_starts, sound_stops)))
 
 def calc_pechoesheard(num_echoes_heard, total_echoes):
     '''Calculates the cumulative probabilities of 1,2,3,...N echoes
@@ -724,12 +712,6 @@ def apply_spatial_unmasking_on_sounds(echo_theta,
     spatial_release_dB = np.apply_along_axis(calc_spatial_release, 0, angular_separations,
                                                  kwargs['spatial_release_fn'] )
     sound_df['post_SUM'] =  sound_df['level'] + spatial_release_dB
-#    for each_sound in  xrange(num_sounds):
-#        
-#        angular_separation = get_relative_echo_angular_separation(echo_theta,
-#                                                                  sound_df['theta'][each_sound])
-#        spatial_release = calc_spatial_release(angular_separation, kwargs['spatial_release_fn'])   
-#        sound_df['post_SUM'][each_sound] = sound_df['level'][each_sound] + spatial_release
     return(sound_df)
         
 
@@ -768,12 +750,11 @@ def ipi_soundpressure_levels(sound_df, spl_columnname, **kwargs):
     
     ipi_soundpressure = np.zeros(int(kwargs['interpulse_interval']/kwargs['simtime_resolution']))
     ipi_soundpressure += np.random.normal(0,10**-10, ipi_soundpressure.size) #prevent 0's from messing up the dB
-    for i in range(sound_df.shape[0]):
-        start, stop = sound_df['start'][i], sound_df['stop'][i]
-        ipi_soundpressure[start:stop] += 10**(sound_df[spl_columnname][i]/20.0)
+    for start, stop, sound_pressure in zip( sound_df['start'],sound_df['stop'],sound_df[spl_columnname]):
+        ipi_soundpressure[start:stop] += 10**(sound_pressure/20.0)
     return(ipi_soundpressure)
 
-
+#def add_pressures()
 
 
 def get_collocalised_deltadB(timegap_ms, temp_mask_fn):
@@ -805,8 +786,8 @@ def get_relative_echo_angular_separation(sound_angle, echo_angle):
         angular_separation : 0>= angle>=180. Angular separation in degrees, relative to
                              the angle of arrival of the echo.
     '''
-    angular_separation = echo_angle - sound_angle
-    more_than_180 = abs(angular_separation)>180
+    angular_separation = abs(echo_angle - sound_angle)
+    more_than_180 = angular_separation > 180
     if more_than_180:
         return(360-angular_separation)
     else:
@@ -850,7 +831,7 @@ def calc_spatial_release(angular_separation, spatial_release):
 
     angular_separation: integer. angular separation in degrees.
 
-    spatial_release : 2 x Nangularseparations pd.DataFrame.
+    spatial_release : 2 x Nangularseparations np.array.
                     The 0'th column has the angular separations
                     and the 1st column has the spatial release value:
                     |deltatheta|dB_release|
@@ -879,13 +860,13 @@ def calc_spatial_release(angular_separation, spatial_release):
 
 
     '''
-    if angular_separation >= np.max(spatial_release['deltatheta']):
-        return(np.min(spatial_release['dB_release']))
+    if angular_separation >= np.max(spatial_release[:,0]):
+        return(np.min(spatial_release[:,1]))
 
     else:
         #closest_index = abs(spatial_release['deltatheta'] - angular_separation).astype('float32').idxmin()
-        closest_index = np.int64(np.argmin(abs(spatial_release['deltatheta']-angular_separation)))
-        dB_release = spatial_release['dB_release'][closest_index]
+        closest_index = np.argmin(abs(spatial_release[:,0]-angular_separation))
+        dB_release = spatial_release[closest_index,1]
         return(dB_release)
 
 # helper functions to separate out tuples 
@@ -1848,6 +1829,7 @@ def get_reflection_strength(reflection_function,
     This function tries to choose the angle pair which matches the
     unmeasured theta incoming and outgoing to best possible extent. 
 
+    
      Parameters
     ----------
 
@@ -1900,25 +1882,36 @@ def get_reflection_strength(reflection_function,
 
     '''
     reflection_strengths = []
+    theta_cols = np.array(reflection_function[['theta_incoming','theta_outgoing']])
         # get best fit angle pair:
     for theta_in, theta_out in zip(theta_ins, theta_outs):
-        theta_diffs = np.apply_along_axis(angle_difference, 1,
-                                          np.array(reflection_function[['theta_incoming','theta_outgoing']]),
-                                          theta_in, theta_out)
-    
-        if np.min(abs(theta_diffs)) > max_theta_error:
+        theta_inout = np.array([theta_in, theta_out])
+#        theta_diffs = np.apply_along_axis(spl.distance.euclidean, 1,
+#                                          theta_cols,
+#                                          theta_inout)
+        theta_diffs = get_angle_pair_distances(theta_inout, theta_cols)
+        abs_theta_diffs = abs(theta_diffs)
+        if np.min(abs_theta_diffs) > max_theta_error:
             print(theta_in, theta_out, np.min(abs(theta_diffs)))
             raise ValueError('Reflection function is coarser than ' + str(max_theta_error)+'..aborting calculation' )
         else:
-            best_index = np.argmin(abs(theta_diffs))
+            best_index = np.argmin(abs_theta_diffs)
             best_reflection_strength = reflection_function['reflection_strength'][best_index]
             reflection_strengths.append(best_reflection_strength)
     return(np.array(reflection_strengths))
 
-def angle_difference(df_row, theta_in, theta_out):
-        angle_diff = spl.distance.euclidean([df_row[0],df_row[1]],
-                     [theta_in, theta_out])
-        return(angle_diff)
+def get_angle_pair_distances(input_pair, all_pairs):
+    '''Gets the distance of input_pair to all_pairs
+    
+    Parameters
+    ----------
+    input_pair : 1D array-like
+    all_pairs : npairs x 2 np.array
+    
+    '''
+    diffs = input_pair - all_pairs
+    angle_distance = np.sqrt(np.sum(np.square(diffs),1))
+    return(angle_distance)
     
 
 
@@ -2337,8 +2330,11 @@ def run_CPN(**kwargs):
                              
                              
 
-           spatial_release_fn : ?? .
-                                spatial release function. 
+           spatial_release_fn : Nangular_separations x 2 np.array. 
+                                0th column has 
+                                the angular separation between echo and masker sound.    
+                                Column 1 has the dB release due to the angular separation. 
+
 
            angular_bins : 360 > float > 0 .
                           The angular resolution of a bat. All primary, secondary,
@@ -2406,7 +2402,7 @@ if __name__ == '__main__':
         kwargs['interpulse_interval'] = 0.1
         kwargs['v_sound'] = 330.0
         kwargs['simtime_resolution'] = 10**-6
-        kwargs['echocall_duration'] = 0.003
+        kwargs['echocall_duration'] = 0.002
         kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
         kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
 #        reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
@@ -2420,7 +2416,7 @@ if __name__ == '__main__':
         kwargs['reflection_function'] = reflection_func
         kwargs['heading_variation'] = 10
         kwargs['min_spacing'] = 0.5
-        kwargs['Nbats'] = 10
+        kwargs['Nbats'] = 25
         kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
         kwargs['hearing_threshold'] = 20
     
@@ -2435,7 +2431,7 @@ if __name__ == '__main__':
             
         spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
         kwargs['temporal_masking_thresholds'] = temporal_masking_fn
-        kwargs['spatial_release_fn'] = spatial_unmasking_fn
+        kwargs['spatial_release_fn'] = np.array(spatial_unmasking_fn)[:,1:]
     
         num_echoes, b = run_CPN(**kwargs)
         print(time.time()-start)

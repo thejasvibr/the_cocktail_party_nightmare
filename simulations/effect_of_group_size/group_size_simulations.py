@@ -27,7 +27,7 @@ if __name__ == '__main__':
     common_kwargs.keys()
     common_kwargs['call_directionality'] = call_directionality_fn
     common_kwargs['hearing_directionality'] = hearing_directionality_fn
-    num_bats = [20,25,30]    
+    num_bats = [20,25,30,50]    
     # run simulations for all group sizes of interest
     var_and_value = []
     for each_nbats in num_bats:

@@ -749,12 +749,11 @@ def ipi_soundpressure_levels(sound_df, spl_columnname, **kwargs):
     '''
     
     ipi_soundpressure = np.zeros(int(kwargs['interpulse_interval']/kwargs['simtime_resolution']))
-    ipi_soundpressure += np.random.normal(0,10**-10, ipi_soundpressure.size) #prevent 0's from messing up the dB
-    for start, stop, sound_pressure in zip( sound_df['start'],sound_df['stop'],sound_df[spl_columnname]):
-        ipi_soundpressure[start:stop] += 10**(sound_pressure/20.0)
+    #ipi_soundpressure += np.random.normal(0,10**-10, ipi_soundpressure.size) #prevent 0's from messing up the dB
+    all_sounds_pressurelevels = 10**(np.array(sound_df[spl_columnname])/20.0)
+    for start, stop, sound_pressure in zip( sound_df['start'],sound_df['stop'],all_sounds_pressurelevels):
+        ipi_soundpressure[start:stop] += sound_pressure
     return(ipi_soundpressure)
-
-#def add_pressures()
 
 
 def get_collocalised_deltadB(timegap_ms, temp_mask_fn):
@@ -786,13 +785,13 @@ def get_relative_echo_angular_separation(sound_angle, echo_angle):
         angular_separation : 0>= angle>=180. Angular separation in degrees, relative to
                              the angle of arrival of the echo.
     '''
-    angular_separation = abs(echo_angle - sound_angle)
-    more_than_180 = angular_separation > 180
-    if more_than_180:
+    angular_separation = np.abs(echo_angle - sound_angle)
+    if angular_separation > 180:
         return(360-angular_separation)
     else:
         return(angular_separation)
-        
+  
+
 
 def calc_angular_separation(angle1,angle2):
     '''Calculates the minimum separation between two angles, the 'inner' angle.
@@ -860,14 +859,13 @@ def calc_spatial_release(angular_separation, spatial_release):
 
 
     '''
-    if angular_separation >= np.max(spatial_release[:,0]):
-        return(np.min(spatial_release[:,1]))
+    closest_index = np.argmin(abs(spatial_release[:,0]-angular_separation))
+    dB_release = spatial_release[closest_index,1]
+    return(dB_release)
 
-    else:
-        #closest_index = abs(spatial_release['deltatheta'] - angular_separation).astype('float32').idxmin()
-        closest_index = np.argmin(abs(spatial_release[:,0]-angular_separation))
-        dB_release = spatial_release[closest_index,1]
-        return(dB_release)
+
+
+
 
 # helper functions to separate out tuples 
 extract_numechoesheard = lambda X : X[0]
@@ -2348,6 +2346,17 @@ def run_CPN(**kwargs):
         num_echoes_heard : int.
                           Number of echoes heard        
 
+        sim_output : list with 3 objects in the following index order.
+                        0 :  echo_ids . 1d array like. binary array showing whether echo was heard
+                             or not.
+                        1 : sounds_in_ipi - dictionary with the secondary echoes, target echoes
+                            and conspecific calls as pd.DataFrames
+                        2 : group_geometry - dictionary describing the geometry of the 2D 
+                            bat group. with the following 
+                            
+                        
+                            
+
     '''
     assert kwargs['Nbats'] >= 1, 'The cocktail party nightmare has to have >= 1 bats! '
     
@@ -2380,9 +2389,6 @@ def run_CPN(**kwargs):
 
     num_echoes_heard, echo_ids = calculate_num_heardechoes(target_echoes, maskers,
                               **kwargs)
-#    sounds_in_ipi =  {'2dary_echoes':secondary_echoes,
-#                     'conspecific_calls':conspecific_calls,
-#                     'target_echoes':target_echoes}
     group_geometry = {'positions':bats_xy,
                               'orientations':bats_orientations }
     return(num_echoes_heard,

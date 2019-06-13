@@ -13,10 +13,10 @@ import time
 folder = './/poisson-disc-master//'
 sys.path.append(folder)
 
-import matplotlib.pyplot as plt
-plt.rcParams['agg.path.chunksize'] = 100000
+#import matplotlib.pyplot as plt
+#plt.rcParams['agg.path.chunksize'] = 100000
 import numpy as np
-np.random.seed(82319)
+np.random.seed(11343521)
 import pandas as pd
 import scipy.misc as misc
 import scipy.spatial as spl
@@ -98,7 +98,10 @@ def assign_real_arrival_times(sound_df, **kwargs):
     # get the delays at which the primary echoes from all the neighbours arrive
     dist_mat = spl.distance_matrix(kwargs['bats_xy'], kwargs['bats_xy'])
     echo_distances = dist_mat[1:,0]*2.0
-    echo_arrivaltimes = echo_distances/kwargs['v_sound']
+    echo_arrivaltimes = echo_distances/kwargs['v_sound'] - kwargs['echocall_duration']
+    if not np.all(echo_arrivaltimes >= 0):
+        raise ValueError('Some echoes are arriving before the call is over')
+        
     relative_arrivaltimes = np.float64(echo_arrivaltimes/kwargs['interpulse_interval'])
     
     # calculate arrival time in the ipi timesteps:
@@ -114,8 +117,7 @@ def assign_real_arrival_times(sound_df, **kwargs):
 
     return(sound_df)
 
-   
-    
+
 
 def place_sounds_randomly_in_IPI(timeline ,calldurn_steps, Nsounds = 1):
     '''Randomly places 
@@ -881,7 +883,8 @@ def calc_spatial_release(angular_separation, spatial_release):
         return(np.min(spatial_release['dB_release']))
 
     else:
-        closest_index =abs(spatial_release['deltatheta'] - angular_separation).astype('float32').idxmin()
+        #closest_index = abs(spatial_release['deltatheta'] - angular_separation).astype('float32').idxmin()
+        closest_index = np.int64(np.argmin(abs(spatial_release['deltatheta']-angular_separation)))
         dB_release = spatial_release['dB_release'][closest_index]
         return(dB_release)
 
@@ -1535,7 +1538,7 @@ def propagate_sounds(sound_type, **kwargs):
         received_sounds = sound_type_propagation[sound_type](**kwargs)
         return(received_sounds)
     except:
-        print(sound_type)
+        raise Exception('Cannot propagate : '+sound_type)
         
        
 
@@ -2381,12 +2384,17 @@ def run_CPN(**kwargs):
 
     num_echoes_heard, echo_ids = calculate_num_heardechoes(target_echoes, maskers,
                               **kwargs)
-    sounds_in_ipi = {'2dary_echoes':secondary_echoes,
-                     'conspecific_calls':conspecific_calls,
-                     'target_echoes':target_echoes}
+#    sounds_in_ipi =  {'2dary_echoes':secondary_echoes,
+#                     'conspecific_calls':conspecific_calls,
+#                     'target_echoes':target_echoes}
     group_geometry = {'positions':bats_xy,
                               'orientations':bats_orientations }
-    return(num_echoes_heard, [echo_ids, sounds_in_ipi, group_geometry])
+    return(num_echoes_heard,
+                              [echo_ids,
+                              {'2dary_echoes':secondary_echoes,
+                               'conspecific_calls':conspecific_calls,
+                               'target_echoes':target_echoes},
+                               group_geometry])
 
 
 if __name__ == '__main__':

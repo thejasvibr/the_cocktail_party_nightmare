@@ -636,7 +636,7 @@ class TestCalculateConspecificcall_levels(unittest.TestCase):
                                     self.kwargs['source_level']['ref_distance'])
         
         self.assertTrue(np.array_equal(output_receivedlevels, expected_receivedlevels))
-        
+
 
 class TestPropagateSound(unittest.TestCase):
     '''
@@ -682,6 +682,9 @@ class TestPropagateSound(unittest.TestCase):
 
         self.assertTrue(np.array_equal([num_conspecificcalls, num_2daryechoes, num_1echoes],
                                        [exp_numcalls, exp_num2daryechoes, exp_num1echoes]))
+
+        
+
 
 class TestCombineSounds(unittest.TestCase):
     '''
@@ -840,15 +843,16 @@ class TestAssignRealArrivalTimes(unittest.TestCase):
         self.kwargs['interpulse_interval'] = 0.1
         self.kwargs['echocall_duration'] = 0.003
         self.kwargs['v_sound'] = 330.0
+        self.kwargs['echocall_duration'] = 0.003
     
     def test_oneecho(self):
         '''check that the time of arrival is proper for just one target
         '''
+        self.kwargs['echocall_duration'] = 0.002
         self.kwargs['bats_xy'] = np.array(([0,0],[1,0]))
-        exp_start = int(np.around((2/self.kwargs['v_sound'])/self.kwargs['simtime_resolution']))
+        exp_start = int(np.around((- self.kwargs['echocall_duration'] +2/self.kwargs['v_sound'])/self.kwargs['simtime_resolution'])) 
         exp_echocall_timesteps = int(np.around(self.kwargs['echocall_duration']/self.kwargs['simtime_resolution']))
         exp_stop = exp_start + exp_echocall_timesteps -1 
-
         assign_real_arrival_times(self.echoes, **self.kwargs)
         self.assertTrue(np.array_equal([exp_start, exp_stop],
                                         np.array(self.echoes[['start','stop']]).flatten()))
@@ -866,9 +870,9 @@ class TestAssignRealArrivalTimes(unittest.TestCase):
         echo_dists = 2*spl.distance_matrix(self.kwargs['bats_xy'], self.kwargs['bats_xy'])
         distances = echo_dists[1:,0]
         
-        starts = distances/self.kwargs['v_sound']
+        starts = distances/self.kwargs['v_sound'] - self.kwargs['echocall_duration']
         relative_starts = np.float64(starts/self.kwargs['interpulse_interval'])
-        exp_start = np.int64(np.around(relative_starts*ipi_timesteps))
+        exp_start = np.int64(np.around(relative_starts*ipi_timesteps)) 
         exp_echocall_timesteps = np.around(self.kwargs['echocall_duration']/self.kwargs['simtime_resolution'])
         exp_stop = np.int64(exp_start + exp_echocall_timesteps -1 )
         exp_start_stop = np.column_stack((exp_start, exp_stop)).reshape(-1,2)
@@ -876,6 +880,22 @@ class TestAssignRealArrivalTimes(unittest.TestCase):
         print(exp_start_stop, got_start_stop)
 
         self.assertTrue(np.array_equal(exp_start_stop, got_start_stop))
+    
+    def test_callecho_overlap(self):
+        '''Simulate the case where the echo returns before call emission is complete
+        '''
+        self.kwargs['echocall_duration'] = 0.010
+        self.kwargs['bats_xy'] = np.array(([0,0],[0.5,0]))
+        exp_start = int(np.around((2/self.kwargs['v_sound'])/self.kwargs['simtime_resolution'])) - self.kwargs['echocall_duration']
+        exp_echocall_timesteps = int(np.around(self.kwargs['echocall_duration']/self.kwargs['simtime_resolution']))
+        exp_stop = exp_start + exp_echocall_timesteps -1 
+
+        with self.assertRaises(ValueError) as context:
+            assign_real_arrival_times(self.echoes, **self.kwargs)
+            
+        self.assertTrue('Some echoes are arriving before the call is over' in context.exception)
+        
+        
         
 class TestCheckCumSPL(unittest.TestCase):
 

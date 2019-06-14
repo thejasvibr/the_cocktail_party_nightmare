@@ -9,6 +9,7 @@ import sys
 sys.path.append('..//..//poisson-disc-master//')
 sys.path.append('..//..//')
 sys.path.append('..//')
+import multiprocessing
 from multiprocessing import Pool
 import pickle 
 import time
@@ -35,6 +36,7 @@ if __name__ == '__main__':
             var_and_value.append((('Nbats',each_nbats), common_kwargs)) 
     start = time.time()
     
-    pool = Pool(4);all_outputs = pool.map(wrapper_each_variable, var_and_value)
+    pool = Pool(multiprocessing.cpu_count());
+	all_outputs = pool.map(wrapper_each_variable, var_and_value)
     #all_outputs = map(wrapper_each_variable, var_and_value)
     print('OVERALL SIMS TOOK', time.time()-start )

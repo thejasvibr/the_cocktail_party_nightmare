@@ -9,6 +9,7 @@ import sys
 sys.path.append('..//..//poisson-disc-master//')
 sys.path.append('..//..//')
 sys.path.append('..//')
+import multiprocessing
 from multiprocessing import Pool
 import pickle 
 import time
@@ -34,10 +35,11 @@ if __name__ == '__main__':
     var_and_value = []
     for SL in SL_dBSPL:
         source_leveldict = {'dBSPL':SL, 'ref_distance':0.1}
-        for i in range(10): # make sure overall 10,000 sims are run 
+        for i in range(1000): # make sure overall 10,000 sims are run 
             var_and_value.append((('source_level',source_leveldict), common_kwargs)) 
     start = time.time()
-    #pool = Pool(4)
-    pool = Pool(4);all_outputs = pool.map(wrapper_each_variable, var_and_value)
+    num_cores = multiprocessing.cpu_count()
+    pool = Pool(num_cores);
+	all_outputs = pool.map(wrapper_each_variable, var_and_value)
     #all_outputs = map(wrapper_each_variable, var_and_value)
     print('OVERALL SIMS TOOK', time.time()-start )

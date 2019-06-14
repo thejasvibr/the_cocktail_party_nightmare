@@ -42,7 +42,7 @@ p17
 F0.5
 sS'echocall_duration'
 p18
-F0.003
+F0.0025
 sS'call_directionality'
 p19
 NsS'heading_variation'

@@ -9,9 +9,6 @@ Created on Tue Dec 12 21:55:48 2017
 import pickle
 import sys
 import time
-#
-folder = './/poisson-disc-master//'
-sys.path.append(folder)
 
 #import matplotlib.pyplot as plt
 #plt.rcParams['agg.path.chunksize'] = 100000
@@ -21,7 +18,7 @@ import pandas as pd
 import scipy.misc as misc
 import scipy.spatial as spl
 import scipy.interpolate as interpolate
-from poisson_disc import Grid # source code by IHautal in https://github.com/IHautaI/poisson-disc
+from bridson import poisson_disc_samples
 
  
 
@@ -100,7 +97,9 @@ def assign_real_arrival_times(sound_df, **kwargs):
     echo_distances = dist_mat[1:,0]*2.0
     echo_arrivaltimes = echo_distances/kwargs['v_sound'] - kwargs['echocall_duration']
     if not np.all(echo_arrivaltimes >= 0):
-        raise ValueError('Some echoes are arriving before the call is over')
+        msg = 'Some echoes are arriving before the call is over! Please check call duration or neighbour distance'
+        raise ValueError(msg)
+        
         
     relative_arrivaltimes = np.float64(echo_arrivaltimes/kwargs['interpulse_interval'])
     
@@ -1174,20 +1173,14 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
          raise ValueError('Number of neighbouring points must  be >=1 ')
 
     insufficient_points = True
-    grid_size = 2*(nbr_distance/np.sqrt(2))
+    sidelength = np.ceil(np.sqrt(npoints))*2*nbr_distance
 
-    sidelength = (np.ceil(np.sqrt(npoints))+0.1)*grid_size
-
-    while insufficient_points :
-        length, width = sidelength, sidelength
-        grid = Grid(nbr_distance, length, width)
-
-        data = grid.poisson((0,0))
-        data_np = np.asanyarray(data)
-
+    while insufficient_points:
+        data_np = np.array(poisson_disc_samples(sidelength,sidelength,
+                                               nbr_distance))
         rows, columns = data_np.shape
         if rows <= npoints:
-            sidelength += 0.5
+            sidelength += nbr_distance
         else :
             insufficient_points = False
 
@@ -2438,7 +2431,7 @@ if __name__ == '__main__':
         kwargs['interpulse_interval'] = 0.1
         kwargs['v_sound'] = 330.0
         kwargs['simtime_resolution'] = 10**-6
-        kwargs['echocall_duration'] = 0.002
+        kwargs['echocall_duration'] = 0.003
         kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
         kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
 #        reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
@@ -2452,7 +2445,7 @@ if __name__ == '__main__':
         kwargs['reflection_function'] = reflection_func
         kwargs['heading_variation'] = 10
         kwargs['min_spacing'] = 0.5
-        kwargs['Nbats'] = 200
+        kwargs['Nbats'] = 25
         kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
         kwargs['hearing_threshold'] = 20
 
@@ -2471,5 +2464,5 @@ if __name__ == '__main__':
     
         num_echoes, b = run_CPN(**kwargs)
         print(time.time()-start)
-        with open('test_200bats.pkl','wb') as dumpfile:
-            pickle.dump(b, dumpfile)
+#        with open('test_200bats.pkl','wb') as dumpfile:
+#            pickle.dump(b, dumpfile)

@@ -884,16 +884,17 @@ class TestAssignRealArrivalTimes(unittest.TestCase):
     def test_callecho_overlap(self):
         '''Simulate the case where the echo returns before call emission is complete
         '''
+        self.echoes = pd.DataFrame(data=[], columns = ['start','stop','theta'],index=range(2))
         self.kwargs['echocall_duration'] = 0.010
         self.kwargs['bats_xy'] = np.array(([0,0],[0.5,0]))
         exp_start = int(np.around((2/self.kwargs['v_sound'])/self.kwargs['simtime_resolution'])) - self.kwargs['echocall_duration']
         exp_echocall_timesteps = int(np.around(self.kwargs['echocall_duration']/self.kwargs['simtime_resolution']))
         exp_stop = exp_start + exp_echocall_timesteps -1 
-
+        exp_msg = 'Some echoes are arriving before the call is over! Please check call duration or neighbour distance'
         with self.assertRaises(ValueError) as context:
             assign_real_arrival_times(self.echoes, **self.kwargs)
             
-        self.assertTrue('Some echoes are arriving before the call is over' in context.exception)
+        self.assertTrue(exp_msg in context.exception)
 
 
 class TestRelativeAngleCalculations(unittest.TestCase):

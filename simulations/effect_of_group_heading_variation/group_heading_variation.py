@@ -4,10 +4,7 @@ Created on Mon Jun 10 15:23:55 2019
 
 @author: tbeleyur
 """
-
-
 import sys 
-sys.path.append('..//..//poisson-disc-master//')
 sys.path.append('..//..//')
 sys.path.append('..//')
 import multiprocessing

@@ -22,9 +22,9 @@ import numpy as np
 np.random.seed(82319)
 
 
-def simulate_each_variable(variable_and_value, kwargs, num_replicates = 1):
+def simulate_each_variable(variable_and_value, kwargs, num_replicates = 10):
     '''
-    Allow each process to have a  32bit seed number derived from 
+    Allow each process to have a  30bit seed number derived from 
     the uuid. My feeling is that 
     there are chances that the seeds may be the same - but it's 
     unlikely that within a batch the seeds will be the same.
@@ -36,7 +36,7 @@ def simulate_each_variable(variable_and_value, kwargs, num_replicates = 1):
     # a little bit of circus to ensure this code can still be run parallely 
     # and not result in repeated seeds!! 
     file_uuid = str(uuid.uuid4())
-    unique_seed = int(hashlib.sha1(file_uuid).hexdigest(), 16) % (2**32)
+    unique_seed = int(hashlib.sha1(file_uuid).hexdigest(), 16) % (2**30)
     np.random.seed(unique_seed)
     unique_name = 'uuid_'+file_uuid+'_numpyseed_'+str(unique_seed)
     
@@ -51,10 +51,12 @@ def simulate_each_variable(variable_and_value, kwargs, num_replicates = 1):
     print('RUNNING ' + variable_name + str(variable_value)+' bat simulations now')
     for replicate_run in xrange(num_replicates):
         num_echoes, sim_output = run_CPN(**kwargs)
+        
         if variable_name != 'source_level':
             simoutput_container[(variable_value, replicate_run)] = sim_output
         else: 
             simoutput_container[(variable_value['dBSPL'], replicate_run)] = sim_output
+
     if variable_name != 'source_level':
         picklefilename = str(variable_value)+'bats_CPN_'+unique_name+'.pkl'
     else:
@@ -84,7 +86,13 @@ if __name__ == '__main__':
     common_kwargs['call_directionality'] = call_directionality_fn
     common_kwargs['hearing_directionality'] = hearing_directionality_fn
     # run simulations for all group sizes of interest
-    var_and_value = [(('min_spacing', 0.5), common_kwargs)]*4
+    echocall_durns = [0.0025, 0.00125, 0.001]
+    var_and_value = []
+    var_and_value = []
+    for each_durn in echocall_durns:
+        for i in range(10): # make sure overall 10,000 sims are run 
+            var_and_value.append((('echocall_duration',each_durn), common_kwargs))
+    #var_and_value = [(('echocall_duration', 0.0029), common_kwargs)]*4
     start = time.time()
     pool = Pool(mp.cpu_count())
     #all_outputs = pool.map(wrapper_each_group_size, group_sizes)

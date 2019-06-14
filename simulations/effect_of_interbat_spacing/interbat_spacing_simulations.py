@@ -27,7 +27,6 @@ if __name__ == '__main__':
     common_kwargs.keys()
     common_kwargs['call_directionality'] = call_directionality_fn
     common_kwargs['hearing_directionality'] = hearing_directionality_fn
-    common_kwargs['Nbats'] = 25 # fix group size and vary min spacing 
     
     # run simulations for all group sizes of interest
     r_min_values = [0.5, 0.75, 1.0, 1.5]

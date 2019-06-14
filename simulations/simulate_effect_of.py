@@ -83,7 +83,6 @@ if __name__ == '__main__':
     common_kwargs.keys()
     common_kwargs['call_directionality'] = call_directionality_fn
     common_kwargs['hearing_directionality'] = hearing_directionality_fn
-    common_kwargs['Nbats'] = 25
     # run simulations for all group sizes of interest
     var_and_value = [(('min_spacing', 0.5), common_kwargs)]*4
     start = time.time()

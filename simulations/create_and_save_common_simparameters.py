@@ -21,7 +21,7 @@ reflection_func = pd.read_csv('..//data//bistatic_TS_bat.csv')
 kwargs['reflection_function'] = reflection_func
 kwargs['heading_variation'] = 10.0
 kwargs['min_spacing'] = 0.5
-kwargs['Nbats'] = 2
+kwargs['Nbats'] = 25
 kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
 kwargs['hearing_threshold'] = 20
 

@@ -28,7 +28,6 @@ if __name__ == '__main__':
     common_kwargs.keys()
     common_kwargs['call_directionality'] = call_directionality_fn
     common_kwargs['hearing_directionality'] = hearing_directionality_fn
-    common_kwargs['Nbats'] = 25 # fix group size and vary min spacing 
     
     # run simulations for all source levels
     SL_dBSPL = [108, 114, 120, 126, 132]

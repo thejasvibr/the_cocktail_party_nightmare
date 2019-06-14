@@ -50,7 +50,7 @@ p20
 F10.0
 sS'Nbats'
 p21
-I2
+I25
 sS'interpulse_interval'
 p22
 F0.1

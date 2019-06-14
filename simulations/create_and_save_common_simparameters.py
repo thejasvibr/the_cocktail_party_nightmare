@@ -32,7 +32,7 @@ with open(tempmasking_file, 'rb') as pklfile:
 spatial_unmasking_fn = pd.read_csv('..//data//spatial_release_fn.csv')
 
 kwargs['temporal_masking_thresholds'] = temporal_masking_fn
-kwargs['spatial_release_fn'] = spatial_unmasking_fn
+kwargs['spatial_release_fn'] = np.array(spatial_unmasking_fn)[:,1:]
 
 common_params_file = 'commonsim_params.pkl'
 with open(common_params_file,'wb') as commonparamsfile:

@@ -24,6 +24,10 @@ np.random.seed(82319)
 
 def simulate_each_variable(variable_and_value, kwargs, num_replicates = 1000):
     '''
+    Allow each process to have a unique 31 bit seed number derived from 
+    the uuid. My feeling is that 
+    there are chances that the seeds may be the same - but it's 
+    unlikely that within a batch the seeds will be the same.
     
     thanks to Raymond Hettinger for the integer hashing comment
     https://stackoverflow.com/a/16008760/4955732
@@ -32,7 +36,7 @@ def simulate_each_variable(variable_and_value, kwargs, num_replicates = 1000):
     # a little bit of circus to ensure this code can still be run parallely 
     # and not result in repeated seeds!! 
     file_uuid = str(uuid.uuid4())
-    unique_seed = int(hashlib.sha1(file_uuid).hexdigest(), 16) % (10 ** 8)
+    unique_seed = int(hashlib.sha1(file_uuid).hexdigest(), 16) % (2**31)
     np.random.seed(unique_seed)
     unique_name = 'uuid_'+file_uuid+'_numpyseed_'+str(unique_seed)
     

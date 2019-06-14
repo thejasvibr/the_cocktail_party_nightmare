@@ -750,10 +750,15 @@ def ipi_soundpressure_levels(sound_df, spl_columnname, **kwargs):
     
     ipi_soundpressure = np.zeros(int(kwargs['interpulse_interval']/kwargs['simtime_resolution']))
     #ipi_soundpressure += np.random.normal(0,10**-10, ipi_soundpressure.size) #prevent 0's from messing up the dB
-    all_sounds_pressurelevels = 10**(np.array(sound_df[spl_columnname])/20.0)
-    for start, stop, sound_pressure in zip( sound_df['start'],sound_df['stop'],all_sounds_pressurelevels):
-        ipi_soundpressure[start:stop] += sound_pressure
+    for start, stop, dBsound_pressure in zip( sound_df['start'],sound_df['stop'], sound_df[spl_columnname]):
+        ipi_soundpressure[start:stop] += 10**(dBsound_pressure/20.0)
     return(ipi_soundpressure)
+
+def add_soundpressures(df_spl, IPI):
+    '''
+    '''
+    start, stop, dblevel = df_spl
+    IPI[start:stop] += 10**(dblevel/20.0)
 
 
 def get_collocalised_deltadB(timegap_ms, temp_mask_fn):
@@ -1130,10 +1135,10 @@ def calc_RL(distance, SL, ref_dist):
     RL : received level in dB SPL re 20muPa.
 
     '''
-
-    if sum( np.array([distance,ref_dist]) <= 0.0):
-        raise ValueError('distances cannot be <= 0 !')
-
+#
+#    if not np.all([distance,ref_dist]>0):
+#        raise ValueError('distances cannot be <= 0 !')
+#
     RL = SL - 20*np.log10(distance/ref_dist)
 
     return(RL)
@@ -1600,7 +1605,7 @@ def calculate_secondaryecho_levels(**kwargs):
                                                                        hearing_directionality,
                                                                        source_level)
         except:
-            pass
+            raise Exception('Unable to calculate secondary echoes!')
 
     else:
         # other wise return an empty sound df. 
@@ -1648,7 +1653,7 @@ def calculate_primaryecho_levels(**kwargs):
                                                        hearing_directionality,
                                                        source_level)
     except:
-        pass
+        raise Exception('Unable to calculate primary echoes!')
 
     return(primary_echoes)
    
@@ -1764,22 +1769,33 @@ def calculate_echoreceived_levels(echopaths,
 
     '''
     num_echoes = len(echopaths['sound_routes'])
-    echoes = pd.DataFrame(data=[], index=range(num_echoes),
-                                   columns= ['start','stop','theta','level',
-                                             'route','R_incoming',
-                                             'R_outgoing', 'theta_emission',
-                                             'theta_incoming','theta_outgoing',
-                                             'emitted_SPL', 'incoming_SPL',
-                                             ])
-    
-    echoes['theta'] = echopaths['theta_reception']
-    echoes['R_incoming'] = echopaths['R_incoming']
-    echoes['R_outgoing'] = echopaths['R_outgoing']
-    echoes['theta_emission'] = echopaths['theta_emission']
-    echoes['theta_incoming'] = echopaths['theta_incoming']
-    echoes['theta_outgoing'] = echopaths['theta_outgoing']
-    echoes['route'] = echopaths['sound_routes']
-    echoes['sourcelevel_ref_distance'] = source_level['ref_distance']
+#    echoes = pd.DataFrame(data=[], index=range(num_echoes),
+#                                   columns= ['start','stop','theta','level',
+#                                             'route','R_incoming',
+#                                             'R_outgoing', 'theta_emission',
+#                                             'theta_incoming','theta_outgoing',
+#                                             'emitted_SPL', 'incoming_SPL',
+#                                             ])
+ 
+    echoes= pd.DataFrame(data={'theta':echopaths['theta_reception'],
+                               'R_incoming':echopaths['R_incoming'],
+                               'R_outgoing' : echopaths['R_outgoing'],
+                               'theta_emission': echopaths['theta_emission'],
+                               'theta_incoming' : echopaths['theta_incoming'],
+                               'theta_outgoing' : echopaths['theta_outgoing'],
+                               'route' : echopaths['sound_routes'],
+                               'sourcelevel_ref_distance' : source_level['ref_distance']
+                               })    
+    echoes['emitted_SPL'] = np.tile(np.nan, num_echoes)
+    echoes['incoming_SPL'] = np.tile(np.nan, num_echoes)
+#    echoes['theta'] = echopaths['theta_reception']
+#    echoes['R_incoming'] = echopaths['R_incoming']
+#    echoes['R_outgoing'] = echopaths['R_outgoing']
+#    echoes['theta_emission'] = echopaths['theta_emission']
+#    echoes['theta_incoming'] = echopaths['theta_incoming']
+#    echoes['theta_outgoing'] = echopaths['theta_outgoing']
+#    echoes['route'] = echopaths['sound_routes']
+#    echoes['sourcelevel_ref_distance'] = source_level['ref_distance']
     
     # the emitted SPL and teh SPL near the target bat before reflection.
     call_directionality_factor = np.apply_along_axis(call_directionality,0, np.array(echoes['theta_emission']))
@@ -1796,7 +1812,8 @@ def calculate_echoreceived_levels(echopaths,
     echoes['outgoing_SPL'] = echoes['incoming_SPL'] + reflection_strengths
 
     hearing_directionality_factor = np.apply_along_axis(hearing_directionality,0, np.array(echoes['theta']))
-    echoes['level'] = echoes.apply(calcreceivedSPL_by_row, axis=1) + hearing_directionality_factor
+    echoes['level'] = echoes.apply(calcreceivedSPL_by_row, axis=1)
+    echoes['level'] += hearing_directionality_factor
 
     return(echoes)
 
@@ -1804,7 +1821,7 @@ def calc_incomingSPL_by_row(row_df):
     '''
     '''
     # the SPL is calculated till the ref distance only!
-    delta_R = abs(row_df['R_incoming']-row_df['sourcelevel_ref_distance'])
+    delta_R = np.abs(row_df['R_incoming']-row_df['sourcelevel_ref_distance'])
     RL = calc_RL(delta_R, row_df['emitted_SPL'], row_df['sourcelevel_ref_distance'])
     return(RL)
 
@@ -2150,19 +2167,24 @@ def calc_echo_thetas(bats_xy, bat_orientations, sound_routes, which_angles):
         which_angles : str. Switch which decides which pair of angles are calculated. 
                        
             If which_angles is 'emission_reception'  then :
+                        Relevant to the overall emission and reception angles of echoes
                        
-                       theta_towardstarget is the relative angle of emission angle with reference to 
-                       the heading direction of the emitter bat
-                       AND 
-                       theta_fromtarget is the relative angle of reception with reference to the heading 
-                       direction of the focal bat 
-            If which_angles is 'incoming_outgoing' then the angles are calculated with reference ot 
-                        the incoming call and outgoing echo on the surface of the target bat. 
+                       theta_towardstarget : the relative angle of emission from emitting bat to target bat
 
-                     theta_towardstarget is the relative angle of emitted call arrival wrt to the 
-                     heading direction of the target bat
+                      AND 
+                      
+                       theta_fromtarget : the relative angle of reception with reference to the heading 
+                       direction of the focal bat 
+
+            If which_angles is 'incoming_outgoing' :
+                        Relevant to the overall emission and reception angles of echoes
+                        
+                     theta_towardstarget : relative angle of arrival of the emitted call for the
+                                           target bat  
+                     
                      AND
-                     theta_fromtarget is the relative angle of the reflected sound wrt to the 
+                     
+                     theta_fromtarget : the relative angle of the reflected sound wrt to the 
                      heading direction of the target bat
                        
 
@@ -2181,19 +2203,27 @@ def calc_echo_thetas(bats_xy, bat_orientations, sound_routes, which_angles):
 
     for route in sound_routes:
         emitter, target, focal = route
-        if which_angles is 'incoming_outgoing':
-            theta_in = calculate_angleofarrival(bats_xy[emitter], bats_xy[target], bat_orientations[target])
-            theta_towardstarget.append(theta_in)
-            theta_out = calculate_angleofarrival(bats_xy[focal], bats_xy[target], bat_orientations[target])
-            theta_fromtarget.append(theta_out)
-        elif which_angles is 'emission_reception':
-            theta_in = calculate_angleofarrival(bats_xy[target], bats_xy[emitter], bat_orientations[emitter])
-            theta_towardstarget.append(theta_in)
-            theta_out = calculate_angleofarrival(bats_xy[target], bats_xy[focal], bat_orientations[focal])
-            theta_fromtarget.append(theta_out)
+        theta_out = casewise_thetaout[which_angles](bats_xy,
+                                     bat_orientations, emitter, target, focal, theta_towardstarget)
+        theta_fromtarget.append(theta_out)
 
     return(tuple(theta_towardstarget), tuple(theta_fromtarget))
 
+
+def incoming_outgoing(bats_xy, bat_orientations, emitter, target, focal, theta_towardstarget):
+    theta_in = calculate_angleofarrival(bats_xy[emitter], bats_xy[target], bat_orientations[target])
+    theta_towardstarget.append(theta_in)
+    theta_out = calculate_angleofarrival(bats_xy[focal], bats_xy[target], bat_orientations[target])
+    return(theta_out)
+
+def emission_reception(bats_xy, bat_orientations, emitter, target, focal, theta_towardstarget):
+    theta_in = calculate_angleofarrival(bats_xy[target], bats_xy[emitter], bat_orientations[emitter])
+    theta_towardstarget.append(theta_in)
+    theta_out = calculate_angleofarrival(bats_xy[target], bats_xy[focal], bat_orientations[focal])
+    return(theta_out)
+
+casewise_thetaout = {'incoming_outgoing' : incoming_outgoing,
+                     'emission_reception' : emission_reception }
 
 def combine_sounds(sounddf_list):
     '''Combine 2>= sound dfs into one df. 
@@ -2422,10 +2452,10 @@ if __name__ == '__main__':
         kwargs['reflection_function'] = reflection_func
         kwargs['heading_variation'] = 10
         kwargs['min_spacing'] = 0.5
-        kwargs['Nbats'] = 25
+        kwargs['Nbats'] = 200
         kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
         kwargs['hearing_threshold'] = 20
-    
+
 #        fwd_masking_region = np.linspace(-27, -7, 20000)        
 #        bkwd_masking_region = np.linspace(-10, -24, 3000)
 #        simult_masking_regio = np.array([-8])
@@ -2441,3 +2471,5 @@ if __name__ == '__main__':
     
         num_echoes, b = run_CPN(**kwargs)
         print(time.time()-start)
+        with open('test_200bats.pkl','wb') as dumpfile:
+            pickle.dump(b, dumpfile)

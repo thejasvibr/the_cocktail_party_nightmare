@@ -918,6 +918,42 @@ class TestRelativeAngleCalculations(unittest.TestCase):
         expected = 135.0
         theta_sep  = get_relative_echo_angular_separation(incoming, outgoing)
         self.assertEqual(expected, theta_sep)
+
+class TestCalcEchoThetas(unittest.TestCase):
+    ''' 
+    '''
+    def setUp(self):
+        # calc_echo_thetas(bats_xy, bat_orientations, sound_routes, which_angles)
+        self.xy = np.row_stack(([0,0],[1,0],[1,1],[0,1],[-1,1]))
+        self.bat_orientations = np.tile(90, self.xy.shape[0])
+        self.sound_routes = [(0,1,2),(0,3,2),(0,3,4),(0,3,1)]
+    def test_basic(self):
+        '''
+        '''
+        whichangles= 'emission_reception'
+        towards_tgt, from_tgt = calc_echo_thetas(self.xy, self.bat_orientations,
+                                                 self.sound_routes, whichangles)
+        concat_output = np.concatenate((towards_tgt,from_tgt)).flatten()
+        expected_towards = [90.0, 0.0, 0.0, 0.0]
+        expected_from = [180.0, -90.0 , 90.0, -45.0]
+        concat_expected = np.concatenate((expected_towards, expected_from)).flatten()
+
+        self.assertTrue( np.array_equal(concat_expected,
+                         concat_output) )
+    
+    def test_basic2(self):
+        whichangles= 'incoming_outgoing'
+        
+        towards_tgt, from_tgt = calc_echo_thetas(self.xy, self.bat_orientations,
+                                                 self.sound_routes, whichangles)
+
+        concat_output = np.concatenate((towards_tgt,from_tgt)).flatten()
+        expected_towards = [-90.0, 180.0, 180.0, 180]
+        expected_from = [0.0, 90.0 , -90.0, 135.0]
+        concat_expected = np.concatenate((expected_towards, expected_from)).flatten()
+
+        self.assertTrue( np.array_equal(concat_expected,
+                         concat_output) )
         
         
         

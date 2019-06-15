@@ -4,16 +4,37 @@
 
 Created on Tue Dec 12 21:55:48 2017
 
-@author: tbeleyur
+Thejasvi Beleyur, 2019
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of 
+this software and associated documentation files (the "Software"), to deal in 
+the Software without restriction, including without limitation the rights to use,
+ copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the 
+ Software, and to permit persons to whom the Software is furnished to do so, 
+ subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR 
+ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The Bridson package distributed along with this
+repository is written by Johannes Dollinger and licensed under an MIT License. 
+
+
 """
 import pickle
 import sys
+sys.path.append('bridson//')
 import time
 
-#import matplotlib.pyplot as plt
-#plt.rcParams['agg.path.chunksize'] = 100000
 import numpy as np
-np.random.seed(11343521)
+np.random.seed(82319) # because Seewiesen
 import pandas as pd
 import scipy.misc as misc
 import scipy.spatial as spl
@@ -1177,7 +1198,8 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
 
     while insufficient_points:
         data_np = np.array(poisson_disc_samples(sidelength,sidelength,
-                                               nbr_distance))
+                                               nbr_distance,k=30,
+                                               random=np.random.random))
         rows, columns = data_np.shape
         if rows <= npoints:
             sidelength += nbr_distance
@@ -2464,5 +2486,6 @@ if __name__ == '__main__':
     
         num_echoes, b = run_CPN(**kwargs)
         print(time.time()-start)
+        print(b[2])
 #        with open('test_200bats.pkl','wb') as dumpfile:
 #            pickle.dump(b, dumpfile)

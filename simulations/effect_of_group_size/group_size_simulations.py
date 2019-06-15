@@ -6,6 +6,7 @@ Created on Mon Jun 10 13:55:43 2019
 """
 
 import sys 
+sys.path.append('..//..//bridson//')
 sys.path.append('..//..//')
 sys.path.append('..//')
 import multiprocessing

@@ -22,7 +22,7 @@ import numpy as np
 np.random.seed(82319)
 
 
-def simulate_each_variable(variable_and_value, kwargs, num_replicates = 10):
+def simulate_each_variable(variable_and_value, kwargs, num_replicates = 100):
     '''
     Allow each process to have a  30bit seed number derived from 
     the uuid. My feeling is that 

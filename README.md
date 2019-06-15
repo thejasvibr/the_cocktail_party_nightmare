@@ -1,10 +1,10 @@
-e# the_cocktail_party_nightmare
+# The Cocktail Party Nightmare
 Code associated with the manuscript 'Quantifying the nightmare in the sonar cocktail party' - Thejasvi Beleyur, Holger R Goerlitz
 
 [![DOI](https://zenodo.org/badge/114679151.svg)](https://zenodo.org/badge/latestdoi/114679151)
 
 ### What is the repository about?
-Echolocating bats fly under acoustically challenging conditions when they fly in groups - in what has been called the ['cocktail party nightmare'](https://www.pnas.org/content/105/25/8491), as opposed to the [cocktail party problem/effect](https://en.wikipedia.org/wiki/Cocktail_party_effect). E
+Echolocating bats fly under acoustically challenging conditions when they fly in groups - in what has been called the ['cocktail party nightmare'](https://www.pnas.org/content/105/25/8491), as opposed to the [cocktail party problem/effect](https://en.wikipedia.org/wiki/Cocktail_party_effect). This repository contains the code which can be used to replicate the results from the published paper above on it. 
 
 ### Requirements:
 The code runs on a range of Python 2.7 versions, and with the Numpy, Scipy, Pandas libraries. The code runs on Windows and Linux. 

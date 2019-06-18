@@ -4,7 +4,7 @@
 
 Created on Tue Dec 12 21:55:48 2017
 
-Thejasvi Beleyur, 2019
+Copyright Thejasvi Beleyur, 2019
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of 
 this software and associated documentation files (the "Software"), to deal in 
@@ -31,16 +31,16 @@ repository is written by Johannes Dollinger and licensed under an MIT License.
 import pickle
 import sys
 sys.path.append('bridson//')
+sys.path.append('.//acoustic_shadow//')
 import time
 
 import numpy as np
-np.random.seed(82319) # because Seewiesen
 import pandas as pd
 import scipy.misc as misc
 import scipy.spatial as spl
 import scipy.interpolate as interpolate
 from bridson import poisson_disc_samples
-
+from detailed_sound_propagation import soundprop_w_acoustic_shadowing
  
 
 
@@ -1564,20 +1564,12 @@ def calculate_conspecificcall_levels(**kwargs):
     '''
     if kwargs['bats_xy'].shape[0] < 2:
         raise ValueError('Çonspecific calls cannot propagated for Nbats < 2')
-    else:
-        try:
-            hearing_directionality = kwargs['hearing_directionality']
-            call_directionality = kwargs['call_directionality']
-            source_level = kwargs['source_level']
-        except:
-            pass
+    
 
-        conspecific_call_paths = calculate_conspecificcall_paths(**kwargs)
-        conspecific_calls = calculate_conspecificcallreceived_levels(conspecific_call_paths,
-                                                                     call_directionality,
-                                                                     hearing_directionality,
-                                                                     source_level)
-        return(conspecific_calls)
+    conspecific_call_paths = calculate_conspecificcall_paths(**kwargs)
+    conspecific_calls = calculate_conspecificcallreceived_levels(conspecific_call_paths,
+                                                                 **kwargs)
+    return(conspecific_calls)
 
 def calculate_secondaryecho_levels(**kwargs):
     ''' Calculates the received levels and angle of reception of 2ndary echoes from a conspecific call
@@ -1606,19 +1598,12 @@ def calculate_secondaryecho_levels(**kwargs):
     # There will be secondary echoes only when there are >= 3 bats
     if kwargs['bats_xy'].shape[0] >= 3:
         try:
-            reflection_function = kwargs['reflection_function']
-            hearing_directionality = kwargs['hearing_directionality']
-            call_directionality = kwargs['call_directionality']
-            source_level = kwargs['source_level']
             # calculate the distances and angles involved in the secondary echo paths
             secondary_echopaths = calculate_echopaths('secondary_echoes', **kwargs)
             
             # calculate the sound pressure levels based on the geometry + emission-reception directionalities        
             secondary_echoes = calculate_echoreceived_levels(secondary_echopaths,
-                                                                       reflection_function,
-                                                                       call_directionality,
-                                                                       hearing_directionality,
-                                                                       source_level)
+                                                             **kwargs)
         except:
             raise Exception('Unable to calculate secondary echoes!')
 
@@ -1654,19 +1639,13 @@ def calculate_primaryecho_levels(**kwargs):
        
     '''   
     try:
-        reflection_function = kwargs['reflection_function']
-        hearing_directionality = kwargs['hearing_directionality']
-        call_directionality = kwargs['call_directionality']
-        source_level = kwargs['source_level']
+        
         # calculate the distances and angles involved in the secondary echo paths
         echopaths = calculate_echopaths('primary_echoes', **kwargs)
         
         # calculate the sound pressure levels based on the geometry + emission-reception directionalities        
         primary_echoes = calculate_echoreceived_levels(echopaths,
-                                                       reflection_function,
-                                                       call_directionality,
-                                                       hearing_directionality,
-                                                       source_level)
+                                                       **kwargs)
     except:
         raise Exception('Unable to calculate primary echoes!')
 
@@ -1675,49 +1654,58 @@ def calculate_primaryecho_levels(**kwargs):
 
 
 def calculate_conspecificcallreceived_levels(conspecificcall_paths,
-                                             call_directionality,
-                                             hearing_directionality,
-                                             source_level):
+                                              **kwargs):
     '''Calculates the final sound pressure levels at the focal receiver bat
     of a conspecific call emitted by a group member. 
 
      Parameters
     ----------
 
-        bats_xy :
         conspecificall_paths :  dictionary with the following keys:
                 call_routes
                 R_incoming
                 theta_emission
                 theta_reception
+        
+    Keyword Arguments
+    ----------------
 
-        call_directionality : function with one input. The call_direcitonality
-                              function accepts one input theta_emission, which 
-                              is the relative angle of emission with reference to the
-                              on-axis heading angle of the bat.
+    call_directionality : function with one input. The call_direcitonality
+                          function accepts one input theta_emission, which 
+                          is the relative angle of emission with reference to the
+                          on-axis heading angle of the bat.
 
-        hearing_directionality : function with one input. The hearing_directionality
-                                 function acccepts one input theta_reception, 
-                                 which is the relative angle of sound reception 
-                                 with reference to the on-axis heading angle of 
-                                 the bat. 
+    hearing_directionality : function with one input. The hearing_directionality
+                             function acccepts one input theta_reception, 
+                             which is the relative angle of sound reception 
+                             with reference to the on-axis heading angle of 
+                             the bat. 
 
-        source_level : dictionary with two keys:
-                        dBSPL : float. the sound pressure level in dB SPL relative to 20 microPascals
-                        ref_distance : float >0. the reference distance at which the bat's source
-                                level is specified at. 
-    
-    Returns :
+    source_level : dictionary with two keys:
+                    dBSPL : float. the sound pressure level in dB SPL relative to 20 microPascals
+                    ref_distance : float >0. the reference distance at which the bat's source
+                            level is specified at. 
+
+    implement_shadowing : Boolean. If acoustic shadowing is implemented or not. 
+                            
+
+    Returns
+    -------
 
         conspecific_calls : pd.DataFrame.
                             A 'sound' df with received level, angle of arrival
                                        and other related attributes of the sound : 
                                        start | stop | theta | level |
-        
+
     '''
+    call_directionality = kwargs['call_directionality']
+    hearing_directionality = kwargs['hearing_directionality']
+    source_level = kwargs['source_level']
+
     num_calls = len(conspecificcall_paths['call_routes'])
     conspecific_calls = pd.DataFrame(data=[], index=xrange(num_calls),
                                      columns=['start','stop','theta', 'level'])
+        
     for call_id, each_callpath in enumerate(conspecificcall_paths['call_routes']):
         # get the reception angle and the received SPL
         conspecific_calls['theta'][call_id] = conspecificcall_paths['theta_reception'][call_id]
@@ -1725,18 +1713,35 @@ def calculate_conspecificcallreceived_levels(conspecificcall_paths,
         outgoing_SPL = source_level['dBSPL'] + call_directionality(conspecificcall_paths['theta_emission'][call_id])
         # SPL at focal bat after hearing directionality
         incoming_SPL = calc_RL(conspecificcall_paths['R_incoming'][call_id],
-                               outgoing_SPL, source_level['ref_distance']) +hearing_directionality(conspecificcall_paths['theta_reception'][call_id])
+                               outgoing_SPL, source_level['ref_distance']) 
+        
+        incoming_SPL += calculate_acoustic_shadowing(each_callpath, **kwargs)
+
+        incoming_SPL += hearing_directionality(conspecificcall_paths['theta_reception'][call_id])
+
         conspecific_calls['level'][call_id] = incoming_SPL
 
     return(conspecific_calls)
+
+
+def calculate_acoustic_shadowing(soundpath, **kwargs):
+    '''
+    '''
+    if not kwargs['implement_shadowing']:
+        return(0)
+    else:
+        start, end = soundpath
+        other_inds = list(set(range(kwargs['Nbats'])) - set([start,end]))
+        total_shadow_dB = soundprop_w_acoustic_shadowing(kwargs['bats_xy'][start,:], 
+                                       kwargs['bats_xy'][end,:],
+                                       kwargs['bats_xy'][other_inds,:], **kwargs)
+        return(total_shadow_dB)
+    
     
 
 
 def calculate_echoreceived_levels(echopaths,
-                                reflection_function,
-                                call_directionality,
-                                hearing_directionality,
-                                source_level):
+                                **kwargs):
     '''Calculates the final sound pressure levels at the focal receiver bat given
     the geometry of the problem for primary and secondary echoes
 
@@ -1784,14 +1789,12 @@ def calculate_echoreceived_levels(echopaths,
 
     '''
     num_echoes = len(echopaths['sound_routes'])
-#    echoes = pd.DataFrame(data=[], index=range(num_echoes),
-#                                   columns= ['start','stop','theta','level',
-#                                             'route','R_incoming',
-#                                             'R_outgoing', 'theta_emission',
-#                                             'theta_incoming','theta_outgoing',
-#                                             'emitted_SPL', 'incoming_SPL',
-#                                             ])
- 
+
+    reflection_function = kwargs['reflection_function']
+    hearing_directionality = kwargs['hearing_directionality']
+    call_directionality = kwargs['call_directionality']
+    source_level = kwargs['source_level']
+
     echoes= pd.DataFrame(data={'theta':echopaths['theta_reception'],
                                'R_incoming':echopaths['R_incoming'],
                                'R_outgoing' : echopaths['R_outgoing'],
@@ -1803,21 +1806,13 @@ def calculate_echoreceived_levels(echopaths,
                                })    
     echoes['emitted_SPL'] = np.tile(np.nan, num_echoes)
     echoes['incoming_SPL'] = np.tile(np.nan, num_echoes)
-#    echoes['theta'] = echopaths['theta_reception']
-#    echoes['R_incoming'] = echopaths['R_incoming']
-#    echoes['R_outgoing'] = echopaths['R_outgoing']
-#    echoes['theta_emission'] = echopaths['theta_emission']
-#    echoes['theta_incoming'] = echopaths['theta_incoming']
-#    echoes['theta_outgoing'] = echopaths['theta_outgoing']
-#    echoes['route'] = echopaths['sound_routes']
-#    echoes['sourcelevel_ref_distance'] = source_level['ref_distance']
-    
+
     # the emitted SPL and teh SPL near the target bat before reflection.
     call_directionality_factor = np.apply_along_axis(call_directionality,0, np.array(echoes['theta_emission']))
     # source level emitted at the reference distance, reduced due to call directionality
     echoes['emitted_SPL'] = source_level['dBSPL'] + call_directionality_factor
     # calculate spherical spreading
-    echoes['incoming_SPL'] = echoes.apply(calc_incomingSPL_by_row, axis=1)
+    echoes['incoming_SPL'] = echoes.apply(calc_incomingSPL_by_row, axis=1, **kwargs)
 
     # the reflection strength at each set of incoming and outgoing angles
     reflection_strengths = get_reflection_strength(reflection_function,
@@ -1827,24 +1822,28 @@ def calculate_echoreceived_levels(echopaths,
     echoes['outgoing_SPL'] = echoes['incoming_SPL'] + reflection_strengths
 
     hearing_directionality_factor = np.apply_along_axis(hearing_directionality,0, np.array(echoes['theta']))
-    echoes['level'] = echoes.apply(calcreceivedSPL_by_row, axis=1)
+    echoes['level'] = echoes.apply(calcreceivedSPL_by_row, axis=1, **kwargs)
     echoes['level'] += hearing_directionality_factor
 
     return(echoes)
 
-def calc_incomingSPL_by_row(row_df):
+def calc_incomingSPL_by_row(row_df, **kwargs):
     '''
     '''
     # the SPL is calculated till the ref distance only!
     delta_R = np.abs(row_df['R_incoming']-row_df['sourcelevel_ref_distance'])
     RL = calc_RL(delta_R, row_df['emitted_SPL'], row_df['sourcelevel_ref_distance'])
+    emitter, target, receiver = row_df['route']
+    RL += calculate_acoustic_shadowing((emitter, target), **kwargs)
     return(RL)
 
-def calcreceivedSPL_by_row(row_df):
+def calcreceivedSPL_by_row(row_df, **kwargs):
     '''
     '''
     RL = calc_RL(row_df['R_outgoing'] , row_df['outgoing_SPL'],
                      row_df['sourcelevel_ref_distance'])
+    emitter, target, receiver = row_df['route']
+    RL += calculate_acoustic_shadowing((target, receiver), **kwargs)
     return(RL)
 
 def get_reflection_strength(reflection_function, 
@@ -2445,6 +2444,7 @@ def run_CPN(**kwargs):
 
 
 if __name__ == '__main__':
+        np.random.seed(82319)
         start = time.time()
         A = 7
         B = 2 
@@ -2467,15 +2467,13 @@ if __name__ == '__main__':
         kwargs['reflection_function'] = reflection_func
         kwargs['heading_variation'] = 10
         kwargs['min_spacing'] = 0.5
-        kwargs['Nbats'] = 25
+        kwargs['Nbats'] = 100
         kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
         kwargs['hearing_threshold'] = 20
+        kwargs['rectangle_width'] = 0.5
+        kwargs['implement_shadowing'] = True
+        kwargs['shadow_strength'] = -3.0
 
-#        fwd_masking_region = np.linspace(-27, -7, 20000)        
-#        bkwd_masking_region = np.linspace(-10, -24, 3000)
-#        simult_masking_regio = np.array([-8])
-#        temporal_masking_fn = (fwd_masking_region,simult_masking_regio,
-#                                                bkwd_masking_region)
         tempmasking_file = 'data//temporal_masking_function.pkl'
         with open(tempmasking_file, 'rb') as pklfile:
             temporal_masking_fn = pickle.load(pklfile)
@@ -2486,6 +2484,6 @@ if __name__ == '__main__':
     
         num_echoes, b = run_CPN(**kwargs)
         print(time.time()-start)
-        print(b[2])
+        #print(b[2])
 #        with open('test_200bats.pkl','wb') as dumpfile:
 #            pickle.dump(b, dumpfile)

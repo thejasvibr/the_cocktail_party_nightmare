@@ -11,11 +11,9 @@ sys.path.append('..//bridson//')
 sys.path.append('..//')
 import numpy as np 
 import scipy.spatial as spatial
-from the_cocktail_party_nightmare import calc_RL
 
 
-def soundprop_w_acoustic_shadowing(SL,
-                                   start_point, end_point, all_other_points,
+def soundprop_w_acoustic_shadowing(start_point, end_point, all_other_points,
                                    **kwargs):
     '''Calculate the received level of a sound emitter at the start point 
     and reaching the end point after potentially passing through other points on 
@@ -32,9 +30,6 @@ def soundprop_w_acoustic_shadowing(SL,
 
     Parameters
     ----------
-    SL : tuple with 2 entries. 
-         entry 0 : sound pressure level in dB SPL re 20 microPascals
-         entry 1 : reference distance in metres at which the measurement was made. 
 
     start_point : 1 x 2 array like
 
@@ -43,8 +38,8 @@ def soundprop_w_acoustic_shadowing(SL,
     all_other_points : Nbats-2 x 2 array like
                        xy coordinates of all points between start and end point
                        in a rectangular area of given width 
-    TS_shadow : float < 0. 
-                Acoustic shadow effect in dB. This refers to 
+    shadow_strength : float < 0. 
+                      Acoustic shadow effect in dB. This refers to 
 
 
     
@@ -58,15 +53,39 @@ def soundprop_w_acoustic_shadowing(SL,
 
     Returns
     -------
-    received_level: float. 
-                    received level in dB SPL re 20 muPa.
+    acoustic_shadowing: float<0 
+                        reduction in received level of a sound due to acoustic shadowing in dB
     '''    
     all_points_between = get_points_in_between(start_point, end_point, 
                                                        all_other_points, **kwargs)
     
-    R = spatial.distance.euclidean(start_point, end_point)
-    received_level = calc_RL(R,  SL[0], SL[1]) + all_points_between.shape[0]*kwargs['shadow_strength']
-    return(received_level)    
+    acoustic_shadowing = all_points_between.shape[0]*kwargs['shadow_strength']
+
+    return(acoustic_shadowing)    
+
+
+def calc_RL(distance, SL, ref_dist):
+    '''calculates received level only because of spherical spreading.
+
+    Parameters
+
+    distance : float>0. receiver distance from source in metres.
+
+    SL : float. source level in dB SPL re 20 muPa.
+
+    ref_dist : float >0. distance at which source level was measured in metres.
+
+
+      Returns
+    -------
+
+    RL : received level in dB SPL re 20muPa.
+
+    '''
+
+    RL = SL - 20*np.log10(distance/ref_dist)
+
+    return(RL)
 
 
 
@@ -167,8 +186,11 @@ def get_points_in_rectangle(corner_limits, startpt,
     relative_posns = many_points - startpt
     rotated_pts = np.apply_along_axis(dot_product_for_rows, 1, relative_posns,
                                       rotn_matrix)
-    within_x = np.logical_and(rotated_pts[:,0] >= x0, rotated_pts[:,0] <= x1)
-    within_y = np.logical_and(rotated_pts[:,1] >= y0,  rotated_pts[:,1] <= abs(y1) )
+    within_x = np.logical_and(rotated_pts[:,0] >= np.min([x0,x1]),
+                              rotated_pts[:,0] <= np.max([x1,x0]))
+
+    within_y = np.logical_and(rotated_pts[:,1] >= np.min([y0,y1]),
+                              rotated_pts[:,1] <= np.max([y0,y1]))
     
     within_pts = np.logical_and(within_x, within_y)
     return(many_points[within_pts])
@@ -179,8 +201,9 @@ def dot_product_for_rows(xy_row, rotation_matrix):
     return(np.dot(rotation_matrix, xy_row))
 
 def rot_mat(theta):
-    return(np.row_stack(([np.cos(theta), -np.sin(theta)],
-                         [np.sin(theta), np.cos(theta)])))
+    rotation_matrix = np.row_stack(([np.cos(theta), -np.sin(theta)],
+                                    [np.sin(theta), np.cos(theta)]))
+    return(rotation_matrix)
 
 
 

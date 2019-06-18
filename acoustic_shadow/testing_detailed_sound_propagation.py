@@ -95,7 +95,6 @@ class TestGetPointsInBetween(unittest.TestCase):
         expected_numpoints = self.between_points.shape[0]
 
         self.assertEqual(between.shape[0], expected_numpoints)
-        print(between)
         
 
 class TestSoundprop_w_AcousticShadowing(unittest.TestCase):
@@ -110,38 +109,36 @@ class TestSoundprop_w_AcousticShadowing(unittest.TestCase):
         x_coods = np.random.choice(np.arange(-width*0.5, width*0.5, 0.01),10)
         y_coods = np.random.choice(np.arange(0, 2, 0.01),10)
         self.other_points = np.column_stack((x_coods, y_coods))
-        self.SL = (120, 0.1)
+
 
     def test_basic(self):
         ''' start and end at 45 degrees and a cloud of points in between. 
         '''
-        RL_w_shadowing = soundprop_w_acoustic_shadowing(self.SL, 
-                                                        self.start_point,
-                                                        self.end_point,
-                                                        self.other_points,
-                                                        **self.kwargs)
-        
+        shadowing = soundprop_w_acoustic_shadowing(self.start_point,
+                                                    self.end_point,
+                                                    self.other_points,
+                                                    **self.kwargs)
+    
         R_startend = spatial.distance.euclidean(self.start_point,
                                                 self.end_point)
-        expected = calc_RL(R_startend, self.SL[0], self.SL[1]) + self.kwargs['shadow_strength']*self.other_points.shape[0]
+        expected = self.kwargs['shadow_strength']*self.other_points.shape[0]
         
-        self.assertEqual(expected, RL_w_shadowing)
-    
+        self.assertEqual(expected, shadowing)
+
     def test_nobatsinbetween(self):
         '''
         '''
         self.other_points = np.random.normal(-100,0.1,10).reshape(-1,2)
-        RL_w_shadowing = soundprop_w_acoustic_shadowing(self.SL, 
-                                                        self.start_point,
+        shadowing = soundprop_w_acoustic_shadowing(     self.start_point,
                                                         self.end_point,
                                                         self.other_points,
                                                         **self.kwargs)
         
         R_startend = spatial.distance.euclidean(self.start_point,
                                                 self.end_point)
-        expected = calc_RL(R_startend, self.SL[0], self.SL[1]) + 0.0
-        self.assertEqual(expected, RL_w_shadowing)
-    
+        expected =  0.0
+        self.assertEqual(expected, shadowing)
+
         
         
         

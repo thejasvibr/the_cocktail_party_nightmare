@@ -573,7 +573,8 @@ class TestingSecondaryEchoReceivedLevels(unittest.TestCase):
         self.kwargs['call_directionality'] = lambda X : 0 
         self.kwargs['hearing_directionality'] = lambda X : 0
         self.kwargs['source_level'] = {'ref_distance' : 0.1, 'dBSPL':120}
-        
+        self.kwargs['implement_shadowing'] = False
+
     def test_basic(self):
         '''
         '''
@@ -614,6 +615,7 @@ class TestCalculateConspecificcall_levels(unittest.TestCase):
         self.kwargs['call_directionality'] = lambda X : 0 
         self.kwargs['hearing_directionality'] = lambda X : 0
         self.kwargs['source_level'] = {'ref_distance' : 0.1, 'dBSPL':120}
+        self.kwargs['implement_shadowing'] = False
 
 
     def calc_distmat(self):
@@ -664,6 +666,7 @@ class TestPropagateSound(unittest.TestCase):
         self.kwargs['reflection_function']['theta_outgoing'] = all_angles[:,1]
         self.kwargs['reflection_function']['ref_distance'] = np.tile(0.1, 36*36)
         self.kwargs['hearing_threshold'] = 20
+        self.kwargs['implement_shadowing'] = False
 
     def test_numberofsounds(self):
         
@@ -683,6 +686,11 @@ class TestPropagateSound(unittest.TestCase):
         self.assertTrue(np.array_equal([num_conspecificcalls, num_2daryechoes, num_1echoes],
                                        [exp_numcalls, exp_num2daryechoes, exp_num1echoes]))
 
+        
+    def test_with_acoustic_shadowing(self):
+        ''''IMPLEMENT ACOUSTIC SHADOWING TESTS!!!
+        '''
+        self.assertEqual(0,1)
         
 
 
@@ -756,6 +764,7 @@ class TestRunCPN(unittest.TestCase):
         self.kwargs['Nbats'] = 5
         self.kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
         self.kwargs['hearing_threshold'] = 10
+        self.kwargs['implement_shadowing'] = False
         
         fwd_masking_region = np.linspace(-27, -7, 20000)        
         bkwd_masking_region = np.linspace(-10, -24, 3000)
@@ -780,6 +789,7 @@ class TestRunCPN(unittest.TestCase):
         the 2dary echoes sound dfs are output w Nans.
         '''
         self.kwargs['Nbats'] = 2
+        self.kwargs['implement_shadowing'] = False
         
         num_echoesheard, _ = run_CPN(**self.kwargs)
         print('MNIAWMINAWOENAOWENSAKLDNSKDNFSKDF', type(num_echoesheard))

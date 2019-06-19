@@ -21,9 +21,12 @@ reflection_func = pd.read_csv('..//data//bistatic_TS_bat.csv')
 kwargs['reflection_function'] = reflection_func
 kwargs['heading_variation'] = 10.0
 kwargs['min_spacing'] = 0.5
-kwargs['Nbats'] = 25
+kwargs['Nbats'] = 50
 kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
 kwargs['hearing_threshold'] = 20
+kwargs['rectangle_width'] = 0.5
+kwargs['implement_shadowing'] = True
+kwargs['shadow_strength'] = -3.0
 
 tempmasking_file = '..//data//temporal_masking_function.pkl'
 with open(tempmasking_file, 'rb') as pklfile:

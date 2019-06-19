@@ -95,6 +95,59 @@ class TestGetPointsInBetween(unittest.TestCase):
         expected_numpoints = self.between_points.shape[0]
 
         self.assertEqual(between.shape[0], expected_numpoints)
+
+    def test_bitmore_2(self):
+        '''Make a bunch of points horizontially aligned, and then 
+        rotate them - and then check if they're picked up correctly. 
+        '''
+        theta = np.radians(-10)
+        width  = 0.2
+        rotation_matrix = rot_mat(theta)
+        
+        self.kwargs['rectangle_width'] = width
+
+        self.start = np.array([0,0])
+        self.end = np.array([5,0])
+
+        y_coods = np.random.choice(np.arange(-width*0.5, width*0.5, 0.01),10)
+        x_coods = np.random.choice(np.arange(0, 2, 0.01),10)
+        
+        self.between_points = np.column_stack((x_coods, y_coods))
+        self.other_points = np.random.choice(np.arange(90,120,1),10).reshape(-1,2)
+       
+        self.all_other_points = np.row_stack((self.between_points,
+                                              self.other_points))
+
+        
+        rot_end = np.dot(rotation_matrix,self.end)
+        rot_start = np.dot(rotation_matrix, self.start)
+        rot_allotherpoints = np.apply_along_axis(dot_product_for_rows, 1,
+                                                 self.all_other_points,
+                                                 rotation_matrix)
+
+        between = get_points_in_between(rot_start, rot_end,
+                                        rot_allotherpoints,
+                                        **self.kwargs)
+
+        expected_numpoints = self.between_points.shape[0]
+
+        self.assertEqual(between.shape[0], expected_numpoints)
+    
+    
+    
+    def test_pointsonaline(self):
+        '''
+        '''
+        bats_xy = np.array(([1,0],[1,0.05]))
+        focal_bat = np.array([0,0])
+        receiver = np.array([2,0])
+        between = get_points_in_between(focal_bat, receiver,
+                                        bats_xy,
+                                        **self.kwargs)
+        expected = 2
+        obtained = between.shape[0]
+        self.assertEqual(expected, obtained)
+        
         
 
 class TestSoundprop_w_AcousticShadowing(unittest.TestCase):
@@ -106,8 +159,9 @@ class TestSoundprop_w_AcousticShadowing(unittest.TestCase):
         self.kwargs['rectangle_width'] = width
         self.start_point = np.array([0,0])
         self.end_point = np.array([0,10])
-        x_coods = np.random.choice(np.arange(-width*0.5, width*0.5, 0.01),10)
-        y_coods = np.random.choice(np.arange(0, 2, 0.01),10)
+
+        x_coods = np.random.choice(np.arange(-width*0.25, width*0.25, 0.01),10)
+        y_coods = np.random.choice(np.arange(0, 5, 0.01),10)
         self.other_points = np.column_stack((x_coods, y_coods))
 
 
@@ -118,9 +172,7 @@ class TestSoundprop_w_AcousticShadowing(unittest.TestCase):
                                                     self.end_point,
                                                     self.other_points,
                                                     **self.kwargs)
-    
-        R_startend = spatial.distance.euclidean(self.start_point,
-                                                self.end_point)
+
         expected = self.kwargs['shadow_strength']*self.other_points.shape[0]
         
         self.assertEqual(expected, shadowing)
@@ -128,7 +180,7 @@ class TestSoundprop_w_AcousticShadowing(unittest.TestCase):
     def test_nobatsinbetween(self):
         '''
         '''
-        self.other_points = np.random.normal(-100,0.1,10).reshape(-1,2)
+        self.other_points = np.row_stack(([2,2],[4,4],[9,9],[6,6]))
         shadowing = soundprop_w_acoustic_shadowing(     self.start_point,
                                                         self.end_point,
                                                         self.other_points,

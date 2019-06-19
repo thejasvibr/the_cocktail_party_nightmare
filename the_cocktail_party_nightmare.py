@@ -38,7 +38,7 @@ import numpy as np
 import pandas as pd
 import scipy.misc as misc
 import scipy.spatial as spl
-import scipy.interpolate as interpolate
+#import scipy.interpolate as interpolate
 from bridson import poisson_disc_samples
 from detailed_sound_propagation import soundprop_w_acoustic_shadowing
  
@@ -1782,7 +1782,7 @@ def calculate_echoreceived_levels(echopaths,
       Returns
     -------
 
-        secondaryechoes : pd.DataFrame.
+        echoes : pd.DataFrame.
                           A 'sound' df with received level, angle of arrival
                           and other related attributes of the sound : 
                           start | stop | theta | level | route|
@@ -1835,6 +1835,7 @@ def calc_incomingSPL_by_row(row_df, **kwargs):
     RL = calc_RL(delta_R, row_df['emitted_SPL'], row_df['sourcelevel_ref_distance'])
     emitter, target, receiver = row_df['route']
     RL += calculate_acoustic_shadowing((emitter, target), **kwargs)
+
     return(RL)
 
 def calcreceivedSPL_by_row(row_df, **kwargs):
@@ -1843,6 +1844,7 @@ def calcreceivedSPL_by_row(row_df, **kwargs):
     RL = calc_RL(row_df['R_outgoing'] , row_df['outgoing_SPL'],
                      row_df['sourcelevel_ref_distance'])
     emitter, target, receiver = row_df['route']
+
     RL += calculate_acoustic_shadowing((target, receiver), **kwargs)
     return(RL)
 
@@ -2027,7 +2029,9 @@ def calculate_echopaths(echo_type, **kwargs):
                     theta_emission, theta_incoming, theta_outgoing and theta_reception are calculated
                     with the heading direction of the bat as the zero. 
 
-                    R_incoming and R_outgoing are in metres. 
+                    R_incoming and R_outgoing are in metres. R_incoming is the distance between 
+                    the emitting and target bat. R_outgoing is the distance between the 
+                    target and receiving bat. 
     '''
     bats_xy = kwargs['bats_xy']
     bats_orientations = kwargs['bats_orientations']
@@ -2040,15 +2044,15 @@ def calculate_echopaths(echo_type, **kwargs):
 
     echo_paths = {}
     echo_paths['R_incoming'], echo_paths['R_outgoing'] = calc_R_in_out(distance_matrix,
-                                                                                           echo_routes)
+                                                                                       echo_routes)
     echo_paths['theta_incoming'], echo_paths['theta_outgoing'] = calc_echo_thetas(bats_xy,
-                                                                                                           bats_orientations,
-                                                                                                           echo_routes,
-                                                                                                           'incoming_outgoing')
+                                                                                           bats_orientations,
+                                                                                           echo_routes,
+                                                                                           'incoming_outgoing')
     echo_paths['theta_emission'], echo_paths['theta_reception'] = calc_echo_thetas(bats_xy,
-                                                                                                            bats_orientations,
-                                                                                                            echo_routes,
-                                                                                                            'emission_reception')
+                                                                                            bats_orientations,
+                                                                                            echo_routes,
+                                                                                            'emission_reception')
     echo_paths['sound_routes'] = tuple(echo_routes)
     return(echo_paths)
 
@@ -2295,7 +2299,6 @@ def run_CPN(**kwargs):
     
     TODO
     --------
-        1-5) DONE
         6) make switch to choose which is the focal bat 
 
 
@@ -2378,12 +2381,6 @@ def run_CPN(**kwargs):
                                 Column 1 has the dB release due to the angular separation. 
 
 
-           angular_bins : 360 > float > 0 .
-                          The angular resolution of a bat. All primary, secondary,
-                          and conspecific calls' arrival angles are put into bins of this width. 
-                          
-                          Example: if the 
-
       Returns
     -------
 
@@ -2445,7 +2442,6 @@ def run_CPN(**kwargs):
 
 if __name__ == '__main__':
         np.random.seed(82319)
-        start = time.time()
         A = 7
         B = 2 
     
@@ -2453,21 +2449,15 @@ if __name__ == '__main__':
         kwargs['interpulse_interval'] = 0.1
         kwargs['v_sound'] = 330.0
         kwargs['simtime_resolution'] = 10**-6
-        kwargs['echocall_duration'] = 0.003
+        kwargs['echocall_duration'] = 0.002
         kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
         kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
-#        reflectionfunc = pd.DataFrame(data=[], columns=[], index=range(144))
-#        thetas = np.linspace(-180,180,12)
-#        input_output_angles = np.array(np.meshgrid(thetas,thetas)).T.reshape(-1,2)
-#        reflectionfunc['reflection_strength'] = np.random.normal(-60,5,
-#                                                  input_output_angles.shape[0])
-#        reflectionfunc['incoming_theta'] = input_output_angles[:,0]
-#        reflectionfunc['outgoing_theta'] = input_output_angles[:,1]
+
         reflection_func = pd.read_csv('data//bistatic_TS_bat.csv')
         kwargs['reflection_function'] = reflection_func
         kwargs['heading_variation'] = 10
         kwargs['min_spacing'] = 0.5
-        kwargs['Nbats'] = 100
+        kwargs['Nbats'] = 200
         kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
         kwargs['hearing_threshold'] = 20
         kwargs['rectangle_width'] = 0.5
@@ -2481,9 +2471,10 @@ if __name__ == '__main__':
         spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
         kwargs['temporal_masking_thresholds'] = temporal_masking_fn
         kwargs['spatial_release_fn'] = np.array(spatial_unmasking_fn)[:,1:]
-    
+
+        start = time.time()
         num_echoes, b = run_CPN(**kwargs)
         print(time.time()-start)
-        #print(b[2])
-#        with open('test_200bats.pkl','wb') as dumpfile:
-#            pickle.dump(b, dumpfile)
+#        #print(b[2])
+##        with open('test_200bats.pkl','wb') as dumpfile:
+##            pickle.dump(b, dumpfile)

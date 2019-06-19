@@ -150,17 +150,15 @@ def make_rectangle_between_2_points(A, B, **kwargs):
     # treat A as origin, calculate slope between B and A
     B_rel = B-A 
     # 'un-rotate' B and thus form a vertical rectangle easily
-    try:
-        theta = np.arctan(B_rel[1]/B_rel[0])
-    except:
-        theta = np.arctan2(B_rel[1], B_rel[0])
+    theta = np.arctan2(B_rel[1], B_rel[0])
 
-    theta_tobe_rotated = np.remainder(theta, np.pi/2)
+    #theta_tobe_rotated = np.remainder(theta, np.pi/2)
+    theta_tobe_rotated = np.pi/2.0 - theta
     rotation_matrix = rot_mat(theta_tobe_rotated)
     B_rotated = np.dot(rotation_matrix, B_rel)
     x0, x1 = -kwargs['rectangle_width']*0.5, kwargs['rectangle_width']*0.5
     y0, y1 = 0, B_rotated[1]
-    
+
     return([x0,x1,y0,y1], rotation_matrix)
 
 
@@ -212,8 +210,12 @@ def rot_mat(theta):
   
 if __name__ == '__main__':
     kwargs = {'rectangle_width':0.2}
-    otherpts = np.random.normal(0,5,2000).reshape(-1,2)
-    #print(get_points_in_between(np.array([-1,1]), np.array([5,5]), otherpts, **kwargs ) )
+    #otherpts = np.random.normal(0,5,2000).reshape(-1,2)
+    x_coods = np.tile(0.05,10)#np.random.choice(np.arange(-width*0.25, width*0.25, 0.01),10)
+    y_coods = -np.random.choice(np.arange(0, 5, 0.01),10)
+    otherpts = np.column_stack((x_coods, y_coods))
+    #otherpts = np.array(([1,0],[1,0.05]))
+    print(get_points_in_between(np.array([0,0]), np.array([0,-10]), otherpts, **kwargs ) )
     
     theta = np.deg2rad(45)
     width  = 0.6

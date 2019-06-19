@@ -12,9 +12,6 @@ import pandas as pd
 #import matplotlib.pyplot as plt
 from the_cocktail_party_nightmare import *
 
-sys.path.append('.//poisson-disc-master//')
-
-
 
 class TestingCheckIfEchoHeard(unittest.TestCase)    :
     '''
@@ -645,7 +642,7 @@ class TestPropagateSound(unittest.TestCase):
     '''
     def setUp(self):
         self.kwargs = {}
-        
+        self.kwargs['Nbats'] = 3
         self.kwargs['bats_xy'] = np.array(([1,1],[2,1],[2,2]))
         self.kwargs['focal_bat'] = np.array([1,1])
         self.kwargs['bats_orientations'] = np.array([90,45,135])
@@ -686,12 +683,61 @@ class TestPropagateSound(unittest.TestCase):
         self.assertTrue(np.array_equal([num_conspecificcalls, num_2daryechoes, num_1echoes],
                                        [exp_numcalls, exp_num2daryechoes, exp_num1echoes]))
 
-        
-    def test_with_acoustic_shadowing(self):
-        ''''IMPLEMENT ACOUSTIC SHADOWING TESTS!!!
+
+    def runsetup_for_acoustic_shadowing(self):
+        ''' specific setup function only for acoustic shadowing tests
+        4 bats are on/close the x-axis. Bat 0  at the origin, Bat 1 at [1,0]
+        , Bat 2 at [1,0.1] and Bat 3 at [2,0]
         '''
-        self.assertEqual(0,1)
+        self.kwargs['Nbats'] = 3
+        self.kwargs['bats_xy'] = np.array(([0,0],[1,0],[2,0]))
+        self.kwargs['focal_bat'] = np.array([0,0])
+        self.kwargs['implement_shadowing'] = True
+        self.kwargs['rectangle_width'] = 0.3
+        self.kwargs['shadow_strength'] = -3
         
+    def test_with_acoustic_shadowing_calls(self):
+        ''''acoustic shadowing tests w  conspecific calls
+        '''
+        self.runsetup_for_acoustic_shadowing()
+        w_shadowing = propagate_sounds('conspecific_calls', **self.kwargs)
+
+        self.kwargs['implement_shadowing'] = False
+        wo_shadowing = propagate_sounds('conspecific_calls', **self.kwargs)
+        expected_levels = np.float32(np.round( np.array([100, 
+                                    calc_RL(2.0, 120,0.1)+self.kwargs['shadow_strength']]), 3))
+        self.assertTrue(np.array_equal(expected_levels,
+                                        np.round( np.float32(np.array(w_shadowing['level'])),3)) )
+        
+    def test_with_acoustic_shadowing_secondaryechoes(self):
+        ''''acoustic shadowing tests w  secondary echoes
+        '''
+        self.runsetup_for_acoustic_shadowing()
+        w_shadowing = propagate_sounds('secondary_echoes', **self.kwargs)
+
+        TS = np.unique(self.kwargs['reflection_function']['reflection_strength'])
+        sececho_1_2_0_level =  calc_RL(2.0,  calc_RL(0.9, 120, 0.1) + TS, 0.1) + self.kwargs['shadow_strength']
+        sececho_2_1_0_level = calc_RL(1.0, calc_RL(0.9, 120, 0.1) + TS, 0.1)
+        expected_levels = np.round(np.float32(np.array([sececho_1_2_0_level,
+                                               sececho_2_1_0_level]).flatten()), 3)
+        obtained_levels = np.round( np.float32(np.array(w_shadowing['level'])), 3)
+        self.assertTrue(np.array_equal(expected_levels, obtained_levels))
+    
+    def test_with_acoustic_shadowing_primaryechoes(self):
+        ''''acoustic shadowing tests w  target echoes
+        '''
+        self.runsetup_for_acoustic_shadowing()
+        w_shadowing = propagate_sounds('primary_echoes', **self.kwargs)
+        TS = np.unique(self.kwargs['reflection_function']['reflection_strength'])
+        SS = self.kwargs['shadow_strength']
+        sececho_0_1_0_level =  calc_RL(1.0, calc_RL(0.9, 120,0.1) + TS, 0.1)
+        sececho_0_2_0_level = calc_RL(2.0, calc_RL(1.9, 120, 0.1) +TS+SS, 0.1) + SS
+        expected_levels = np.float32(np.array([sececho_0_1_0_level,
+                                               sececho_0_2_0_level]).flatten()  )
+        obtained_levels = np.float32(np.array(w_shadowing['level']))
+
+        self.assertTrue(np.array_equal(np.round(expected_levels,3),
+                                       np.round(obtained_levels,3)))
 
 
 class TestCombineSounds(unittest.TestCase):

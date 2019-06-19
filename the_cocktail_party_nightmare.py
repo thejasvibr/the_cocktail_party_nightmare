@@ -30,8 +30,6 @@ repository is written by Johannes Dollinger and licensed under an MIT License.
 """
 import pickle
 import sys
-sys.path.append('bridson//')
-sys.path.append('.//acoustic_shadow//')
 import time
 
 import numpy as np
@@ -39,8 +37,8 @@ import pandas as pd
 import scipy.misc as misc
 import scipy.spatial as spl
 #import scipy.interpolate as interpolate
-from bridson import poisson_disc_samples
-from detailed_sound_propagation import soundprop_w_acoustic_shadowing
+from bridson.bridson import poisson_disc_samples
+from acoustic_shadow.detailed_sound_propagation import soundprop_w_acoustic_shadowing
  
 
 
@@ -2444,7 +2442,7 @@ if __name__ == '__main__':
         np.random.seed(82319)
         A = 7
         B = 2 
-    
+
         kwargs={}
         kwargs['interpulse_interval'] = 0.1
         kwargs['v_sound'] = 330.0
@@ -2457,7 +2455,7 @@ if __name__ == '__main__':
         kwargs['reflection_function'] = reflection_func
         kwargs['heading_variation'] = 10
         kwargs['min_spacing'] = 0.5
-        kwargs['Nbats'] = 200
+        kwargs['Nbats'] = 20
         kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
         kwargs['hearing_threshold'] = 20
         kwargs['rectangle_width'] = 0.5

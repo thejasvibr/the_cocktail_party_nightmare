@@ -6,7 +6,6 @@ Created on Mon Jun 10 13:55:43 2019
 """
 
 import sys 
-sys.path.append('..//..//bridson//')
 sys.path.append('..//..//')
 sys.path.append('..//')
 import multiprocessing
@@ -37,6 +36,6 @@ if __name__ == '__main__':
     start = time.time()
     
     pool = Pool(multiprocessing.cpu_count());
-    all_outputs = pool.map(wrapper_each_variable, var_and_value)
-    #all_outputs = map(wrapper_each_variable, var_and_value)
+    #all_outputs = pool.map(wrapper_each_variable, var_and_value)
+    all_outputs = map(wrapper_each_variable, var_and_value)
     print('OVERALL SIMS TOOK', time.time()-start )

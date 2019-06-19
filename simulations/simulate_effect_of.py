@@ -12,9 +12,7 @@ from multiprocessing import Pool
 import time
 import uuid
 import sys
-sys.path.append('..//poisson-disc-master//')
 sys.path.append('..//')
-
 from the_cocktail_party_nightmare import run_CPN
 from commong_hearing_calling_directionality import hearing_directionality_fn, call_directionality_fn
 import pickle 

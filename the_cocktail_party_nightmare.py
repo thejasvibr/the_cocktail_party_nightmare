@@ -1519,6 +1519,8 @@ def propagate_sounds(sound_type, **kwargs):
         call_directionality,
         hearing_directionality,
         reflection_strength 
+        shadow_strength
+        
 
       Returns
     -------
@@ -1693,7 +1695,7 @@ def calculate_conspecificcallreceived_levels(conspecificcall_paths,
         conspecific_calls : pd.DataFrame.
                             A 'sound' df with received level, angle of arrival
                                        and other related attributes of the sound : 
-                                       start | stop | theta | level |
+                                       start | stop | theta | level |route|
 
     '''
     call_directionality = kwargs['call_directionality']
@@ -1702,18 +1704,21 @@ def calculate_conspecificcallreceived_levels(conspecificcall_paths,
 
     num_calls = len(conspecificcall_paths['call_routes'])
     conspecific_calls = pd.DataFrame(data=[], index=xrange(num_calls),
-                                     columns=['start','stop','theta', 'level'])
+                                     columns=['start','stop','theta', 'level',
+                                              'route'])
         
     for call_id, each_callpath in enumerate(conspecificcall_paths['call_routes']):
+        conspecific_calls['route'][call_id] = each_callpath
         # get the reception angle and the received SPL
         conspecific_calls['theta'][call_id] = conspecificcall_paths['theta_reception'][call_id]
         # outgoing SPL at emitter after call directionality 
         outgoing_SPL = source_level['dBSPL'] + call_directionality(conspecificcall_paths['theta_emission'][call_id])
+        kwargs['emitted_source_level'] = {'dBSPL':outgoing_SPL, 
+                                          'ref_distance':source_level['ref_distance']}
+        kwargs['R'] = spl.distance.euclidean(kwargs['bats_xy'][each_callpath[0],:],
+                                  kwargs['bats_xy'][each_callpath[1],:])
         # SPL at focal bat after hearing directionality
-        incoming_SPL = calc_RL(conspecificcall_paths['R_incoming'][call_id],
-                               outgoing_SPL, source_level['ref_distance']) 
-        
-        incoming_SPL += calculate_acoustic_shadowing(each_callpath, **kwargs)
+        incoming_SPL = calculate_acoustic_shadowing(each_callpath, **kwargs)
 
         incoming_SPL += hearing_directionality(conspecificcall_paths['theta_reception'][call_id])
 
@@ -1725,15 +1730,12 @@ def calculate_conspecificcallreceived_levels(conspecificcall_paths,
 def calculate_acoustic_shadowing(soundpath, **kwargs):
     '''
     '''
-    if not kwargs['implement_shadowing']:
-        return(0)
-    else:
-        start, end = soundpath
-        other_inds = list(set(range(kwargs['Nbats'])) - set([start,end]))
-        total_shadow_dB = soundprop_w_acoustic_shadowing(kwargs['bats_xy'][start,:], 
+    start, end = soundpath
+    other_inds = list(set(range(kwargs['bats_xy'].shape[0])) - set([start,end]))
+    total_shadow_dB = soundprop_w_acoustic_shadowing(kwargs['bats_xy'][start,:], 
                                        kwargs['bats_xy'][end,:],
                                        kwargs['bats_xy'][other_inds,:], **kwargs)
-        return(total_shadow_dB)
+    return(total_shadow_dB)
     
     
 
@@ -1813,14 +1815,13 @@ def calculate_echoreceived_levels(echopaths,
     echoes['incoming_SPL'] = echoes.apply(calc_incomingSPL_by_row, axis=1, **kwargs)
 
     # the reflection strength at each set of incoming and outgoing angles
-    reflection_strengths = get_reflection_strength(reflection_function,
+    echoes['reflection_strength'] = get_reflection_strength(reflection_function,
                                                       echoes['theta_incoming'],
                                                       echoes['theta_outgoing'])
 
-    echoes['outgoing_SPL'] = echoes['incoming_SPL'] + reflection_strengths
-
-    hearing_directionality_factor = np.apply_along_axis(hearing_directionality,0, np.array(echoes['theta']))
     echoes['level'] = echoes.apply(calcreceivedSPL_by_row, axis=1, **kwargs)
+    
+    hearing_directionality_factor = np.apply_along_axis(hearing_directionality,0, np.array(echoes['theta']))
     echoes['level'] += hearing_directionality_factor
 
     return(echoes)
@@ -1829,21 +1830,26 @@ def calc_incomingSPL_by_row(row_df, **kwargs):
     '''
     '''
     # the SPL is calculated till the ref distance only!
-    delta_R = np.abs(row_df['R_incoming']-row_df['sourcelevel_ref_distance'])
-    RL = calc_RL(delta_R, row_df['emitted_SPL'], row_df['sourcelevel_ref_distance'])
     emitter, target, receiver = row_df['route']
-    RL += calculate_acoustic_shadowing((emitter, target), **kwargs)
-
+    kwargs['emitted_source_level'] = {'dBSPL':row_df['emitted_SPL'], 
+                      'ref_distance':row_df['sourcelevel_ref_distance']}
+    
+    kwargs['R'] = row_df['R_incoming']
+    RL = calculate_acoustic_shadowing((emitter, target), **kwargs)
     return(RL)
 
 def calcreceivedSPL_by_row(row_df, **kwargs):
     '''
     '''
-    RL = calc_RL(row_df['R_outgoing'] , row_df['outgoing_SPL'],
-                     row_df['sourcelevel_ref_distance'])
-    emitter, target, receiver = row_df['route']
 
-    RL += calculate_acoustic_shadowing((target, receiver), **kwargs)
+    SL_rel1m = row_df['incoming_SPL']+row_df['reflection_strength'] 
+    kwargs['emitted_source_level'] = {'dBSPL':SL_rel1m, 
+                      'ref_distance': row_df['sourcelevel_ref_distance']}
+
+    emitter, target, receiver = row_df['route']
+    kwargs['R'] = row_df['R_outgoing']
+
+    RL = calculate_acoustic_shadowing((target, receiver), **kwargs)
     return(RL)
 
 def get_reflection_strength(reflection_function, 
@@ -2334,6 +2340,9 @@ def run_CPN(**kwargs):
                           'dB_SPL' : float. Sound pressure level in dB with 20microPascals as reference
 
                           'ref_distance' : float. Reference distance in metres. 
+                                           Please check that the reference distance of the source 
+                                           level measurement is the same as the target strength 
+                                           reference distance in the reflection function. 
 
            call_directionality : function 
                                   Relates the decrease in source level in dB with emission angle
@@ -2377,6 +2386,8 @@ def run_CPN(**kwargs):
                                 0th column has 
                                 the angular separation between echo and masker sound.    
                                 Column 1 has the dB release due to the angular separation. 
+
+           shadow_TS 
 
 
       Returns
@@ -2447,7 +2458,7 @@ if __name__ == '__main__':
         kwargs['interpulse_interval'] = 0.1
         kwargs['v_sound'] = 330.0
         kwargs['simtime_resolution'] = 10**-6
-        kwargs['echocall_duration'] = 0.002
+        kwargs['echocall_duration'] = 0.0025
         kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
         kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
 
@@ -2455,12 +2466,12 @@ if __name__ == '__main__':
         kwargs['reflection_function'] = reflection_func
         kwargs['heading_variation'] = 10
         kwargs['min_spacing'] = 0.5
-        kwargs['Nbats'] = 20
-        kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
+        kwargs['Nbats'] = 25
+        kwargs['source_level'] = {'dBSPL' : 100, 'ref_distance':1.0}
         kwargs['hearing_threshold'] = 20
         kwargs['rectangle_width'] = 0.5
         kwargs['implement_shadowing'] = True
-        kwargs['shadow_strength'] = -3.0
+        kwargs['shadow_TS'] = [-9.0]
 
         tempmasking_file = 'data//temporal_masking_function.pkl'
         with open(tempmasking_file, 'rb') as pklfile:
@@ -2476,3 +2487,5 @@ if __name__ == '__main__':
 #        #print(b[2])
 ##        with open('test_200bats.pkl','wb') as dumpfile:
 ##            pickle.dump(b, dumpfile)
+        
+       

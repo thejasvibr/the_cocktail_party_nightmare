@@ -38,7 +38,7 @@ import scipy.misc as misc
 import scipy.spatial as spl
 #import scipy.interpolate as interpolate
 from bridson.bridson import poisson_disc_samples
-from acoustic_shadow.detailed_sound_propagation import soundprop_w_acoustic_shadowing
+from acoustic_shadow.detailed_sound_propagation import soundprop_w_acoustic_shadowing, calc_RL
  
 
 
@@ -1135,32 +1135,6 @@ def fillup_hexagonalrings(numbats):
     return(occupied_rings,bats_in_eachring)
 
 
-def calc_RL(distance, SL, ref_dist):
-    '''calculates received level only because of spherical spreading.
-
-    Parameters
-
-    distance : float>0. receiver distance from source in metres.
-
-    SL : float. source level in dB SPL re 20 muPa.
-
-    ref_dist : float >0. distance at which source level was measured in metres.
-
-
-      Returns
-    -------
-
-    RL : received level in dB SPL re 20muPa.
-
-    '''
-#
-#    if not np.all([distance,ref_dist]>0):
-#        raise ValueError('distances cannot be <= 0 !')
-#
-    RL = SL - 20*np.log10(distance/ref_dist)
-
-    return(RL)
-
 def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
     '''Generates a set of npoints+1 roughly equally placed points using the
     Poisson disk sampling algorithm. The point closest to the centroid is
@@ -1731,7 +1705,7 @@ def calculate_acoustic_shadowing(soundpath, **kwargs):
     '''
     '''
     start, end = soundpath
-    other_inds = list(set(range(kwargs['bats_xy'].shape[0])) - set([start,end]))
+    other_inds = list(set(range(kwargs['bats_xy'].shape[0])) - set([start,end]))    
     total_shadow_dB = soundprop_w_acoustic_shadowing(kwargs['bats_xy'][start,:], 
                                        kwargs['bats_xy'][end,:],
                                        kwargs['bats_xy'][other_inds,:], **kwargs)
@@ -1830,26 +1804,28 @@ def calc_incomingSPL_by_row(row_df, **kwargs):
     '''
     '''
     # the SPL is calculated till the ref distance only!
-    emitter, target, receiver = row_df['route']
+    #emitter, target, receiver = row_df['route']
     kwargs['emitted_source_level'] = {'dBSPL':row_df['emitted_SPL'], 
                       'ref_distance':row_df['sourcelevel_ref_distance']}
     
     kwargs['R'] = row_df['R_incoming']
-    RL = calculate_acoustic_shadowing((emitter, target), **kwargs)
+    #RL = calculate_acoustic_shadowing((emitter, target), **kwargs)
+    RL = calculate_acoustic_shadowing((row_df['route'][0], row_df['route'][1]),
+                                      **kwargs)
     return(RL)
 
 def calcreceivedSPL_by_row(row_df, **kwargs):
     '''
     '''
 
-    SL_rel1m = row_df['incoming_SPL']+row_df['reflection_strength'] 
-    kwargs['emitted_source_level'] = {'dBSPL':SL_rel1m, 
+    kwargs['emitted_source_level'] = {'dBSPL':row_df['incoming_SPL']+row_df['reflection_strength'] , 
                       'ref_distance': row_df['sourcelevel_ref_distance']}
 
-    emitter, target, receiver = row_df['route']
+    #emitter, target, receiver = row_df['route']
     kwargs['R'] = row_df['R_outgoing']
 
-    RL = calculate_acoustic_shadowing((target, receiver), **kwargs)
+    #RL = calculate_acoustic_shadowing((target, receiver), **kwargs)
+    RL = calculate_acoustic_shadowing((row_df['route'][1], row_df['route'][2]), **kwargs)
     return(RL)
 
 def get_reflection_strength(reflection_function, 
@@ -2482,7 +2458,7 @@ if __name__ == '__main__':
         kwargs['spatial_release_fn'] = np.array(spatial_unmasking_fn)[:,1:]
 
         start = time.time()
-        num_echoes, b = run_CPN(**kwargs)
+        u = [run_CPN(**kwargs) for i in range(3)]
         print(time.time()-start)
 #        #print(b[2])
 ##        with open('test_200bats.pkl','wb') as dumpfile:

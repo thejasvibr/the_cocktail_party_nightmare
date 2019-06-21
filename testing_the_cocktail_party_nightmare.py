@@ -720,11 +720,11 @@ class TestPropagateSound(unittest.TestCase):
         sececho_1_2_0_level =  sececho_1_2  + SS
         
         sececho_2_1_0_level = SL + TS # because in this case TS and SS are different values!!
-        print('whaaaaat',SL,SS)
 
         expected_levels = np.array([sececho_1_2_0_level,
                                                sececho_2_1_0_level]).flatten()
         obtained_levels = np.float32(w_shadowing['level'])
+        print(obtained_levels, expected_levels)
         self.assertTrue(np.array_equal(expected_levels, obtained_levels))
 
     

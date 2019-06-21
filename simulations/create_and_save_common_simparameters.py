@@ -26,7 +26,11 @@ kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
 kwargs['hearing_threshold'] = 20
 kwargs['rectangle_width'] = 0.5
 kwargs['implement_shadowing'] = True
-kwargs['shadow_strength'] = -3.0
+
+
+# extract the bistatic TS of all incoming-outgoing angle separations of 
+# 180 degrees
+kwargs['shadow_TS'] = reflection_func[reflection_func['delta_theta']==180]['reflection_strength'].tolist()
 
 tempmasking_file = '..//data//temporal_masking_function.pkl'
 with open(tempmasking_file, 'rb') as pklfile:

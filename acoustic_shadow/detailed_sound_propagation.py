@@ -22,10 +22,6 @@ def soundprop_w_acoustic_shadowing(start_point, end_point, all_other_points,
     Each point sound passes through creates a drop in the intensity because of 
     acoustic shadowing. 
 
-    TODO
-    ----
-    1) implement a randomly varying acoustic shadowing for each bat - to mimic
-    the flapping of wings 
         
 
     Parameters
@@ -38,30 +34,119 @@ def soundprop_w_acoustic_shadowing(start_point, end_point, all_other_points,
     all_other_points : Nbats-2 x 2 array like
                        xy coordinates of all points between start and end point
                        in a rectangular area of given width 
-    shadow_strength : float < 0. 
-                      Acoustic shadow effect in dB. This refers to 
-
-
-    
+      
     Keyword Arguments
     ----------------
+    implement_shadowing : Boolean. If True then shadowing calculations are done, else only simple spherical spreading. 
+
+    R : float. straight line distance between soure and receiver
+
     rectangle_width : float >0. width of the rectangle 
 
-    shadow_strength : the 'blocking' effect of an object being in the path in dB
+    shadow_TS : list/array with >=1 values
+                The bistatic target strengtha at emitter-receiver separation of 180 degrres. 
 
+    emitted_source_level : dictionary with key 'dBSPL' and 'ref_distance' ,
+                    indicating source level in dB SPL re 20muPa and reference distance in metres. 
+    
+    R : float >0. straight line distance between source and receiver. This is used
+        in case there are no obstacles between them. 
+   
 
 
     Returns
     -------
-    acoustic_shadowing: float<0 
-                        reduction in received level of a sound due to acoustic shadowing in dB
+    received_level : float. 
+                    received level of the sound 
     '''    
-    all_points_between = get_points_in_between(start_point, end_point, 
-                                                       all_other_points, **kwargs)
     
-    acoustic_shadowing = all_points_between.shape[0]*kwargs['shadow_strength']
+    #print(start_point,end_point)
+    if kwargs['implement_shadowing']:
+        all_points_between = get_points_in_between(start_point, end_point, 
+                                                       all_other_points, **kwargs)
+        if all_points_between.shape[0] >= 1 :
+            #print('PING!!!', all_points_between)
+            point2point_dists = get_distances_between_points(all_points_between, start_point,
+                                                                 end_point)
+            received_level = calculate_RL_w_shadowing(point2point_dists, 
+                                                      kwargs['emitted_source_level']['dBSPL'],
+                                                         kwargs['shadow_TS'])
+            #print(received_level)
+        else:
+            #print('MIAAAAAOW')
+            received_level = calc_RL(kwargs['R'],kwargs['emitted_source_level']['dBSPL'],
+                                             kwargs['emitted_source_level']['ref_distance'])
+           
+    else:
+        #print('BOWWWW')
+        received_level = calc_RL(kwargs['R'],kwargs['emitted_source_level']['dBSPL'],
+                                             kwargs['emitted_source_level']['ref_distance'])
+        
+    return(received_level) 
 
-    return(acoustic_shadowing)    
+
+
+def get_distances_between_points(xy_between, start, end):
+    '''
+    
+    '''
+    all_xy =  np.row_stack((start, xy_between, end))
+    distance_matrix = spatial.distance_matrix(all_xy, all_xy)
+    distance_to_source = np.argsort(distance_matrix[:,0])
+    
+    points_sorted = all_xy[distance_to_source,:]
+    distances_sorted = spatial.distance_matrix(points_sorted, points_sorted)
+
+    num_distances = all_xy.shape[0] - 1
+    point_2_point_distances = np.zeros(num_distances)
+    for i, (point0, point1) in enumerate(zip(range(all_xy.shape[0]-1),
+                                         range(1,all_xy.shape[0]))):
+        point_2_point_distances[i] = distances_sorted[point0, point1]
+    return(point_2_point_distances)
+        
+    
+
+    
+
+def calculate_RL_w_shadowing(distances, SL=100, shadow_TS=[-9]):
+    '''Calculates received level of a call with acoustic shadowing included. 
+    The received level of the call with shadowing is calculated with an iterative 
+    application of the bistatic sonar equation. The TS used here is the bistatic 
+    target strength at emitter-receiver angular separations of 180 degrees. 
+    
+    Parameters
+    ----------
+    distances : array-like, >= 3 entries. 
+               The first entry is distance between emitter and closest target, followed by distance between 1st target
+               and second target etc. The sum of all distances is the receiver-emitter distance
+
+    SL : float.
+         source level at 1metre distance in dB SPl re 20 muPa
+
+    TS : array-like. 
+         Bistatic target strengths of object at 180 degrees separation between emitter and receiver. 
+         If multiple target strengths then a random choice is made within these values for each obstacle.
+         This mimics each object having a different TS because of its orientation or position. 
+
+    Returns
+    -------
+    RL_w_shadowing : float. 
+                    Received level of sound after accounting for multiple object blocking the direct path. 
+  
+    '''
+    all_distance_pairs = []
+    for i, dist in enumerate(distances[:-1]):
+        if i == 0:
+            distance_pair = (dist,distances[i+1])
+        else:
+            distance_pair = ( np.sum(all_distance_pairs[-1]),distances[i+1])
+        all_distance_pairs.append(distance_pair)
+ 
+    SL_1m = SL
+    for (r0,r1) in  all_distance_pairs:
+        RL_apparent = SL_1m - 20*np.log10(r0) - 20*np.log10(r1) + np.random.choice(shadow_TS,1) # received level at the target
+        SL_1m = RL_apparent - 20*np.log10(1.0/(r0+r1)) # equivalent source level at 1metre
+    return(RL_apparent)
 
 
 def calc_RL(distance, SL, ref_dist):
@@ -209,16 +294,23 @@ def rot_mat(theta):
     
   
 if __name__ == '__main__':
-    kwargs = {'rectangle_width':0.2}
+    kwargs = {'rectangle_width':0.2, 'implement_shadowing':True,
+              'emitted_source_level': {'dBSPL':90, 'ref_distance':1.0}}
+    kwargs['shadow_TS'] = [-15]
     #otherpts = np.random.normal(0,5,2000).reshape(-1,2)
-    x_coods = np.tile(0.05,10)#np.random.choice(np.arange(-width*0.25, width*0.25, 0.01),10)
-    y_coods = -np.random.choice(np.arange(0, 5, 0.01),10)
+    x_coods = np.array([0.5])#np.random.choice(np.arange(-width*0.25, width*0.25, 0.01),10)
+    y_coods = np.array([0.05])
     otherpts = np.column_stack((x_coods, y_coods))
     #otherpts = np.array(([1,0],[1,0.05]))
-    print(get_points_in_between(np.array([0,0]), np.array([0,-10]), otherpts, **kwargs ) )
-    
-    theta = np.deg2rad(45)
-    width  = 0.6
-    rotation_matrix = rot_mat(theta)
-    
+    #print(get_points_in_between(np.array([2,0]), np.array([0,0]), otherpts, **kwargs ) )
+
+    soundprop_w_acoustic_shadowing(np.array([2,0]), np.array([0,0]), otherpts,
+                                   **kwargs)
+
+#    kwargs['bats_xy'] = np.array(([0,0],[1,0],[2,0]))
+#    kwargs['focal_bat'] = np.array([0,0])
+#    kwargs['implement_shadowing'] = True
+#    kwargs['rectangle_width'] = 0.3
+#    kwargs['shadow_TS'] = [-9]
+
     

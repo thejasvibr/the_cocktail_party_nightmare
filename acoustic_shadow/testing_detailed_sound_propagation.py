@@ -147,6 +147,17 @@ class TestGetPointsInBetween(unittest.TestCase):
         expected = 2
         obtained = between.shape[0]
         self.assertEqual(expected, obtained)
+    
+    def test_points_onaline2(self):
+        bats_xy = np.array([0.5,0.05]).reshape(-1,1)
+        start = np.array([2,0])
+        end = np.array([0,0])
+        between = get_points_in_between(start, end,
+                                        bats_xy,
+                                        **self.kwargs)
+        expected = 1
+        obtained = between.shape[0]
+        self.assertEqual(expected, obtained)
         
         
 
@@ -156,26 +167,29 @@ class TestSoundprop_w_AcousticShadowing(unittest.TestCase):
         self.kwargs = {}
         self.kwargs['shadow_strength'] = -3.0
         width = 0.2
+        self.kwargs['implement_shadowing'] = True
         self.kwargs['rectangle_width'] = width
+        self.kwargs['shadow_TS'] = [-9]
         self.start_point = np.array([0,0])
         self.end_point = np.array([0,10])
-
-        x_coods = np.random.choice(np.arange(-width*0.25, width*0.25, 0.01),10)
-        y_coods = np.random.choice(np.arange(0, 5, 0.01),10)
+        self.kwargs['emitted_source_level'] = {'dBSPL':100, 'ref_distance':1.0}
+        x_coods = np.tile(0,2)
+        y_coods = np.array([1,2])
+        self.kwargs['R'] = 10.0
         self.other_points = np.column_stack((x_coods, y_coods))
 
 
     def test_basic(self):
         ''' start and end at 45 degrees and a cloud of points in between. 
         '''
-        shadowing = soundprop_w_acoustic_shadowing(self.start_point,
+        rl_w_shadowing = soundprop_w_acoustic_shadowing(self.start_point,
                                                     self.end_point,
                                                     self.other_points,
                                                     **self.kwargs)
 
-        expected = self.kwargs['shadow_strength']*self.other_points.shape[0]
+        expected = 64
         
-        self.assertEqual(expected, shadowing)
+        self.assertEqual(expected, np.around(rl_w_shadowing))
 
     def test_nobatsinbetween(self):
         '''
@@ -188,11 +202,27 @@ class TestSoundprop_w_AcousticShadowing(unittest.TestCase):
         
         R_startend = spatial.distance.euclidean(self.start_point,
                                                 self.end_point)
-        expected =  0.0
+        expected =  80.0
         self.assertEqual(expected, shadowing)
+    
+    def test_3batangle(self):
+        self.kwargs['bats_xy'] = np.array(([0,0],[0.5,0.05],[2,0]))
+        self.kwargs['implement_shadowing'] = True
+        self.kwargs['rectangle_width'] = 0.3
+        self.kwargs['shadow_TS'] = [-13]
+        self.start_point = self.kwargs['bats_xy'][2,:]
+        self.end_point = self.kwargs['bats_xy'][0,:]
+        self.other_points = np.array([0.5,0.05]).reshape(1,-1)
+
+        shadowing = soundprop_w_acoustic_shadowing(     self.start_point,
+                                                        self.end_point,
+                                                        self.other_points,
+                                                        **self.kwargs)
+        print(shadowing)
+        
 
         
-        
+
         
         
 

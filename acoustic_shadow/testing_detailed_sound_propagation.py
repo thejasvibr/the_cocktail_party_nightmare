@@ -96,6 +96,8 @@ class TestGetPointsInBetween(unittest.TestCase):
 
         self.assertEqual(between.shape[0], expected_numpoints)
 
+
+
     def test_bitmore_2(self):
         '''Make a bunch of points horizontially aligned, and then 
         rotate them - and then check if they're picked up correctly. 
@@ -158,7 +160,21 @@ class TestGetPointsInBetween(unittest.TestCase):
         expected = 1
         obtained = between.shape[0]
         self.assertEqual(expected, obtained)
-        
+    
+    def test_points_on_yaxis(self):
+        #otherpts = np.random.normal(0,5,2000).reshape(-1,2)
+        num_points = 100
+        y_coods = np.random.choice(np.arange(0.1, 5, 0.01),num_points)
+        x_coods = np.tile(0.02,num_points)
+                
+        between_points = np.column_stack((x_coods, y_coods))
+        #otherpts = np.array(([1,0],[1,0.05]))
+        #print(get_points_in_between(np.array([2,0]), np.array([0,0]), otherpts, **kwargs ) )
+        start = time.time()
+        betw_points = get_points_in_between(np.array([0,0]), np.array([0,10]), between_points,
+                                       **self.kwargs)
+        self.assertEqual(betw_points.shape[0], num_points)
+            
         
 
 class TestSoundprop_w_AcousticShadowing(unittest.TestCase):

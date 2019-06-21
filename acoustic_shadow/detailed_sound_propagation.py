@@ -6,11 +6,14 @@ Created on Mon Jun 17 16:08:50 2019
 
 @author: tbeleyur
 """
+import time
 import sys 
 sys.path.append('..//bridson//')
 sys.path.append('..//')
 import numpy as np 
 import scipy.spatial as spatial
+np.random.seed(82319)
+
 
 
 def soundprop_w_acoustic_shadowing(start_point, end_point, all_other_points,
@@ -64,7 +67,7 @@ def soundprop_w_acoustic_shadowing(start_point, end_point, all_other_points,
     if kwargs['implement_shadowing']:
         all_points_between = get_points_in_between(start_point, end_point, 
                                                        all_other_points, **kwargs)
-        if all_points_between.shape[0] >= 1 :
+        if all_points_between.shape[0] >= 1:
             #print('PING!!!', all_points_between)
             point2point_dists = get_distances_between_points(all_points_between, start_point,
                                                                  end_point)
@@ -93,7 +96,7 @@ def get_distances_between_points(xy_between, start, end):
     all_xy =  np.row_stack((start, xy_between, end))
     distance_matrix = spatial.distance_matrix(all_xy, all_xy)
     distance_to_source = np.argsort(distance_matrix[:,0])
-    
+
     points_sorted = all_xy[distance_to_source,:]
     distances_sorted = spatial.distance_matrix(points_sorted, points_sorted)
 
@@ -156,9 +159,10 @@ def calc_RL(distance, SL, ref_dist):
 
     distance : float>0. receiver distance from source in metres.
 
-    SL : float. source level in dB SPL re 20 muPa.
+    SL : float. source level in dB SPL re 20 muPa at the reference distance.
 
     ref_dist : float >0. distance at which source level was measured in metres.
+                Typically 1metre by convention.
 
 
       Returns
@@ -168,9 +172,8 @@ def calc_RL(distance, SL, ref_dist):
 
     '''
 
-    RL = SL - 20*np.log10(distance/ref_dist)
 
-    return(RL)
+    return(SL - 20*np.log10(float(distance/ref_dist)))
 
 
 
@@ -200,8 +203,7 @@ def get_points_in_between(start_point, end_point, all_other_points,
 
     '''
     rectangle_limits, rotation_matrix = make_rectangle_between_2_points(start_point, 
-                                                       end_point, 
-                                                       **kwargs)
+                                                       end_point,**kwargs)
 
     points_between = get_points_in_rectangle(rectangle_limits, start_point,
                                                    all_other_points, rotation_matrix)
@@ -269,6 +271,7 @@ def get_points_in_rectangle(corner_limits, startpt,
     relative_posns = many_points - startpt
     rotated_pts = np.apply_along_axis(dot_product_for_rows, 1, relative_posns,
                                       rotn_matrix)
+    
     within_x = np.logical_and(rotated_pts[:,0] >= np.min([x0,x1]),
                               rotated_pts[:,0] <= np.max([x1,x0]))
 
@@ -278,14 +281,18 @@ def get_points_in_rectangle(corner_limits, startpt,
     within_pts = np.logical_and(within_x, within_y)
     return(many_points[within_pts])
     
-    
+
 
 def dot_product_for_rows(xy_row, rotation_matrix):
     return(np.dot(rotation_matrix, xy_row))
 
+def dot_product_w_sum(xy_row, rotation_matrix):
+    return(np.sum(rotation_matrix*xy_row, 1))
+
+
 def rot_mat(theta):
-    rotation_matrix = np.row_stack(([np.cos(theta), -np.sin(theta)],
-                                    [np.sin(theta), np.cos(theta)]))
+    rotation_matrix = np.float32(np.row_stack(([np.cos(theta), -np.sin(theta)],
+                                    [np.sin(theta), np.cos(theta)])))
     return(rotation_matrix)
 
 
@@ -294,18 +301,24 @@ def rot_mat(theta):
     
   
 if __name__ == '__main__':
-    kwargs = {'rectangle_width':0.2, 'implement_shadowing':True,
+    kwargs = {'rectangle_width':0.1, 'implement_shadowing':True,
               'emitted_source_level': {'dBSPL':90, 'ref_distance':1.0}}
     kwargs['shadow_TS'] = [-15]
     #otherpts = np.random.normal(0,5,2000).reshape(-1,2)
-    x_coods = np.array([0.5])#np.random.choice(np.arange(-width*0.25, width*0.25, 0.01),10)
-    y_coods = np.array([0.05])
-    otherpts = np.column_stack((x_coods, y_coods))
+    
     #otherpts = np.array(([1,0],[1,0.05]))
     #print(get_points_in_between(np.array([2,0]), np.array([0,0]), otherpts, **kwargs ) )
-
-    soundprop_w_acoustic_shadowing(np.array([2,0]), np.array([0,0]), otherpts,
+    start = time.time()
+    numpoints = [5,90, 100]
+    for i in range(3):
+        num_points = numpoints[i]
+        y_coods = np.random.choice(np.arange(0.1, 5, 0.01),num_points)
+        x_coods = np.tile(0.02,num_points)
+            
+        between_points = np.column_stack((x_coods, y_coods))
+        soundprop_w_acoustic_shadowing(np.array([0,0]), np.array([0,10]), between_points,
                                    **kwargs)
+    print(time.time()-start)
 
 #    kwargs['bats_xy'] = np.array(([0,0],[1,0],[2,0]))
 #    kwargs['focal_bat'] = np.array([0,0])

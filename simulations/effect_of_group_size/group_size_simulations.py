@@ -4,7 +4,7 @@ Created on Mon Jun 10 13:55:43 2019
 
 @author: tbeleyur
 """
-
+#
 import sys 
 sys.path.append('..//..//')
 sys.path.append('..//')
@@ -27,15 +27,15 @@ if __name__ == '__main__':
     common_kwargs.keys()
     common_kwargs['call_directionality'] = call_directionality_fn
     common_kwargs['hearing_directionality'] = hearing_directionality_fn
-    num_bats = [5,10,20,50,100,200,500,1000,2000]    
+    num_bats = [50]    
     # run simulations for all group sizes of interest
     var_and_value = []
     for each_nbats in num_bats:
-        for i in range(100): # make sure overall 10,000 sims are run 
+        for i in range(1): # make sure overall 10,000 sims are run 
             var_and_value.append((('Nbats',each_nbats), common_kwargs)) 
     start = time.time()
     
-    pool = Pool(multiprocessing.cpu_count());
+    #pool = Pool(multiprocessing.cpu_count());
     #all_outputs = pool.map(wrapper_each_variable, var_and_value)
     all_outputs = map(wrapper_each_variable, var_and_value)
     print('OVERALL SIMS TOOK', time.time()-start )

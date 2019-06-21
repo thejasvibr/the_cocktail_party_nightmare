@@ -22,9 +22,9 @@ kwargs['reflection_function'] = reflection_func
 kwargs['heading_variation'] = 10.0
 kwargs['min_spacing'] = 0.5
 kwargs['Nbats'] = 50
-kwargs['source_level'] = {'dBSPL' : 120, 'ref_distance':0.1}
+kwargs['source_level'] = {'dBSPL' : 100, 'ref_distance':1.0}
 kwargs['hearing_threshold'] = 20
-kwargs['rectangle_width'] = 0.5
+kwargs['rectangle_width'] = 0.25
 kwargs['implement_shadowing'] = True
 
 

@@ -286,10 +286,10 @@ p122
 (dp123
 S'dBSPL'
 p124
-I120
+I100
 sS'ref_distance'
 p125
-F0.1
+F1.0
 ssS'implement_shadowing'
 p126
 I01
@@ -354,7 +354,7 @@ p151
 I20
 sS'rectangle_width'
 p152
-F0.5
+F0.25
 sS'simtime_resolution'
 p153
 F1e-06

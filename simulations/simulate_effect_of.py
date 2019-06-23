@@ -20,7 +20,7 @@ import numpy as np
 np.random.seed(82319)
 
 
-def simulate_each_variable(variable_and_value, kwargs, num_replicates = 100):
+def simulate_each_variable(variable_and_value, kwargs, num_replicates = 10):
     '''
     Allow each process to have a  30bit seed number derived from 
     the uuid. My feeling is that 
@@ -40,7 +40,7 @@ def simulate_each_variable(variable_and_value, kwargs, num_replicates = 100):
     
     variable_name, variable_value = variable_and_value
     if variable_name != 'source_level':
-        simoutput_container = {(variable_name,i) : None for i in range(num_replicates)}
+        simoutput_container = {(variable_value,i) : None for i in range(num_replicates)}
     else:
         simoutput_container = {(variable_value['dBSPL'],i) : None for i in range(num_replicates)}
 
@@ -66,6 +66,7 @@ def simulate_each_variable(variable_and_value, kwargs, num_replicates = 100):
             pickle.dump(simoutput_container, picklefile)
         return(True)
     except:
+        print(picklefilename)
         raise IOError('UNABLE TO SAVE PICKLE FILE!!')
         return(False)
 
@@ -94,7 +95,7 @@ if __name__ == '__main__':
     start = time.time()
     pool = Pool(mp.cpu_count())
     #all_outputs = pool.map(wrapper_each_group_size, group_sizes)
-    all_outputs = pool.map(wrapper_each_variable, var_and_value)
+    all_outputs = map(wrapper_each_variable, var_and_value)
     print('OVERALL SIMS TOOK', time.time()-start )
     
     

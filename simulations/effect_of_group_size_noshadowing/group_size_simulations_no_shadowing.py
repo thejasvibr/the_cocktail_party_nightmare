@@ -6,8 +6,8 @@ Created on Mon Jun 10 13:55:43 2019
 """
 #
 import sys 
-sys.path.append('..//..//..//')
 sys.path.append('..//..//')
+sys.path.append('..//')
 import multiprocessing
 from multiprocessing import Pool
 import pickle 
@@ -20,7 +20,7 @@ from simulate_effect_of import wrapper_each_variable
 if __name__ == '__main__':
     start = time.time()
     # load the common simulation parameters 
-    common_paramsfile = '..//..//commonsim_params.pkl' 
+    common_paramsfile = '..//commonsim_params.pkl' 
     with open(common_paramsfile, 'rb') as commonfile:
         common_kwargs = pickle.load(commonfile)
 

@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-""" Effect of group size 
+""" Effect of group size *without* acoustic shadowing
 Created on Mon Jun 10 13:55:43 2019
 
 @author: tbeleyur
 """
 #
 import sys 
+sys.path.append('..//..//..//')
 sys.path.append('..//..//')
-sys.path.append('..//')
 import multiprocessing
 from multiprocessing import Pool
 import pickle 
@@ -27,11 +27,12 @@ if __name__ == '__main__':
     common_kwargs.keys()
     common_kwargs['call_directionality'] = call_directionality_fn
     common_kwargs['hearing_directionality'] = hearing_directionality_fn
+    common_kwargs['implement_shadowing'] = False
     num_bats = [5,10,20,50,100,200,400]    
     # run simulations for all group sizes of interest
     var_and_value = []
     for each_nbats in num_bats:
-        for i in range(30): # make sure overall 10,000 sims are run 
+        for i in range(500): 
             var_and_value.append((('Nbats',each_nbats), common_kwargs)) 
     start = time.time()
     

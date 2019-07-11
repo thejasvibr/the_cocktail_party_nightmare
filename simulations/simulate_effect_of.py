@@ -17,7 +17,6 @@ from the_cocktail_party_nightmare import run_CPN
 from commong_hearing_calling_directionality import hearing_directionality_fn, call_directionality_fn
 import pickle 
 import numpy as np 
-np.random.seed(82319)
 
 
 def simulate_each_variable(variable_and_value, kwargs, num_replicates = 10):

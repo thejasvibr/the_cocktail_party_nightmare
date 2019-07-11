@@ -28,11 +28,11 @@ if __name__ == '__main__':
     common_kwargs['call_directionality'] = call_directionality_fn
     common_kwargs['hearing_directionality'] = hearing_directionality_fn
     common_kwargs['implement_shadowing'] = False
-    num_bats = [5,10,20,50,100,200,400]    
+    num_bats = [200,400,800]    
     # run simulations for all group sizes of interest
     var_and_value = []
     for each_nbats in num_bats:
-        for i in range(500): 
+        for i in range(5): 
             var_and_value.append((('Nbats',each_nbats), common_kwargs)) 
     start = time.time()
     

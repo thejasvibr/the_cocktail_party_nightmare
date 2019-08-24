@@ -30,7 +30,7 @@ repository is written by Johannes Dollinger and licensed under an MIT License.
 """
 import pickle
 import sys
-sys.path.append('..//acoustic_shadow//')
+sys.path.append('..//acoustics//')
 sys.path.append('..//')
 import time
 
@@ -40,7 +40,7 @@ import scipy.misc as misc
 import scipy.spatial as spl
 #import scipy.interpolate as interpolate
 from bridson.bridson import poisson_disc_samples
-from acoustic_shadow.detailed_sound_propagation import soundprop_w_acoustic_shadowing, calc_RL
+from acoustics.detailed_sound_propagation import soundprop_w_acoustic_shadowing, calc_RL
  
 
 
@@ -2365,8 +2365,9 @@ def run_CPN(**kwargs):
                                 the angular separation between echo and masker sound.    
                                 Column 1 has the dB release due to the angular separation. 
 
-           shadow_TS 
-
+           acoustic_shadowing_model : statsmodel object.
+                               A statistical model that predicts the amount of 
+                               acoustic shadowing given the number of obstacles present
 
       Returns
     -------

@@ -28,15 +28,15 @@ if __name__ == '__main__':
     common_kwargs['call_directionality'] = call_directionality_fn
     common_kwargs['hearing_directionality'] = hearing_directionality_fn
     common_kwargs['implement_shadowing'] = False
-    num_bats = [200,400,800]    
+    num_bats = [99,100,150]    
     # run simulations for all group sizes of interest
     var_and_value = []
     for each_nbats in num_bats:
-        for i in range(5): 
+        for i in range(1): 
             var_and_value.append((('Nbats',each_nbats), common_kwargs)) 
     start = time.time()
     
     pool = Pool(multiprocessing.cpu_count());
-    all_outputs = pool.map(wrapper_each_variable, var_and_value)
+    all_outputs = map(wrapper_each_variable, var_and_value)
     #all_outputs = map(wrapper_each_variable, var_and_value)
     print('OVERALL SIMS TOOK', time.time()-start )

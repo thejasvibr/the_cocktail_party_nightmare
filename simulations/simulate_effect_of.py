@@ -10,6 +10,7 @@ import hashlib
 import multiprocessing as mp
 from multiprocessing import Pool
 import time
+import traceback
 import uuid
 import sys
 sys.path.append('..//')
@@ -19,7 +20,7 @@ import pickle
 import numpy as np 
 
 
-def simulate_each_variable(variable_and_value, kwargs, num_replicates = 10):
+def simulate_each_variable(variable_and_value, kwargs, num_replicates = 1):
     '''
     Allow each process to have a  30bit seed number derived from 
     the uuid. My feeling is that 
@@ -65,9 +66,12 @@ def simulate_each_variable(variable_and_value, kwargs, num_replicates = 10):
             pickle.dump(simoutput_container, picklefile)
         return(True)
     except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        print ''.join('!! ' + line for line in lines) 
         print(picklefilename)
-        raise IOError('UNABLE TO SAVE PICKLE FILE!!')
-        return(False)
+        #raise IOError('UNABLE TO SAVE PICKLE FILE!!')
+        #return(False)
 
 def wrapper_each_variable(variable_value_and_kwargs):
     variable_and_value, kwargs = variable_value_and_kwargs

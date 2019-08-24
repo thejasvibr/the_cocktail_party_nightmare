@@ -11,8 +11,10 @@ import multiprocessing as mp
 import dill as pickle
 import pandas as pd
 import pdb
+import joblib
+from joblib import Parallel, delayed
 import sys
-sys.path.append('..//CPN//')
+sys.path.append('../CPN/')
 import uuid
 
 import numpy as np 
@@ -23,7 +25,7 @@ argparser = argparse.ArgumentParser()
 argparser.add_argument('-param_file', action='store',dest='parameter_file')
 argparser.add_argument('-numruns', action='store', type=int,
                        dest='Nruns')
-argparser.add_argument('-numCPUS','-numCPUs', action='store', dest='num_CPUs',
+argparser.add_argument('-numCPUS','-numCPUs', action='store', dest='num_cpus',
                                    type=int, 
                                    default=mp.cpu_count())
 argparser.add_argument('-name', action='store',
@@ -32,16 +34,14 @@ argparser.add_argument('-info', action='store',
                        dest='info', default='')
 args = argparser.parse_args()
 
-
 def load_parameters(path_to_parameters):
     '''
     '''
     try:
         with open(path_to_parameters, 'rb') as paramsfile:
             parameter_instance = pickle.load(paramsfile)
-        #pdb.set_trace()
-        params = parameter_instance.kwargs
-        return(params)
+        parameters = parameter_instance.kwargs
+        return(parameters)
     except:
         raise
 #        raise FailedParameterLoading('could not load the given parameter file:',
@@ -60,16 +60,16 @@ def save_simulation_outputs(simulation_identifiers, sim_output):
                 sounds_in_ipi
                 group_geometry 
     '''
-    picklefilename = ''.join([simulation_identifiers['name'],
+    picklefilename = '_'.join([simulation_identifiers['name'],
                               simulation_identifiers['uuid'],
-                              simulation_identifiers['np.random.seed']])
+                              str(simulation_identifiers['np.random.seed']),
+                              '.pkl'])
     try:
         with open(picklefilename, 'wb') as picklefile:
             pickle.dump([simulation_identifiers, sim_output], picklefile)
         return(True)
     except:
         raise IOError(picklefilename + ' not saved!!')
-
 
 def run_and_save_one_simulation(id_and_params):
     '''
@@ -114,7 +114,8 @@ def run_and_save_one_simulation(id_and_params):
     return(success)
 
 def run_multiple_simulations(name, info, 
-                             Nruns, parameter_file, num_CPUs):
+                             Nruns, parameter_file,
+                             num_CPUs):
     ''' Set up the simulation to run parallely
     
     Parameters
@@ -132,13 +133,9 @@ def run_multiple_simulations(name, info,
 
     parameter_file : path to dictionary
                     with parameters to initialise and run 
-                    the simulations 
-
-    num_CPUs: int>0. 
-              Number of CPUs to run the simulations on. 
-              Defaults to the full number of CPUs available on the device. 
-
-
+                    the simulations
+    num_CPUs: int. 
+              Number of CPUs to run the code on. 
     Returns
     --------
     success : list. 
@@ -146,18 +143,19 @@ def run_multiple_simulations(name, info,
               False if not. 
             
     '''
-    process_pool = ProcessingPool(num_CPUs)
+    #process_pool = ProcessingPool(num_CPUs)
     parameter_set = load_parameters(parameter_file)
     simulation_identifiers = {}
     simulation_identifiers['name'] = name
     simulation_identifiers['info'] = info
     simulation_identifiers['parameter_set'] = parameter_set
-
-    repeated_parameter_set = [[simulation_identifiers,
-                                                      parameter_set]]*Nruns
     
-    success = process_pool.map(run_and_save_one_simulation,
-                                                   repeated_parameter_set)
+    one_id_and_param = [simulation_identifiers, parameter_set]
+    ids_and_params_for_all_runs = [one_id_and_param]*Nruns
+    
+    success = Parallel(n_jobs=num_CPUs,
+                           verbose=1, backend="loky")(map(delayed(run_and_save_one_simulation),
+                                                     ids_and_params_for_all_runs))
     return(success)
 
     
@@ -169,7 +167,8 @@ class FailedParameterLoading(ValueError):
 
 if __name__  == '__main__':
     run_multiple_simulations(args.name, args.info, 
-                             args.Nruns, args.parameter_file, args.num_CPUs)
+                             args.Nruns, args.parameter_file,
+                             args.num_cpus)
     
     
     

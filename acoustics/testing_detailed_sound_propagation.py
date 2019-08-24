@@ -233,14 +233,14 @@ class TestSoundprop_w_AcousticShadowing(unittest.TestCase):
                                                     self.end_point,
                                                     self.other_points,
                                                     **self.kwargs)
-        shadowing_effect = np.array(rl_w_shadowing - rl_wo_shadowing)
+        shadowing_effect = np.round(rl_w_shadowing - rl_wo_shadowing,2)
         
         
         expected_df = pd.DataFrame(data={'spacing':[1.0]*2,
                                           'obstacles':[0,2]})
         
-        expected_shadowing = np.diff(np.array(self.shadowing_model.predict(expected_df)))
-        self.assertEqual(expected_shadowing, shadowing_effect)
+        expected_shadowing = float(np.diff(self.shadowing_model.predict(expected_df)))
+        self.assertEqual(np.round(expected_shadowing,2), shadowing_effect)
         
 
         #print(rl_w_shadowing)

@@ -149,7 +149,7 @@ def calculate_acoustic_shadowing(num_obstacles,
     #convert_to_categorical(with_obstacles, 'spacing')
     level_w_obstacles = kwargs['acoustic_shadowing_model'].predict(with_obstacles) 
     level_wo_obstacles = kwargs['acoustic_shadowing_model'].predict(no_obstacle) 
-    shadowing_reduction = level_w_obstacles - level_wo_obstacles
+    shadowing_reduction = float(level_w_obstacles - level_wo_obstacles)
 
     return(shadowing_reduction)
 

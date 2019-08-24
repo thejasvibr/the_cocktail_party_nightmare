@@ -4,38 +4,20 @@ Created on Mon Jun 10 13:55:43 2019
 
 @author: tbeleyur
 """
-#
-import sys 
-sys.path.append('..//..//')
-sys.path.append('..//')
-import multiprocessing
-from multiprocessing import Pool
-import pickle 
-import time
-from commong_hearing_calling_directionality import hearing_directionality_fn, call_directionality_fn
-
-from simulate_effect_of import wrapper_each_variable
 
 
-if __name__ == '__main__':
-    start = time.time()
-    # load the common simulation parameters 
-    common_paramsfile = '..//commonsim_params.pkl' 
-    with open(common_paramsfile, 'rb') as commonfile:
-        common_kwargs = pickle.load(commonfile)
+import glob
+import multiprocessing as mp
 
-    common_kwargs.keys()
-    common_kwargs['call_directionality'] = call_directionality_fn
-    common_kwargs['hearing_directionality'] = hearing_directionality_fn
-    num_bats = [5,10,20,50,100,200,400]    
-    # run simulations for all group sizes of interest
-    var_and_value = []
-    for each_nbats in num_bats:
-        for i in range(30): # make sure overall 10,000 sims are run 
-            var_and_value.append((('Nbats',each_nbats), common_kwargs)) 
-    start = time.time()
+from run_simulations import run_multiple_simulations
     
-    pool = Pool(multiprocessing.cpu_count());
-    all_outputs = pool.map(wrapper_each_variable, var_and_value)
-    #all_outputs = map(wrapper_each_variable, var_and_value)
-    print('OVERALL SIMS TOOK', time.time()-start )
+
+# run simulations across all parameter sets present in the folder :
+parameter_sets = glob.glob('*.paramset')
+
+all_cpus = mp.cpu_count()
+
+print('Starting processing...')
+success = run_multiple_simulations('Group Size', 'Group Size simulations with shadowing included', 
+                             '*.paramset',
+                             all_cpus)

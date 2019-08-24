@@ -7,16 +7,6 @@ Created on Sat Jun 08 18:59:27 2019
 @author: tbeleyur
 """
 
-
-# the functions must be lambdas because of the limitations of 
-# the current implementation of Pool.map which uses pickle to serialise
-# and de-serialise data onto processes ! 
-
-call_directionality_fn = lambda  X, A=7 : A*(np.cos(np.deg2rad(X))-1)
-hearing_directionality_fn = lambda X, B=2 : B*(np.cos(np.deg2rad(X))-1)
-
-
-
 import dill as pickle
 import numpy as np 
 import pandas as pd
@@ -40,7 +30,7 @@ class parameter_container():
         self.kwargs['reflection_function'] = reflection_func
         self.kwargs['heading_variation'] = 10.0
         self.kwargs['min_spacing'] = 0.5
-        self.kwargs['Nbats'] = 50
+        self.kwargs['Nbats'] = 5
         self.kwargs['source_level'] = {'dBSPL' : 100, 'ref_distance':1.0}
         self.kwargs['hearing_threshold'] = 20
         self.kwargs['rectangle_width'] = 0.25
@@ -58,9 +48,10 @@ class parameter_container():
         self.kwargs['temporal_masking_thresholds'] = temporal_masking_fn
         self.kwargs['spatial_release_fn'] = np.array(spatial_unmasking_fn)[:,1:]
            
-        self.kwargs['call_directionality'] = call_directionality_fn
+        self.kwargs['call_directionality'] = lambda  X, A=7 : A*(np.cos(np.deg2rad(X))-1)
         
-        self.kwargs['hearing_directionality'] = hearing_directionality_fn
+        self.kwargs['hearing_directionality'] = lambda X, B=2 : B*(np.cos(np.deg2rad(X))-1)
+
 
 
 

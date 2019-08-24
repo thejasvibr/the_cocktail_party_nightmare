@@ -36,6 +36,7 @@ import time
 
 import numpy as np
 import pandas as pd
+import pdb
 import scipy.misc as misc
 import scipy.spatial as spl
 #import scipy.interpolate as interpolate
@@ -769,9 +770,13 @@ def ipi_soundpressure_levels(sound_df, spl_columnname, **kwargs):
     '''
     
     ipi_soundpressure = np.zeros(int(kwargs['interpulse_interval']/kwargs['simtime_resolution']))
-    #ipi_soundpressure += np.random.normal(0,10**-10, ipi_soundpressure.size) #prevent 0's from messing up the dB
     for start, stop, dBsound_pressure in zip( sound_df['start'],sound_df['stop'], sound_df[spl_columnname]):
-        ipi_soundpressure[start:stop] += 10**(dBsound_pressure/20.0)
+        try:
+            ipi_soundpressure[start:stop] += 10**(dBsound_pressure/20.0)
+        except:
+            print('start', start, 'stop',stop, 'size:',ipi_soundpressure.size)
+            raise
+        
     return(ipi_soundpressure)
 
 def add_soundpressures(df_spl, IPI):
@@ -1541,7 +1546,6 @@ def calculate_conspecificcall_levels(**kwargs):
     if kwargs['bats_xy'].shape[0] < 2:
         raise ValueError('Çonspecific calls cannot propagated for Nbats < 2')
     
-
     conspecific_call_paths = calculate_conspecificcall_paths(**kwargs)
     conspecific_calls = calculate_conspecificcallreceived_levels(conspecific_call_paths,
                                                                  **kwargs)
@@ -1677,7 +1681,6 @@ def calculate_conspecificcallreceived_levels(conspecificcall_paths,
     call_directionality = kwargs['call_directionality']
     hearing_directionality = kwargs['hearing_directionality']
     source_level = kwargs['source_level']
-
     num_calls = len(conspecificcall_paths['call_routes'])
     conspecific_calls = pd.DataFrame(data=[], index=xrange(num_calls),
                                      columns=['start','stop','theta', 'level',

@@ -5,6 +5,7 @@ Created on Tue Dec 12 22:07:22 2017
 @author: tbeleyur
 """
 import sys
+sys.path.append('../CPN/')
 import unittest
 import numpy as np
 np.random.seed(82319)
@@ -683,127 +684,6 @@ class TestPropagateSound(unittest.TestCase):
                                        [exp_numcalls, exp_num2daryechoes, exp_num1echoes]))
 
 
-    def runsetup_for_acoustic_shadowing(self):
-        ''' specific setup function only for acoustic shadowing tests
-        4 bats are on/close the x-axis. Bat 0  at the origin, Bat 1 at [1,0]
-        , Bat 2 at [1,0.1] and Bat 3 at [2,0]
-        '''
-        self.kwargs['bats_xy'] = np.array(([0,0],[1,0],[2,0]))
-        self.kwargs['focal_bat'] = np.array([0,0])
-        self.kwargs['implement_shadowing'] = True
-        self.kwargs['rectangle_width'] = 0.3
-        self.kwargs['shadow_TS'] = [-5]
-
-                                          
-        
-    def test_with_acoustic_shadowing_calls(self):
-        ''''acoustic shadowing tests w  conspecific calls
-        '''
-        self.runsetup_for_acoustic_shadowing()
-        w_shadowing = propagate_sounds('conspecific_calls', **self.kwargs)
-        SS = self.kwargs['shadow_TS'][0]
-        expected_levels = np.float32( [100,
-                           100-40*np.log10(1)+ SS])
-        obtained = np.float32(w_shadowing['level'])
-        self.assertTrue(np.array_equal(expected_levels, obtained))
-        
-    def test_with_acoustic_shadowing_secondaryechoes(self):
-        ''''acoustic shadowing tests w  secondary echoes
-        '''
-        self.runsetup_for_acoustic_shadowing()
-        w_shadowing = propagate_sounds('secondary_echoes', **self.kwargs)
-        SL = self.kwargs['source_level']['dBSPL']
-        TS = np.unique(self.kwargs['reflection_function']['reflection_strength'])
-        SS = float(self.kwargs['shadow_TS'][0])
-        
-        sececho_1_2 = SL + TS
-        sececho_1_2_0_level =  sececho_1_2  + SS
-        
-        sececho_2_1_0_level = SL + TS # because in this case TS and SS are different values!!
-
-        expected_levels = np.array([sececho_1_2_0_level,
-                                               sececho_2_1_0_level]).flatten()
-        obtained_levels = np.float32(w_shadowing['level'])
-        print(obtained_levels, expected_levels)
-        self.assertTrue(np.array_equal(expected_levels, obtained_levels))
-
-    
-    def test_with_acoustic_shadowing_primaryechoes(self):
-        ''''acoustic shadowing tests w  target echoes
-        '''
-        self.runsetup_for_acoustic_shadowing()
-        w_shadowing = propagate_sounds('primary_echoes', **self.kwargs)
-        TS = np.unique(self.kwargs['reflection_function']['reflection_strength'])
-        SS = self.kwargs['shadow_TS'][0]
-        sececho_0_1_0_level =  self.kwargs['source_level']['dBSPL'] + TS
-        
-        spl_0_2 = self.kwargs['source_level']['dBSPL'] + SS + TS
-
-        sececho_0_2_0_level = spl_0_2 + SS
-
-        expected_levels = np.float32(np.array([sececho_0_1_0_level,
-                                               sececho_0_2_0_level]).flatten()  )
-        obtained_levels = np.float32(np.array(w_shadowing['level']))
-
-        self.assertTrue(np.array_equal(np.round(expected_levels,3),
-                                       np.round(obtained_levels,3)))
-
-    def runsetup_for_acoustic_shadowingTWO(self):
-        '''the 3 bats are placed asymmetrically.
-        '''
-        self.kwargs['bats_xy'] = np.array(([0,0],[0.5,0.05],[2,0]))
-        self.kwargs['focal_bat'] = np.array([0,0])
-        self.kwargs['implement_shadowing'] = True
-        self.kwargs['rectangle_width'] = 0.3
-        self.kwargs['shadow_TS'] = [-13]
-
-    def test_asymm_w_conspecificcalls(self):
-        self.runsetup_for_acoustic_shadowingTWO()
-        w_shadowing = propagate_sounds('conspecific_calls', **self.kwargs)
-        SS = self.kwargs['shadow_TS'][0]
-        SL = self.kwargs['source_level']['dBSPL']
-        bxy = self.kwargs['bats_xy']
-        
-        r10 = spl.distance.euclidean(bxy[0,:],bxy[1,:])
-        r12 = spl.distance.euclidean(bxy[2,:],bxy[1,:])
-        r20 = spl.distance.euclidean(bxy[2,:],bxy[0,:])
-        rl_10 = SL - 20*np.log10(r10)
-        rl_20 = SL + SS - 20*np.log10(r12) - 20*np.log10(r10) 
-
-        expected_levels = np.float32( [rl_10,
-                           rl_20])
-        obtained = np.float32(w_shadowing['level'])
-        self.assertTrue(np.array_equal(expected_levels, obtained))
-        
-    def test_asymm_with_acoustic_shadowing_secondaryechoes(self):
-        '''acoustic shadowing tests w  secondary echoes
-        '''
-        print('starting asymm secondary echoes')
-        self.runsetup_for_acoustic_shadowingTWO()
-        w_shadowing = propagate_sounds('secondary_echoes', **self.kwargs)
-        SS = self.kwargs['shadow_TS'][0]
-        SL = self.kwargs['source_level']['dBSPL']
-        TS = np.unique(self.kwargs['reflection_function']['reflection_strength'])
-
-        bxy = self.kwargs['bats_xy']
-
-        r10 = spl.distance.euclidean(bxy[0,:],bxy[1,:])
-        r12 = spl.distance.euclidean(bxy[2,:],bxy[1,:])
-        r20 = spl.distance.euclidean(bxy[2,:],bxy[0,:])
-        print(r10,r12,r20)
-        print(w_shadowing)
-
-        RL_apparent_12 = SL - 20*np.log10(r12) + TS 
-        SL_1m_12 = RL_apparent_12 
-        sececho_1_2_0_level =  SL_1m_12  - 20*np.log10(r10) + SS - 20*np.log10(r12)
-        
-        sececho_2_1_0_level = SL -20*np.log10(r12) - 20*np.log10(r10) + TS 
-
-        expected_levels = np.float32([sececho_1_2_0_level,
-                                               sececho_2_1_0_level]).flatten()
-        obtained_levels = np.float32(w_shadowing['level'])
-        self.assertTrue(np.array_equal(expected_levels, obtained_levels))
-        
 
 class TestCombineSounds(unittest.TestCase):
     '''

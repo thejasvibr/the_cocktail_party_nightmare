@@ -9,22 +9,19 @@ import argparse
 import hashlib
 import multiprocessing as mp
 import dill as pickle
-import pandas as pd
-import pdb
-import joblib
 from joblib import Parallel, delayed
-import sys
-sys.path.append('../CPN/')
+import glob
 import uuid
-
+import os 
+import sys 
+sys.path.append('../')
+sys.path.append('../CPN/')
 import numpy as np 
 
 from the_cocktail_party_nightmare import run_CPN
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument('-param_file', action='store',dest='parameter_file')
-argparser.add_argument('-numruns', action='store', type=int,
-                       dest='Nruns')
+argparser.add_argument('-param_file', action='store',dest='parameter_fileformat')
 argparser.add_argument('-numCPUS','-numCPUs', action='store', dest='num_cpus',
                                    type=int, 
                                    default=mp.cpu_count())
@@ -32,6 +29,8 @@ argparser.add_argument('-name', action='store',
                        dest='name')
 argparser.add_argument('-info', action='store',
                        dest='info', default='')
+argparser.add_argument('-dest_folder', action='store',
+                       dest='dest_folder', default='.')
 args = argparser.parse_args()
 
 def load_parameters(path_to_parameters):
@@ -44,14 +43,21 @@ def load_parameters(path_to_parameters):
         return(parameters)
     except:
         raise
-#        raise FailedParameterLoading('could not load the given parameter file:',
-#                                     path_to_parameters)
 
 
-def save_simulation_outputs(simulation_identifiers, sim_output):
+def load_all_parameters(multi_parameter_files):
+    '''
+    '''
+    all_parameter_sets = map(load_parameters, multi_parameter_files)
+    return(all_parameter_sets)
+
+def save_simulation_outputs(dest_folder,
+                            simulation_identifiers, sim_output):
     '''
     Parameters
     ----------
+    
+    dest_folder : 
     simulation_identifiers : list with information required to identify 
                              and re-run a simulation if necessary.    
 
@@ -64,8 +70,9 @@ def save_simulation_outputs(simulation_identifiers, sim_output):
                               simulation_identifiers['uuid'],
                               str(simulation_identifiers['np.random.seed']),
                               '.pkl'])
+    full_filepath = os.path.join(dest_folder, picklefilename)
     try:
-        with open(picklefilename, 'wb') as picklefile:
+        with open(full_filepath, 'wb') as picklefile:
             pickle.dump([simulation_identifiers, sim_output], picklefile)
         return(True)
     except:
@@ -107,15 +114,17 @@ def run_and_save_one_simulation(id_and_params):
     simulation_identifiers['uuid'] = file_uuid
     simulation_identifiers['np.random.seed'] = unique_seed
 
-    success = save_simulation_outputs(simulation_identifiers, sim_output)
+    success = save_simulation_outputs(parameter_set['dest_folder'],
+                                          simulation_identifiers, sim_output)
     
     if not success:
         print('Simulation ' , file_uuid, 'could not be saved')
     return(success)
 
-def run_multiple_simulations(name, info, 
-                             Nruns, parameter_file,
-                             num_CPUs):
+def run_multiple_simulations(name, info,
+                                 parameter_file_format,
+                             num_CPUs,
+                             dest_folder):
     ''' Set up the simulation to run parallely
     
     Parameters
@@ -131,11 +140,15 @@ def run_multiple_simulations(name, info,
     Nruns : int>0. 
             Number of simulation repicates to run
 
-    parameter_file : path to dictionary
-                    with parameters to initialise and run 
-                    the simulations
+    parameter_file_format : string which identifies the parameter file formats
+                        with parameters to initialise and run 
+                        the simulations
     num_CPUs: int. 
               Number of CPUs to run the code on. 
+              
+
+    dest_folder : str or path.
+                  where the simulation outputs will be saved.   
     Returns
     --------
     success : list. 
@@ -144,18 +157,24 @@ def run_multiple_simulations(name, info,
             
     '''
     #process_pool = ProcessingPool(num_CPUs)
-    parameter_set = load_parameters(parameter_file)
+    parameter_files = glob.glob(parameter_file_format)
+    parameter_sets = load_all_parameters(parameter_files)
     simulation_identifiers = {}
     simulation_identifiers['name'] = name
     simulation_identifiers['info'] = info
-    simulation_identifiers['parameter_set'] = parameter_set
     
-    one_id_and_param = [simulation_identifiers, parameter_set]
-    ids_and_params_for_all_runs = [one_id_and_param]*Nruns
+    
+    id_and_paramsets = []
+    for each_paramset in parameter_sets:
+        simulation_identifiers['parameter_set'] = each_paramset
+        each_paramset['dest_folder'] = dest_folder
+        for _ in xrange(each_paramset['Nruns']):
+            id_and_paramsets.append([simulation_identifiers, each_paramset])
+
     
     success = Parallel(n_jobs=num_CPUs,
                            verbose=1, backend="loky")(map(delayed(run_and_save_one_simulation),
-                                                     ids_and_params_for_all_runs))
+                                                     id_and_paramsets))
     return(success)
 
     
@@ -167,8 +186,8 @@ class FailedParameterLoading(ValueError):
 
 if __name__  == '__main__':
     run_multiple_simulations(args.name, args.info, 
-                             args.Nruns, args.parameter_file,
-                             args.num_cpus)
+                             args.parameter_fileformat,
+                             args.num_cpus, args.dest_folder)
     
     
     

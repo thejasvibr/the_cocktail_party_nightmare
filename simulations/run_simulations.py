@@ -8,8 +8,9 @@ Created on Fri Aug 23 17:00:56 2019
 import argparse
 import hashlib
 import multiprocessing as mp
-from multiprocessing import Pool
-import pickle
+import dill as pickle
+import pandas as pd
+import pdb
 import sys
 sys.path.append('..//CPN//')
 import uuid
@@ -37,11 +38,14 @@ def load_parameters(path_to_parameters):
     '''
     try:
         with open(path_to_parameters, 'rb') as paramsfile:
-            parameter_data = pickle.load(paramsfile)
-        return(parameter_data)
+            parameter_instance = pickle.load(paramsfile)
+        #pdb.set_trace()
+        params = parameter_instance.kwargs
+        return(params)
     except:
-        raise FailedParameterLoading('could not load the given parameter file:',
-                                     path_to_parameters)
+        raise
+#        raise FailedParameterLoading('could not load the given parameter file:',
+#                                     path_to_parameters)
 
 
 def save_simulation_outputs(simulation_identifiers, sim_output):
@@ -66,15 +70,6 @@ def save_simulation_outputs(simulation_identifiers, sim_output):
     except:
         raise IOError(picklefilename + ' not saved!!')
 
-
-def generate_unique_ID():
-    '''
-     thanks to Raymond Hettinger for the integer hashing comment
-    https://stackoverflow.com/a/16008760/4955732
-    '''
-    file_uuid = str(uuid.uuid4())
-    unique_seed = int(hashlib.sha1(file_uuid).hexdigest(), 16) % (2**30)
-    return(file_uuid, unique_seed)
 
 def run_and_save_one_simulation(id_and_params):
     '''
@@ -101,20 +96,21 @@ def run_and_save_one_simulation(id_and_params):
     '''
     simulation_identifiers, parameter_set = id_and_params
     #generate unique id for this simulation 
-    uuid, random_seed = generate_unique_ID()
-    np.random.seed(random_seed)
+    file_uuid = str(uuid.uuid4())
+    unique_seed = int(hashlib.sha1(file_uuid).hexdigest(), 16) % (2**30)
+    np.random.seed(unique_seed)
     # run simulation 
     
     num_echoes, sim_output = run_CPN(**parameter_set)
     
     # save outputs 
-    simulation_identifiers['uuid'] = uuid
-    simulation_identifiers['np.random.seed'] = random_seed
+    simulation_identifiers['uuid'] = file_uuid
+    simulation_identifiers['np.random.seed'] = unique_seed
 
     success = save_simulation_outputs(simulation_identifiers, sim_output)
     
     if not success:
-        print('Simulation ' , uuid, 'could not be saved')
+        print('Simulation ' , file_uuid, 'could not be saved')
     return(success)
 
 def run_multiple_simulations(name, info, 
@@ -150,7 +146,7 @@ def run_multiple_simulations(name, info,
               False if not. 
             
     '''
-    process_pool = Pool(num_CPUs)
+    process_pool = ProcessingPool(num_CPUs)
     parameter_set = load_parameters(parameter_file)
     simulation_identifiers = {}
     simulation_identifiers['name'] = name

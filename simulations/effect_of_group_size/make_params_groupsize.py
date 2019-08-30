@@ -14,7 +14,7 @@ import statsmodels.api as sm
 with open('../commonsim_params_class.pkl','rb') as pklfile:
     simparams_class = pickle.load(pklfile)
 
-group_sizes = [5, 10, 20, 50]
+group_sizes = [400]
 
 
 for groupsize in group_sizes:
@@ -29,7 +29,7 @@ for groupsize in group_sizes:
     
     
     groupsize_params.kwargs['Nbats']  = groupsize
-    groupsize_params.kwargs['Nruns']  = 10
+    groupsize_params.kwargs['Nruns']  = 500
     groupsize_params.kwargs['detailed description'] = '1000 runs across'+str(groupsize)
     
     param_filename = 'groupsize_simparams_' + str(groupsize)+'_.paramset'

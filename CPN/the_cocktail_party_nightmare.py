@@ -28,18 +28,17 @@ repository is written by Johannes Dollinger and licensed under an MIT License.
 
 
 """
-import pickle
-
-import time
+import os
+import sys 
+sys.path.append('../bridson/')
+sys.path.append('../acoustics/')
 
 import numpy as np
 import pandas as pd
-import pdb
 import scipy.misc as misc
 import scipy.spatial as spl
-#import scipy.interpolate as interpolate
-#from bridson.bridson import poisson_disc_samples
-#from acoustics.detailed_sound_propagation import soundprop_w_acoustic_shadowing, calc_RL
+from bridson import poisson_disc_samples
+from detailed_sound_propagation import soundprop_w_acoustic_shadowing, calc_RL
  
 
 
@@ -2428,46 +2427,3 @@ def run_CPN(**kwargs):
                                'target_echoes':target_echoes},
                                group_geometry])
 
-
-if __name__ == '__main__':
-        A = 7
-        B = 2 
-
-        kwargs={}
-        kwargs['interpulse_interval'] = 0.1
-        kwargs['v_sound'] = 330.0
-        kwargs['simtime_resolution'] = 10**-6
-        kwargs['echocall_duration'] = 0.0025
-        kwargs['call_directionality'] = lambda X : A*(np.cos(np.deg2rad(X))-1)
-        kwargs['hearing_directionality'] = lambda X : B*(np.cos(np.deg2rad(X))-1)
-
-        reflection_func = pd.read_csv('data//bistatic_TS_bat.csv')
-        kwargs['reflection_function'] = reflection_func
-        kwargs['heading_variation'] = 10
-        kwargs['min_spacing'] = 0.5
-        kwargs['Nbats'] = 100
-        kwargs['source_level'] = {'dBSPL' : 100, 'ref_distance':1.0}
-        kwargs['hearing_threshold'] = 20
-        kwargs['rectangle_width'] = 0.5
-        kwargs['implement_shadowing'] = True
-        kwargs['shadow_TS'] = [-9.0]
-
-        tempmasking_file = 'data//temporal_masking_function.pkl'
-        with open(tempmasking_file, 'rb') as pklfile:
-            temporal_masking_fn = pickle.load(pklfile)
-            
-        spatial_unmasking_fn = pd.read_csv('data/spatial_release_fn.csv')
-        kwargs['temporal_masking_thresholds'] = temporal_masking_fn
-        kwargs['spatial_release_fn'] = np.array(spatial_unmasking_fn)[:,1:]
-
-        start = time.time()
-        u = run_CPN(**kwargs)
-        print(time.time()-start)
-#        file_uuid = str(uuid.uuid4())
-#        unique_seed = int(hashlib.sha1(file_uuid).hexdigest(), 16) % (2**30)
-#        np.random.seed(unique_seed)
-#        unique_name = 'uuid_'+file_uuid+'_numpyseed_'+str(unique_seed)
-##        #print(b[2])
-#        with open(unique_name+'100'+'test_bats.pkl','wb') as dumpfile:
-#            pickle.dump(u, dumpfile)
-#       

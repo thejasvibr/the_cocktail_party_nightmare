@@ -15,7 +15,6 @@ import pdb
 import uuid
 import os 
 import sys 
-sys.path.append('../')
 sys.path.append('../CPN/')
 import numpy as np 
 

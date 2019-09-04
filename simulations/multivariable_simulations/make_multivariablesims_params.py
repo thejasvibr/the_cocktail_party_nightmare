@@ -63,9 +63,9 @@ for ipi in interpulse_duration:
                                 dill.dump(simulation_parameters, pklfile)
     
 
-chosen = ['simulation_parameters_0.1*0.001*False*94*1.0*90*-2.0_.paramset',
-          'simulation_parameters_0.1*0.0025*False*94*0.5*10*-2.0_.paramset']
+
 all_params = glob.glob('*.paramset')
+chosen = np.random.choice(all_params, 5)
 
 for each in all_params:
     if not each in chosen:

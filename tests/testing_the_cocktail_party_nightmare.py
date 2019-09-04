@@ -11,8 +11,8 @@ import numpy as np
 np.random.seed(82319)
 import pandas as pd
 #import matplotlib.pyplot as plt
-from ..CPN import the_cocktail_party_nightmare
-from thCPN import *
+#from ..CPN import the_cocktail_party_nightmare
+#from the_cocktail_party_nightmare import *
 
     
 class TestingCheckIfEchoHeard(unittest.TestCase)    :

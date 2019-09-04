@@ -8,9 +8,10 @@ Created on Fri Aug 23 17:00:56 2019
 import argparse
 import hashlib
 import multiprocessing as mp
-import dill as pickle
+import dill 
 from joblib import Parallel, delayed
 import glob
+import pdb
 import uuid
 import os 
 import sys 
@@ -38,9 +39,8 @@ def load_parameters(path_to_parameters):
     '''
     try:
         with open(path_to_parameters, 'rb') as paramsfile:
-            parameter_instance = pickle.load(paramsfile)
-        parameters = parameter_instance.kwargs
-        return(parameters)
+            parameter_instance = dill.load(paramsfile)
+        return(parameter_instance)
     except:
         raise
 
@@ -69,11 +69,11 @@ def save_simulation_outputs(dest_folder,
     picklefilename = '_'.join([simulation_identifiers['name'],
                               simulation_identifiers['uuid'],
                               str(simulation_identifiers['np.random.seed']),
-                              '.pkl'])
+                              '.simresults'])
     full_filepath = os.path.join(dest_folder, picklefilename)
     try:
         with open(full_filepath, 'wb') as picklefile:
-            pickle.dump([simulation_identifiers, sim_output], picklefile)
+            dill.dump([simulation_identifiers, sim_output], picklefile)
         return(True)
     except:
         raise IOError(picklefilename + ' not saved!!')
@@ -156,21 +156,22 @@ def run_multiple_simulations(name, info,
               False if not. 
             
     '''
-    #process_pool = ProcessingPool(num_CPUs)
     parameter_files = glob.glob(parameter_file_format)
     parameter_sets = load_all_parameters(parameter_files)
-    simulation_identifiers = {}
-    simulation_identifiers['name'] = name
-    simulation_identifiers['info'] = info
+    
     
     
     id_and_paramsets = []
-    for each_paramset in parameter_sets:
+    for i,each_paramset in enumerate(parameter_sets):
+        simulation_identifiers = {}
+        simulation_identifiers['name'] = name
+        simulation_identifiers['info'] = info
         simulation_identifiers['parameter_set'] = each_paramset
+
         each_paramset['dest_folder'] = dest_folder
         for _ in xrange(each_paramset['Nruns']):
             id_and_paramsets.append([simulation_identifiers, each_paramset])
-
+        
     
     success = Parallel(n_jobs=num_CPUs,
                            verbose=1, backend="loky")(map(delayed(run_and_save_one_simulation),

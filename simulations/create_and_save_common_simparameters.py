@@ -7,60 +7,50 @@ Created on Sat Jun 08 18:59:27 2019
 @author: tbeleyur
 """
 
-import dill as pickle
+import dill 
 import numpy as np 
 import pandas as pd
 import statsmodels.api as sm
 
-class parameter_container():
-    
-    def __init__(self):
-        self.bistatic_TS_file = '..//data//bistatic_TS_bat.csv'
-        self.shadowing_model_file = '..//data//acoustic_shadowing_model.pkl'
-        self.tempmasking_file = '..//data//temporal_masking_function.pkl'
-        self.spatial_unmasking_file = '..//data//spatial_release_fn.csv'
-
-        
-    def load_parameters(self):
-        self.kwargs={}
-        self.kwargs['interpulse_interval'] = 0.1
-        self.kwargs['v_sound'] = 330.0
-        self.kwargs['simtime_resolution'] = 10**-6
-        self.kwargs['echocall_duration'] = 0.0025        
-        reflection_func = pd.read_csv(self.bistatic_TS_file)
-        self.kwargs['reflection_function'] = reflection_func
-        self.kwargs['heading_variation'] = 10.0
-        self.kwargs['min_spacing'] = 0.5
-        self.kwargs['Nbats'] = None
-        self.kwargs['source_level'] = {'dBSPL' : 100, 'ref_distance':1.0}
-        self.kwargs['hearing_threshold'] = 20
-        self.kwargs['rectangle_width'] = 0.25
-        self.kwargs['implement_shadowing'] = True
-        
-        # load the model to predict shadowing 
-        
-        self.kwargs['acoustic_shadowing_model']=sm.load(self.shadowing_model_file)
-        
-        
-        with open(self.tempmasking_file, 'rb') as pklfile:
-            temporal_masking_fn = pickle.load(pklfile)
-        
-        spatial_unmasking_fn = pd.read_csv(self.spatial_unmasking_file)
-        
-        self.kwargs['temporal_masking_thresholds'] = temporal_masking_fn
-        self.kwargs['spatial_release_fn'] = np.array(spatial_unmasking_fn)[:,1:]
-           
-        self.kwargs['call_directionality'] = lambda  X, A=7 : A*(np.cos(np.deg2rad(X))-1)
-        
-        self.kwargs['hearing_directionality'] = lambda X, B=2 : B*(np.cos(np.deg2rad(X))-1)
+bistatic_TS_file = '..//data//bistatic_TS_bat.csv'
+shadowing_model_file = '..//data//acoustic_shadowing_model.pkl'
+tempmasking_file = '..//data//temporal_masking_function.pkl'
+spatial_unmasking_file = '..//data//spatial_release_fn.csv'
 
 
-common_params_class = 'commonsim_params_class.pkl'
-with open(common_params_class,'wb') as paramsclass:
-    pickle.dump(parameter_container, paramsclass)
+kwargs={}
+kwargs['interpulse_interval'] = 0.1
+kwargs['v_sound'] = 330.0
+kwargs['simtime_resolution'] = 10**-6
+kwargs['echocall_duration'] = 0.0025        
+reflection_func = pd.read_csv(bistatic_TS_file)
+kwargs['reflection_function'] = reflection_func
+kwargs['heading_variation'] = 10.0
+kwargs['min_spacing'] = 0.5
+kwargs['Nbats'] = None
+kwargs['source_level'] = {'dBSPL' : 100, 'ref_distance':1.0}
+kwargs['hearing_threshold'] = 20
+kwargs['rectangle_width'] = 0.25
+kwargs['implement_shadowing'] = True
+
+# load the model to predict shadowing 
+
+kwargs['acoustic_shadowing_model']=sm.load(shadowing_model_file)
 
 
-common_params_file = 'commonsim_params_v11.pkl'
-parameter_instance = parameter_container()
-with open(common_params_file,'wb') as commonparamsfile:
-    pickle.dump(parameter_instance, commonparamsfile)
+with open(tempmasking_file, 'rb') as pklfile:
+    temporal_masking_fn = dill.load(pklfile)
+
+spatial_unmasking_fn = pd.read_csv(spatial_unmasking_file)
+
+kwargs['temporal_masking_thresholds'] = temporal_masking_fn
+kwargs['spatial_release_fn'] = np.array(spatial_unmasking_fn)[:,1:]
+   
+kwargs['call_directionality'] = lambda  X, A=7 : A*(np.cos(np.deg2rad(X))-1)
+
+kwargs['hearing_directionality'] = lambda X, B=2 : B*(np.cos(np.deg2rad(X))-1)
+
+
+common_parameters = 'common_simulation_parameters.paramset'
+with open(common_parameters,'wb') as paramsfile:
+    dill.dump(kwargs, paramsfile)

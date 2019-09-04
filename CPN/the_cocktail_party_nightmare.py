@@ -29,9 +29,7 @@ repository is written by Johannes Dollinger and licensed under an MIT License.
 
 """
 import pickle
-import sys
-sys.path.append('..//acoustics//')
-sys.path.append('..//')
+
 import time
 
 import numpy as np
@@ -40,8 +38,8 @@ import pdb
 import scipy.misc as misc
 import scipy.spatial as spl
 #import scipy.interpolate as interpolate
-from bridson.bridson import poisson_disc_samples
-from acoustics.detailed_sound_propagation import soundprop_w_acoustic_shadowing, calc_RL
+#from bridson.bridson import poisson_disc_samples
+#from acoustics.detailed_sound_propagation import soundprop_w_acoustic_shadowing, calc_RL
  
 
 

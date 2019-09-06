@@ -59,7 +59,8 @@ for group_size in all_group_sizes:
                                 simulation_parameters['heading_variation'] = heading_variation
                                 simulation_parameters['atmospheric_attenuation'] = atm_abs
     
-                                all_params = [ipi,call_durn,w_shadowing,SL,interbat_spacing,heading_variation,atm_abs]
+                                all_params = [group_size, 
+                                              ipi,call_durn,w_shadowing,SL,interbat_spacing,heading_variation,atm_abs]
                                 variables_as_string = join_into_string(all_params)
     
                                 param_filename = 'simulation_parameters_' + variables_as_string+'_.paramset'

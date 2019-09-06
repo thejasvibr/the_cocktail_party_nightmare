@@ -29,7 +29,7 @@ shadowing = [True, False]
 source_level = [94, 100, 106]
 spacing = [0.5, 1.0]
 group_heading_variation = [10, 90]
-atmospheric_absorption = [0]
+atmospheric_absorption = [0, -1, -2]
 number_of_simulation_runs =  200
 
 with open('../common_simulation_parameters.paramset','rb') as pklfile:

@@ -32,7 +32,7 @@ import os
 import sys 
 sys.path.append('../bridson/')
 sys.path.append('../acoustics/')
-
+import pdb
 import numpy as np
 import pandas as pd
 import scipy.misc as misc
@@ -101,10 +101,15 @@ def assign_real_arrival_times(sound_df, **kwargs):
      Keyword Arguments
     ----------------
         v_sound
-        bats_xy
+        bats_xy :  Nbats x 2 np.array
+                   XY positions of all bats. Focal bat is on the 1st row.  
         simtime_resolution
         interpulse_interval
         echocall_duration
+        echoes_beyond_ipi : Boolean. 
+                        True if echoes arriving later than the ipi are tolerated
+                        False if all echoes must arrive within the ipi. 
+                        Defaults to False. 
 
       Returns
     ------- 
@@ -132,8 +137,30 @@ def assign_real_arrival_times(sound_df, **kwargs):
     # assign the start and stop timesteps
     sound_df['start'] = echo_start_timesteps
     sound_df['stop'] = echo_end_timesteps
-
+    
+    if not kwargs.get('echoes_beyond_ipi', False):
+        check_if_echoes_fall_within_IPI(sound_df, num_timesteps)
     return(sound_df)
+
+def check_if_echoes_fall_within_IPI(sound_df, ipi_length):
+    '''
+    Parameters
+    ----------
+    sound_df : pd.DataFrame with at least 2 columns, 'start' and 'stop'
+
+    ipi_length : int. 
+                 number of timesteps in the interpulse interval 
+    
+
+    Raises
+    ------
+    EchoesOutOfIPI : IndexError raised if echoes_beyond_ipi is False and 
+                     the echoes fall out of the interpulse interval. 
+
+    '''
+    echoes_arrive_later_than_ipi =  np.any(sound_df['stop'] > ipi_length)
+    if echoes_arrive_later_than_ipi:
+        raise EchoesOutOfIPI('Some echoes fall out of the interpulse interval - change the IPI or reduce distance of reflecting objects')
 
 
 
@@ -169,6 +196,10 @@ def place_sounds_randomly_in_IPI(timeline ,calldurn_steps, Nsounds = 1):
     actual_timeline = timeline[:-calldurn_steps]
     sound_starts = np.random.choice(actual_timeline, Nsounds)
     sound_stops = sound_starts + calldurn_steps - 1 
+    
+    if np.any(sound_stops) > len(actual_timeline):
+        print(actual_timeline.size, calldurn_steps, np.max(sound_stops))
+        raise IndexError('Echo stop times extend beyond the IPI!')
 
     return(np.column_stack((sound_starts, sound_stops)))
 
@@ -600,7 +631,7 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_dbspl,
     may not work for secondary echoes and other such echoes that are beyond 
     the ipi.
 
-
+    
 
      Parameters
     ----------
@@ -619,13 +650,28 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_dbspl,
                            thresholds required for echo detection in the presence of maskers.
                            Each value is assumed to be the value for that time delay at
                            the simtime_resolution being used.
-                        
 
-     Returns
+    masking_tolerance :  1>float >0
+                          The fraction of the echo which can be masked and it 
+                          is still heard. 
+                          eg. is masking_toleration is 0.75 for a 10 ms echo, 
+                          then even if 7.5 ms of it is masked, the echo is 
+                          still considered heard. 
+                          Defaults to 0.25     
+    Returns
     -------
 
    echo_heard : Boolean . True if echo-masker SPL ratios were above the tmeporal 
                     masking function. 
+
+
+    Note 
+    --------
+    1. If the whole echo is not in the IPI then only the portion that is within the 
+    current IPI will be considered.
+
+    2. If more than 75 % of an echo is above the temporal masking function 
+    it is considered heard. 
 
     '''
     delta_echo_masker = float(echo['level']) - cumulative_dbspl
@@ -635,21 +681,31 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_dbspl,
     # choose the snippet relevant to the temporal masking function:
     fwd_left, fwd_right = check_if_in_ipi([echo_start-fwd.size, echo_start], 
                                           ipi_timesteps)
+    left_echo_edge, right_echo_edge = check_if_in_ipi([echo_start, echo_stop], 
+                                          ipi_timesteps)
     bkwd_left, bkwd_right = check_if_in_ipi([echo_stop, echo_stop+bkwd.size],
                                             ipi_timesteps)
-
+    #pdb.set_trace()
     delta_echomasker_snippet = delta_echo_masker[fwd_left:bkwd_right+1]
 
-    temp_masking_snippet = np.concatenate((fwd[:fwd_right-fwd_left],
-                                           np.tile(simultaneous, echo_stop-echo_start+1),
-                                           bkwd[:bkwd_right-bkwd_left]))    
+    fwd_masking = fwd[:fwd_right-fwd_left]
+    simult_masking = np.tile(simultaneous, right_echo_edge-left_echo_edge+1)
+    backwd_masking = bkwd[:bkwd_right-bkwd_left]
+    temp_masking_snippet = np.concatenate((fwd_masking,
+                                           simult_masking,
+                                           backwd_masking))  
     
-
     # compare to see if the overall duration above the threshold is >= echo_duration
-    timesteps_echo_below_masker = delta_echomasker_snippet < temp_masking_snippet
-    masked_time = np.sum(timesteps_echo_below_masker)*kwargs['simtime_resolution']
+    try:
+        timesteps_echo_below_masker = delta_echomasker_snippet < temp_masking_snippet
+        duration_echo_is_masked = np.sum(timesteps_echo_below_masker)*kwargs['simtime_resolution']
+    except:
+        print(delta_echomasker_snippet.shape, temp_masking_snippet.shape, 
+              echo, ipi_timesteps)
+        raise
+    tolerated_masking = kwargs.get('masking_tolerance', 0.25)
 
-    if masked_time <= kwargs['echocall_duration']*0.75:
+    if duration_echo_is_masked <= kwargs['echocall_duration']*tolerated_masking:
         echo_heard = True
     else :
         echo_heard = False
@@ -2331,7 +2387,6 @@ def run_CPN(**kwargs):
 
            reflection_function : function.
                                Describes the reflection characteristics of echoes bouncing off
-                               bats. This is different from the target_strength because the position of
                                reception and position of emission are different. 
 
            N_echoes : integer >0.
@@ -2426,4 +2481,8 @@ def run_CPN(**kwargs):
                                'conspecific_calls':conspecific_calls,
                                'target_echoes':target_echoes},
                                group_geometry])
+
+
+class EchoesOutOfIPI(IndexError):
+    pass
 

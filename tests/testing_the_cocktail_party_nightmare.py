@@ -170,7 +170,7 @@ class TestingNumEchoesHeard(unittest.TestCase):
         num_heard, _ = calculate_num_heardechoes(self.echoes, self.other_sounds,
                                                  **self.kwargs)
         self.assertEqual(num_heard,1)
-
+#
 class TestingCalcNumTimes(unittest.TestCase):
 
     def setUp(self):
@@ -973,11 +973,9 @@ class TestCheckCumSPL(unittest.TestCase):
         self.kwargs['temporal_masking_thresholds'] = self.temporal_masking_fn
         self.cum_SPL = np.ones(100) * -8
         self.kwargs['simtime_resolution'] = 10**-3
-        self.kwargs['echocall_duration'] = 3*10**-3
+        self.kwargs['echocall_duration'] = 0.003
         self.kwargs['hearing_threshold'] = 0.0
-        
-        
-    
+
     def test_basic_echo_heard(self):
         '''Echo should be heard when delta echo-masker is above the threshold all throughout
         '''
@@ -1001,6 +999,31 @@ class TestCheckCumSPL(unittest.TestCase):
                                                               **self.kwargs)
         self.assertTrue(echo_heard)
     
+    def test_echo_beyond_ipi_on_right(self):
+        '''Test what happens when the echo is at the edges of the ipi Part2
+        '''
+        self.echo = pd.DataFrame(data={'start':[100], 'stop':[102], 'level':[50]})
+        echo_heard = check_if_cum_SPL_above_masking_threshold(self.echo, self.cum_SPL, 
+                                                              **self.kwargs)
+        self.assertFalse(echo_heard)
+    
+    def test_echo_beyond_ipi_on_left(self):
+        '''Test what happens when the echo is at the edges of the ipi Part2
+        '''
+        self.echo = pd.DataFrame(data={'start':[-10], 'stop':[0], 'level':[50]})
+        echo_heard = check_if_cum_SPL_above_masking_threshold(self.echo, self.cum_SPL, 
+                                                              **self.kwargs)
+        self.assertFalse(echo_heard)
+    
+
+    def test_echo_at_edges3(self):
+        '''Test what happens when the echo ends a bit beyond the ipi 
+        '''
+        self.echo = pd.DataFrame(data={'start':[97], 'stop':[99], 'level':[50]})
+        echo_heard = check_if_cum_SPL_above_masking_threshold(self.echo, self.cum_SPL, 
+                                                              **self.kwargs)
+        self.assertTrue(echo_heard)
+    
     def test_heard_w_loudburst(self):
         '''What happens when the echmasker profile falls below the 
         threshold for < echocall duraiton but is above it in general.
@@ -1011,7 +1034,66 @@ class TestCheckCumSPL(unittest.TestCase):
                                                               **self.kwargs)
         self.assertFalse(echo_heard)
     
+
+class CheckRealArrivalTimes_AreIn_IPI(unittest.TestCase)  :
+    
+    def setUp(self):
+        self.sound_df = pd.DataFrame(data=[], columns=['start','stop'])
+        self.kwargs = {}
+        self.kwargs['v_sound'] = 330.0
+        self.kwargs['bats_xy'] = np.array(([0,0],[10,0],[0,2]))
+        self.kwargs['simtime_resolution'] = 10**-6
+        self.kwargs['interpulse_interval'] = 0.025
+        self.kwargs['echocall_duration'] = 0.001
+        self.kwargs['echoes_beyond_ipi'] = True
+    
+    def test_echoes_falling_out_of_IPI(self):
+        '''Make sure that there's 
+        '''
+        self.kwargs['echoes_beyond_ipi'] = False
         
+        with self.assertRaises(EchoesOutOfIPI) as context:
+            assign_real_arrival_times(self.sound_df, **self.kwargs)
+        self.assertTrue('Some echoes fall out of the interpulse interval - change the IPI or reduce distance of reflecting objects' in context.exception)
+
+    def test_echoes_in_IPI_allow_echoes_outof_IPI(self):
+        '''A lack of error is good here 
+        '''
+        self.kwargs['echoes_beyond_ipi'] = True
+        print(self.kwargs)
+        assign_real_arrival_times(self.sound_df, **self.kwargs)
+
+class TestingIfEchoIsMostlyInIPI(unittest.TestCase):
+    
+    def setUp(self):
+        self.kwargs = {}
+        self.kwargs['simtime_resolution'] = 10**-3
+        self.kwargs['echocall_duration'] = 0.005
+        self.kwargs['masking_tolerance'] = 0.25
+        self.num_ipi_timesteps = 100
+
+    def test_basic(self):
+        start = 100
+        stop = 102
+        echo_in_ipi = is_the_echo_mostly_in_the_ipi(start, stop,
+                           self.num_ipi_timesteps,
+                           **self.kwargs)
+        self.assertFalse(echo_in_ipi)
+
+    def test_basic_positive(self):
+        start = 52
+        stop = 56
+        echo_in_ipi = is_the_echo_mostly_in_the_ipi(start, stop,
+                           self.num_ipi_timesteps,
+                           **self.kwargs)
+        self.assertTrue(echo_in_ipi)
+            
+    
+  
+        
+        
+        
+
         
         
 

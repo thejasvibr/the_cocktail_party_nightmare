@@ -22,7 +22,7 @@ import statsmodels.api as sm
 
 join_into_string = lambda Y: '*'.join(map(lambda X:str(X), Y))
 
-group_size = 200
+group_size = 20
 interpulse_duration = [0.05, 0.1]
 call_duration = [0.001, 0.0025]
 shadowing = [True, False]
@@ -30,10 +30,11 @@ source_level = [94, 100, 106]
 spacing = [0.5, 1.0]
 group_heading_variation = [10, 90]
 atmospheric_absorption = [0]
-number_of_simulation_runs = 200 
+number_of_simulation_runs =  50
 
 with open('../common_simulation_parameters.paramset','rb') as pklfile:
     simulation_parameters = dill.load(pklfile)
+simulation_parameters['echoes_beyond_ipi'] = True
 i = 0
 for ipi in interpulse_duration:
     for call_durn in call_duration:

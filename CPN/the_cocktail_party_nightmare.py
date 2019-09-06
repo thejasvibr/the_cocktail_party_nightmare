@@ -652,12 +652,22 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_dbspl,
                            the simtime_resolution being used.
 
     masking_tolerance :  1>float >0
-                          The fraction of the echo which can be masked and it 
-                          is still heard. 
+                          This parameter is used in two contexts : 
+                              
+                          1. The duration of time as a fraction of 
+                          echo duration that the cumulative SPL can 
+                          be above the temporal masking window, and the echo is
+                          still heard.
+                          
                           eg. is masking_toleration is 0.75 for a 10 ms echo, 
                           then even if 7.5 ms of it is masked, the echo is 
                           still considered heard. 
                           Defaults to 0.25     
+                          
+                          2. The minimum length of an echo that must fall within 
+                          the ipi for it to be considered audible at all 
+                          and moved further to check its relative 
+                          levels with the cumulative SPL.
     Returns
     -------
 
@@ -679,42 +689,110 @@ def check_if_cum_SPL_above_masking_threshold(echo, cumulative_dbspl,
     fwd, simultaneous, bkwd = kwargs['temporal_masking_thresholds']
     ipi_timesteps = cumulative_dbspl.size
     # choose the snippet relevant to the temporal masking function:
-    fwd_left, fwd_right = check_if_in_ipi([echo_start-fwd.size, echo_start], 
-                                          ipi_timesteps)
-    left_echo_edge, right_echo_edge = check_if_in_ipi([echo_start, echo_stop], 
-                                          ipi_timesteps)
-    bkwd_left, bkwd_right = check_if_in_ipi([echo_stop, echo_stop+bkwd.size],
-                                            ipi_timesteps)
-    #pdb.set_trace()
-    delta_echomasker_snippet = delta_echo_masker[fwd_left:bkwd_right+1]
-
-    fwd_masking = fwd[:fwd_right-fwd_left]
-    simult_masking = np.tile(simultaneous, right_echo_edge-left_echo_edge+1)
-    backwd_masking = bkwd[:bkwd_right-bkwd_left]
-    temp_masking_snippet = np.concatenate((fwd_masking,
-                                           simult_masking,
-                                           backwd_masking))  
-    
-    # compare to see if the overall duration above the threshold is >= echo_duration
-    try:
-        timesteps_echo_below_masker = delta_echomasker_snippet < temp_masking_snippet
-        duration_echo_is_masked = np.sum(timesteps_echo_below_masker)*kwargs['simtime_resolution']
-    except:
-        print(delta_echomasker_snippet.shape, temp_masking_snippet.shape, 
-              echo, ipi_timesteps)
-        raise
     tolerated_masking = kwargs.get('masking_tolerance', 0.25)
 
-    if duration_echo_is_masked <= kwargs['echocall_duration']*tolerated_masking:
-        echo_heard = True
-    else :
+    left_echo_edge, right_echo_edge = calculate_start_stop_points_in_ipi([echo_start, echo_stop], 
+                                          ipi_timesteps)
+
+    sufficient_length_in_ipi = is_the_echo_mostly_in_the_ipi(echo_start, echo_stop,
+                                                      ipi_timesteps,
+                                                      **kwargs)
+    if sufficient_length_in_ipi:
+        fwd_left, fwd_right = calculate_start_stop_points_in_ipi([echo_start-fwd.size, echo_start], 
+                                              ipi_timesteps)
+        bkwd_left, bkwd_right = calculate_start_stop_points_in_ipi([echo_stop, echo_stop+bkwd.size],
+                                                ipi_timesteps)
+    
+        delta_echomasker_snippet = delta_echo_masker[fwd_left:bkwd_right+1]
+    
+        fwd_masking = fwd[:fwd_right-fwd_left]
+        simult_masking = np.tile(simultaneous, right_echo_edge-left_echo_edge+1)
+        backwd_masking = bkwd[:bkwd_right-bkwd_left]
+        temp_masking_snippet = np.concatenate((fwd_masking,
+                                               simult_masking,
+                                               backwd_masking))  
+        # compare to see if the overall duration above the threshold is >= echo_duration
+        
+        try:
+            #pdb.set_trace()
+            timesteps_echo_below_masker = delta_echomasker_snippet < temp_masking_snippet
+            duration_echo_is_masked = np.sum(timesteps_echo_below_masker)*kwargs['simtime_resolution']
+        except:
+            print(delta_echomasker_snippet.shape, temp_masking_snippet.shape, 
+                  echo, ipi_timesteps)
+            raise
+    
+        if duration_echo_is_masked <= kwargs['echocall_duration']*(tolerated_masking):
+            echo_heard = True
+        else :
+            echo_heard = False
+    else:
+        # if none of the echo is in the ipi or if there's very little of the echo 
+        # falling in the ipi itself
         echo_heard = False
 
     return(echo_heard)
 
+def is_the_echo_mostly_in_the_ipi(start_index, stop_index,
+                           num_timesteps_in_ipi,
+                           **kwargs):
+    '''Checkes to see if (mosT) of the echo is 
+    in the ipi.
+    
+    Parameters
+    ----------
+    start_index, stop_index : int. 
+                              The start and stop positions
+                              of an echo. 
 
-def check_if_in_ipi(indices, ipi_size):
-    '''Checks if the start,stop list is within the ipi indices
+    num_timesteps_in_ipi : int. 
+                           The number of timesteps in the ipi. 
+
+    Keyword Arguments
+    ------------------
+    simtime_resolution : float >0. 
+                        Amount of time that one simulation timestep represents
+
+    
+    
+    masking_tolerance : 1>float>0
+                        The fraction of the echo that can be out of the
+                        ipi for it to still be considered
+                        mostly in the ipi. 
+                        eg. if masking tolerance is 0.25 
+                        then for a 4 ms echo, even if 3ms of it was
+                        within the ipi - then it'd be considered to 
+                        be mostly in the ipi. 
+                        
+                        Defaults to 0.25
+
+    Returns
+    --------
+    echo_mostly_in_ipi : Boolean. 
+                         True is the echo is mostly in ipi, 
+                         False if not. 
+
+    '''
+    all_timesteps = np.arange(num_timesteps_in_ipi)
+    echo_indices = np.arange(start_index, stop_index+1)
+    echo_region_within_ipi = np.intersect1d(echo_indices, all_timesteps)
+    full_echo_in_ipi = echo_indices.size == echo_region_within_ipi.size
+
+    if full_echo_in_ipi:
+        return(True)
+    else:
+        masking_tolerance = kwargs.get('masking_tolerance', 0.25)
+        region_outof_ipi = (echo_indices.size - echo_region_within_ipi.size)*kwargs['simtime_resolution'] 
+        permitted_duration_out_of_ipi = masking_tolerance*kwargs['echocall_duration']
+        if region_outof_ipi >= permitted_duration_out_of_ipi:
+            return(False)
+        else:
+            return(True)
+ 
+
+def calculate_start_stop_points_in_ipi(indices, ipi_size):
+    '''Checks if the start,stop list is within the ipi indices and assign the 
+    closest indices within the ipi timesteps.
 
      Parameters
     ----------

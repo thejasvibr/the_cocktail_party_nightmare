@@ -1649,7 +1649,8 @@ def propagate_sounds(sound_type, **kwargs):
         received_sounds = sound_type_propagation[sound_type](**kwargs)
         return(received_sounds)
     except:
-        raise Exception('Cannot propagate : '+sound_type)
+        print('Cannot propagate : ', sound_type)
+        raise 
         
        
 
@@ -2561,6 +2562,6 @@ def run_CPN(**kwargs):
                                group_geometry])
 
 
-class EchoesOutOfIPI(IndexError):
+class EchoesOutOfIPI(Exception):
     pass
 

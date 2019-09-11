@@ -10,9 +10,6 @@ Created on Sat Aug 24 22:10:10 2019
 import glob
 import os
 import sys
-sys.path.append('../../CPN/')
-sys.path.append('../../bridson/bridson/')
-
 import dill 
 import pandas  as pd
 import numpy as np 

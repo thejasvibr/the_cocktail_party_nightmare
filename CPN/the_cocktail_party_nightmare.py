@@ -1273,7 +1273,7 @@ def fillup_hexagonalrings(numbats):
     return(occupied_rings,bats_in_eachring)
 
 
-def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
+def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance, **kwargs):
     '''Generates a set of npoints+1 roughly equally placed points using the
     Poisson disk sampling algorithm. The point closest to the centroid is
     considered the centremost point. The closest points to the centremost point
@@ -1286,6 +1286,21 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
 
     nbr_distance : float>0. Minimum distance between adjacent points.
 
+    Keyword Arguments
+    ------------------
+    noncentral_bat : tuple with 2 entries.
+                    entry 1 : 1 > r > 0. float.
+                            the relative radial distance from
+                            the centre to the bat furthest away
+                            from the central bat 
+
+                    entry 2 : 0 < theta < 360. float.
+                            The azimuthal location of the central 
+                            bat. 0 degrees is 3 o'clock and 
+                            the angles increase in a counter-clockwise 
+                            direction.
+
+
       Returns
     -------
 
@@ -1293,7 +1308,7 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
                     around the centremost point.
 
     centremost_point : 1 x 2 np.array. XY coordinates of centremost point.
-
+    
 
     '''
 
@@ -1321,7 +1336,72 @@ def generate_surroundpoints_w_poissondisksampling(npoints, nbr_distance):
 
     nearby_points = find_nearbypoints(data_np, centremost_index, npoints-1)
 
-    return(nearby_points, centremost_pt)
+    #if the focal bat is to be placed elsewhere
+    noncentral_bat = kwargs.get('noncentral_bat',None)
+    if noncentral_bat:
+        new_nearby_points, focal_pt = choose_a_noncentral_bat(noncentral_bat, 
+                                                         nearby_points, 
+                                                         centremost_pt)
+        return(new_nearby_points, focal_pt)
+    else:
+        return(nearby_points, centremost_pt)
+
+
+
+def choose_a_noncentral_bat(noncentral_bat,
+                            nearby_points,
+                            centremost_point):
+    '''Chooses a  non central bat as the focal individual.
+    The auditory scene is calculated with respect to this
+    non central individual then. 
+
+    Parameters
+    -------
+    noncentral_bat : tuple with 2 entries.
+                entry 1 : 1 > r > 0. float.
+                        the relative radial distance from
+                        the centre to the bat furthest away
+                        from the central bat.
+
+                entry 2 : 0 < theta < 360. float.
+                        The azimuthal location of the central
+                        bat. 0 degrees is 3 o'clock and
+                        the angles increase in a counter-clockwise
+                        direction.
+
+    nearby_points : Nbats -1 x 2 array-like. 
+                    x-y coordinates of points surrounding the central point
+
+    centremost_point : 1 x 2 array-like. 
+                      Centremost point of the group. 
+
+    Returns
+    --------
+    rearranged_nearby_points : Nbats-1 x 2 np.array
+
+    focal_point : 1 x 2 np.array. 
+                  The focal point chosen according to the r,theta positions
+    '''
+    r, theta = noncentral_bat
+    centre_and_other_pts = np.row_stack((centremost_point, nearby_points))
+    distances_from_centre = spl.distance_matrix(centre_and_other_pts,
+                                                centre_and_other_pts)[1:,0]
+    furthest_distance = np.max(distances_from_centre)
+    target_r = r*furthest_distance
+
+    target_xy = np.array([target_r*np.cos(theta), target_r*np.sin(theta)])
+
+    points_relative_to_centre = nearby_points - centremost_point
+    target_and_nearby_points = np.row_stack((target_xy, points_relative_to_centre))
+    distance_to_target = spl.distance_matrix(target_and_nearby_points,
+                                             target_and_nearby_points)[1:,0]
+    closest_point_index = np.argmin(distance_to_target)
+    focal_point = nearby_points[closest_point_index,:]
+    all_points_not_focal = np.delete(nearby_points, closest_point_index, 0)
+    rearranged_nearby_points = np.row_stack((centremost_point,
+                                             all_points_not_focal))
+    return(rearranged_nearby_points, focal_point)
+
 
 
 def calculate_r_theta(target_points, focal_point):
@@ -2390,10 +2470,14 @@ def place_bats_inspace(**kwargs):
                             then all bats will have a uniform prob. of 
                             having headings between [90-10, 90+10] degrees.
 
-    Returns : 
-        bat_xy : list with [Nbats x 2 np.array, focal bat XY]. XY positions of nearby and focal bats
+        noncentral_bat : tuple with 2 entries. See choose_a_noncentral_bat
 
-        headings : 1x Nbats np.array. Heading direction of bats in degrees.
+    Returns : 
+        bat_xy : list with [Nbats x 2 np.array, focal bat XY]. 
+		  XY positions of nearby and focal bats
+
+        headings : 1x Nbats np.array.
+		   Heading direction of bats in degrees.
        
     '''
     min_heading, max_heading = 90 - kwargs['heading_variation'], 90 + kwargs['heading_variation']
@@ -2401,7 +2485,8 @@ def place_bats_inspace(**kwargs):
                                 kwargs['Nbats'])
     
     nearby, focal = generate_surroundpoints_w_poissondisksampling(kwargs['Nbats'],
-                                                                   kwargs['min_spacing'])
+                                                                   kwargs['min_spacing'],
+                                                                   **kwargs)
 
     return([nearby, focal], headings)
 

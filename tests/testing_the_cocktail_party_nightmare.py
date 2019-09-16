@@ -728,7 +728,7 @@ class TestCombineSounds(unittest.TestCase):
       
 
 class TestRunCPN(unittest.TestCase):
-    '''
+    '''bunch of integration tests to see if the CPN can run under a variety of conditions
     '''
     def setUp(self):
         ''' basic set of kwargs to initiate runCPN
@@ -786,6 +786,15 @@ class TestRunCPN(unittest.TestCase):
         
         num_echoesheard, _ = run_CPN(**self.kwargs)
         self.assertTrue(isinstance(num_echoesheard, int))
+    
+    def test_w_noncentral_focal_bat(self):
+        '''Not strictly a 'test' - but this will fail if 
+        anything in the api changes
+        '''
+        self.kwargs['noncentral_bat'] = (1.0, np.pi)
+        self.kwargs['Nbats'] = 100
+        num_echoesheard, _ = run_CPN(**self.kwargs)
+
 
 
 class TestPlaceSoundsRandomlyinIPI(unittest.TestCase):
@@ -1187,7 +1196,6 @@ class TestPlaceBatsInSpace(unittest.TestCase):
         dimensions_correct = np.array_equal(obtained_dimensions, 
                                             expected_dimensions)
         return(dimensions_correct)
-        
         
         
 

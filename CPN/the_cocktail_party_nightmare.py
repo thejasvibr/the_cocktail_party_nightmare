@@ -1363,7 +1363,7 @@ def choose_a_noncentral_bat(noncentral_bat,
                         the centre to the bat furthest away
                         from the central bat.
 
-                entry 2 : 0 < theta < 360. float.
+                entry 2 : 0 < theta < 2pi radians. float.
                         The azimuthal location of the central
                         bat. 0 degrees is 3 o'clock and
                         the angles increase in a counter-clockwise
@@ -2587,6 +2587,8 @@ def run_CPN(**kwargs):
            acoustic_shadowing_model : statsmodel object.
                                A statistical model that predicts the amount of 
                                acoustic shadowing given the number of obstacles present
+
+           noncentral_bat : tuple with 2 entries. See choose_a_noncentral_bat   
 
       Returns
     -------

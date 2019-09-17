@@ -72,7 +72,7 @@ The ```-dest_folder``` argument refers to the destination folder for all the sim
 The ```-numCPUS``` refers to the number of CPUs that are to be used to run the simulations in parallel. Simulations with larger group sizes (>50 bats) can be intensive and make an impact on your user-experience if you plan to do other things. It may then be wise to limit the number of CPUs that are being used for the simulations. The number of CPUs defaults to the number available on the device if not specified. 
 
 #### What a succesful simulation initiation looks like : 
-![miaow](docs_imgs/Screenshot\ from\ 2019-09-17\ 15-44-27.png)
+![](docs_imgs/succesful_run.png)
 
 #### Step 3 : The simulation outputs
 Every simulation run produces its own ```.simresults``` file. This file is a dill-pickled file that contains information on 
@@ -139,7 +139,7 @@ Here is an exmaple of the target_echoes DataFrame detailing the path the echo ('
 
  *  iii) group geometry : a dictionary with the heading directions and xy positions of all bats in a group. Headings refer to the direction a bat is flying in and aiming its sonar beam at. 
  
-      orientations : Nbats x 1 np.array with azimuth headings ranging from 0-360 degrees
+      orientations : Nbats x 1 np.array with azimuth headings ranging from 0-360 degrees. The 0th index orientation corresponds to the focal bat. 
 ![](docs_imgs/orientations.png)        
-      positions : Nbats x 2 np.array with xy coordinates of the 
+      positions : Nbats x 2 np.array with xy coordinates of the group of bats. The 0th row corresponds to the xy positions of the focal bat. 
 ![](docs_imgs/positions.png)

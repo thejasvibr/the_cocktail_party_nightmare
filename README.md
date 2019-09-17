@@ -1,4 +1,7 @@
 # The Cocktail Party Nightmare
+#### Author : Thejasvi Beleyur, Max Planck Institute for Ornithology, Seewiesen.
+#### Last Updated : September 2019
+
 Code associated with the manuscript 'Quantifying the nightmare in the sonar cocktail party' - Thejasvi Beleyur, Holger R Goerlitz
 
 [![DOI](https://zenodo.org/badge/114679151.svg)](https://zenodo.org/badge/latestdoi/114679151)
@@ -10,7 +13,7 @@ Echolocation works very well when individual bats are flying around alone while 
 
 The problem of listening to a target signal in the presence of louder sounds that affect signal detection has been called the 'cocktail party problem' by [Cherry 1953](https://asa.scitation.org/doi/10.1121/1.1907229), (also the [wikipedia article](cocktail party problem/effect](https://en.wikipedia.org/wiki/Cocktail_party_effect))). In the context of bat echolocation, given the orders of magnitude louder bat calls and the large number of calls and echoes that need to be dealt with when flying in a group - [Ulanovsky & Moss 2008](https://www.pnas.org/content/105/25/8491.short) termed group echolocation a 'cocktail party nightmare'. 
 
-This repository simulates the auditory detection of echoes, sound propagation and other relevant phenomena that occur in the cocktail party nightmare and quantifies how many neighbours a bat may be detecting as it flies in a group. 
+This repository simulates the auditory detection of echoes, sound propagation and other relevant phenomena that occur in the cocktail party nightmare and quantifies how many neighbours a bat may be detecting as it flies in a group. For more detail on the simulation implementation please refer to the associated paper <LINK TO PREPRINT HERE>. 
 
 
 ### Requirements:

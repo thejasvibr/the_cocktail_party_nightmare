@@ -28,7 +28,7 @@ source_level =  100
 spacing = 0.5
 group_heading_variation = 10
 atmospheric_absorption =  -1
-number_of_simulation_runs =  2
+number_of_simulation_runs =  200
 radial_distance = [0.25, 0.5, 0.75] 
 azimuth_location = [np.pi/4, 3*np.pi/4, 3*np.pi/2, 5*np.pi/4] 
 

@@ -350,6 +350,7 @@ class TestingSpatialArrangementPoissondisk(unittest.TestCase):
         proper_numpointsgenerated = np.array_equal(num_genpoints, numpoints)
 
         self.assertTrue(proper_numpointsgenerated)
+    
 
     def test_calculate_angleofarrival(self):
         '''
@@ -727,7 +728,7 @@ class TestCombineSounds(unittest.TestCase):
       
 
 class TestRunCPN(unittest.TestCase):
-    '''
+    '''bunch of integration tests to see if the CPN can run under a variety of conditions
     '''
     def setUp(self):
         ''' basic set of kwargs to initiate runCPN
@@ -785,6 +786,15 @@ class TestRunCPN(unittest.TestCase):
         
         num_echoesheard, _ = run_CPN(**self.kwargs)
         self.assertTrue(isinstance(num_echoesheard, int))
+    
+    def test_w_noncentral_focal_bat(self):
+        '''Not strictly a 'test' - but this will fail if 
+        anything in the api changes
+        '''
+        self.kwargs['noncentral_bat'] = (1.0, np.pi)
+        self.kwargs['Nbats'] = 100
+        num_echoesheard, _ = run_CPN(**self.kwargs)
+
 
 
 class TestPlaceSoundsRandomlyinIPI(unittest.TestCase):
@@ -1088,9 +1098,104 @@ class TestingIfEchoIsMostlyInIPI(unittest.TestCase):
                            **self.kwargs)
         self.assertTrue(echo_in_ipi)
             
+class TestNonCentralBat(unittest.TestCase):
     
-  
+    def setUp(self):
+        '''
+        '''
+        self.noncentral_bat = (1.0, np.pi/2.0) # at 12 o'clock and furthest bat
+        self.nearby = np.array(([1,1],[0,3],[-1,-1],[1,-1],[-1,1]))
+        self.centremost_pt = np.array([0,0])
+    
+    def test_basic_outermost(self):
+        '''The target bat is at 12 o'clock and the furthest from the centre
+        '''
+        nearby, focal = choose_a_noncentral_bat(self.noncentral_bat,
+                                                self.nearby,
+                                                self.centremost_pt)
+        focal_is_as_expected = np.array_equal(focal, np.array([0,3]))
         
+        expected_nearby = np.row_stack((self.centremost_pt,self.nearby))
+        expected_nearby = np.delete(expected_nearby, 2,0)
+        nearby_as_expected = np.array_equal(nearby, expected_nearby)
+        
+        output_as_expected = np.all([nearby_as_expected, focal_is_as_expected])
+        self.assertTrue(output_as_expected)
+    
+    def test_more_complicated(self):
+        '''Set up more bats all around and check if the correct noncentral 
+        bat is chosen
+        '''
+        central_bat = np.array([0,0])
+        radii = [2.5, 5.0]
+        thetas = np.radians(np.arange(0,360,90))
+        other_positions = []
+        for r in radii:
+            for theta in thetas:
+                x,y = r*np.cos(theta), np.sin(theta)
+                other_positions.append(np.array([x,y]))
+        
+        noncentral = (0.4, np.pi)
+        other_positions = np.row_stack(other_positions)
+
+        nearby, focal = choose_a_noncentral_bat(noncentral, 
+                                                other_positions, 
+                                                central_bat)
+        expected_focal = np.array([-2.5,0])
+        print('Obtained focal:', focal)
+        obtained_as_expected = np.array_equal(np.around(expected_focal),
+                                              np.around(focal) )
+        self.assertTrue(obtained_as_expected)
+ 
+    
+class TestPlaceBatsInSpace(unittest.TestCase):
+    '''Check that bats are placed as expected and the focal individual
+    is assigned properly each time
+    '''
+    def setUp(self):
+        self.kwargs = {}
+        self.kwargs['Nbats'] = 10
+        self.kwargs['min_spacing'] = 0.5
+        self.kwargs['heading_variation'] = 40
+        
+    
+    def test_basic_central_bat(self):
+        '''
+        '''
+        bats_xy, headings = place_bats_inspace(**self.kwargs)
+        dimensions_correct = self.check_if_output_dimensions_match(bats_xy,
+                                                                   headings)
+        self.assertTrue(dimensions_correct)
+    
+        
+    def test_w_noncentral_bat(self):
+        '''
+        '''
+        self.kwargs['noncentral_bat'] = (0.5, np.pi/2.0)
+        bats_xy, headings = place_bats_inspace(**self.kwargs)
+        dimensions_correct = self.check_if_output_dimensions_match(bats_xy,
+                                                                   headings)
+        self.assertTrue(dimensions_correct)
+
+    def test_noncentral_bat_is_really_noncentral(self):
+        self.kwargs['noncentral_bat'] = (0.5, np.pi/2.0)
+        bats_xy, headings = place_bats_inspace(**self.kwargs)
+        
+        nearby, focal = bats_xy
+        centremost = choose_centremostpoint(np.row_stack((focal, nearby)))
+        focal_is_not_central = np.invert(np.array_equal(centremost, focal))
+        self.assertTrue(focal_is_not_central)
+        
+
+    def check_if_output_dimensions_match(self, bats_xy, headings):
+        # check if the headings and bats xy sizes match
+        num_bats_obtained = np.sum([bats_xy[0].size, bats_xy[1].size])*0.5
+        num_headings_obtained = headings.size
+        obtained_dimensions = np.array([num_headings_obtained, num_bats_obtained])
+        expected_dimensions = np.array([self.kwargs['Nbats']]*2)
+        dimensions_correct = np.array_equal(obtained_dimensions, 
+                                            expected_dimensions)
+        return(dimensions_correct)
         
         
 

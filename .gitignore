@@ -104,3 +104,7 @@ venv.bak/
 .pkl
 # mypy
 .mypy_cache/
+
+# theCPN files :
+.simresults
+.paramset

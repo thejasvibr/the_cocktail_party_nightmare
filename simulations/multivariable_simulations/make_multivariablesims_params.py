@@ -21,7 +21,7 @@ import statsmodels.api as sm
 join_into_string = lambda Y: '*'.join(map(lambda X:str(X), Y))
 
 group_size = 100
-interpulse_duration = [0.025, 0.05,0.1]
+interpulse_duration = [0.2, 0.3]
 call_duration = [0.001, 0.0025]
 shadowing = [True, False]
 source_level = [94, 100, 106]

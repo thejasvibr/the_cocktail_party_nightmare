@@ -18,7 +18,7 @@ import statsmodels.api as sm
 
 join_into_string = lambda Y: '*'.join(map(lambda X:str(X), Y))
 
-all_group_sizes = [30,75]
+all_group_sizes = [200,300]
 interpulse_duration = [0.1]
 call_duration = [0.0025]
 shadowing = [True]
@@ -26,7 +26,7 @@ source_level = [100]
 spacing = [0.5]
 group_heading_variation = [10]
 atmospheric_absorption = [-1]
-number_of_simulation_runs =  500
+number_of_simulation_runs =  1
 
 with open('../common_simulation_parameters.paramset','rb') as pklfile:
     simulation_parameters = dill.load(pklfile)

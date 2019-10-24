@@ -684,7 +684,36 @@ class TestPropagateSound(unittest.TestCase):
 
         self.assertTrue(np.array_equal([num_conspecificcalls, num_2daryechoes, num_1echoes],
                                        [exp_numcalls, exp_num2daryechoes, exp_num1echoes]))
+    
+    def test_biggroup_numberofsounds(self):
+        '''I noticed a bug over the weekend of 19-20 October 2019
+        that all the 400 bat simulation outputs had Inf received levels
+        because the 2ndary echo paths had been wrongly generated.
+        '''
+        self.kwargs['Nbats'] = 500
+        self.kwargs['bats_xy'] = np.random.normal(0,1,300*2).reshape(-1,2)
+        self.kwargs['focal_bat'] = self.kwargs['bats_xy'][0,:]
+        self.kwargs['bats_orientations'] = np.random.choice(np.arange(360),
+                   self.kwargs['Nbats'])
+         # calculate the received levels and angles of arrivals of the sounds
+        conspecific_calls = propagate_sounds('conspecific_calls', **self.kwargs)
+        secondary_echoes = propagate_sounds('secondary_echoes', **self.kwargs)
+        primary_echoes = propagate_sounds('primary_echoes', **self.kwargs)
+        
+        num_conspecificcalls, num_2daryechoes = conspecific_calls.shape[0], secondary_echoes.shape[0]
+        num_1echoes =  primary_echoes.shape[0]
 
+        nbats = self.kwargs['bats_xy'].shape[0]
+        exp_numcalls = nbats-1
+        exp_num2daryechoes = (nbats-2)*(nbats-1)
+        exp_num1echoes = nbats-1
+        print('Expected #')
+        print([exp_numcalls, exp_num2daryechoes, exp_num1echoes])
+        print('Obtained #')
+        print([num_conspecificcalls, num_2daryechoes, num_1echoes])
+        self.assertTrue(np.array_equal([num_conspecificcalls, num_2daryechoes, num_1echoes],
+                                       [exp_numcalls, exp_num2daryechoes, exp_num1echoes]))
+        
 
 
 class TestCombineSounds(unittest.TestCase):

@@ -2271,7 +2271,7 @@ def paths_2daryechoes(focal_bat, bats_xy):
     echo_routes = []
     for an_emitter in emitters:
         for a_target in targets:
-            if not a_target is an_emitter:
+            if a_target != an_emitter:
                     emitter_target_focal = (an_emitter, a_target, focal_bat)
                     echo_routes.append(emitter_target_focal)
     return(echo_routes) 

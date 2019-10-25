@@ -1,10 +1,11 @@
 # The Cocktail Party Nightmare
+![](docs_imgs/theCPN_logo.jpg)
 #### Author : Thejasvi Beleyur, Max Planck Institute for Ornithology, Seewiesen.
-#### Last Updated : September 2019
+#### Last Updated : October 2019
 
-Code associated with the manuscript 'Quantifying the nightmare in the sonar cocktail party' - Thejasvi Beleyur, Holger R Goerlitz
+Code associated with the manuscript 'Active sensing in groups: (what) do bats hear in the sonar cocktail party nightmare' - Beleyur & Goerlitz 2019 <LINK TO PREPRINT HERE>
 
-[![DOI](https://zenodo.org/badge/114679151.svg)](https://zenodo.org/badge/latestdoi/114679151)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3514156.svg)](https://doi.org/10.5281/zenodo.3514156)
 
 ### What is the repository about?
 The code in this repository simulate what a bat flying in a group of other bats may be experiencing. Echolocating bats fly in the night and live in caves where they cannot 'see' objects with their eyes like we do. They emit loud calls and listen to the returning echoes to detect their surroundings. See [here](https://www.cell.com/current-biology/fulltext/S0960-9822(05)00686-X) for a quick review. 
@@ -18,32 +19,73 @@ This repository simulates the auditory detection of echoes, sound propagation an
 
 ### Requirements:
 The code runs on a range of Python 2.7 versions. The code runs on Windows and Linux. 
-To replicate the development environment exactly - install the following versions in your conda/virtual environment:
-Python 2.7.12
+To replicate the development environment exactly - install the following versions in your conda/virtual environment. All simulation results generated for the paper were done on a Ubuntu 18.04.3 LTS virtual machine. The code was also tested and developed on a Windows 7 system too (and any problems in running the code are likely issues with finding the right packages for the OS?).
 
-Numpy 1.16.3
+Python 2.7.15
 
-Scipy 1.2.1
+matplotlib==2.2.4
 
-Pandas 0.24.2
+setuptools==40.4.3
+
+tqdm==4.35.0
+
+pandas==0.24.2
+
+joblib==0.13.2
+
+numpy==1.14.2
+
+statsmodels==0.10.1
+
+scipy==0.19.1
+
+dill==0.3.0
+
+### Installing the required Python environment:
+It is a good idea to always use environments for each project. Environments are unique ''boxes' that have their own installation of Python and dependent packages ([article on environments](https://protostar.space/why-you-need-python-environments-and-how-to-manage-them-with-conda)).
+
+I used an [Anaconda](https://docs.anaconda.com/anaconda/) Python installation. The conda version used was 4.7.10. Here are the steps to recreate the environment.
+```
+# create a conda environment called theCPN with python 2.7.15
+conda create --name theCPN python=2.7.15
+# activate the environment
+conda activate theCPN 
+# install the pip package
+conda install pip
+# install all of the required dependency packages to run the simulations
+pip install -r requirements.txt
+```
+-- these steps worked on an Ubuntu 18.04. It should work on other operating systems too. However, I also faced an issue with the steps above on my Windows 7 with a 'RuntimeError: Python version >= 3.5 required.' message when I tried to ```pip install -r requirements.txt``` . The solution was to install numpy first, then pandas, and then the rest - so:
+```
+pip install numpy==1.14.2
+pip install pandas==0.24.2
+pip install matplotlib==2.2.4 setuptools==40.4.3 tqdm==4.35.0 joblib==0.13.2 statsmodels==0.10.1 scipy 1.2.1==0.19.1 dill==0.3.0
+```
 
 
-### Running simulations described in the paper: 3 steps to re-running it on your system
-
+### Running simulations described in the paper: 4 steps to re-running it on your system
 All simulation code is in the 'simulations' folder. Every set of simulations is defined by a parameter file which sets the number of simulation runs, call properties, group size and other relevant parameters. The simulations themselves are run by calling the ```run_simulations``` module through a command line call. Let's go through it step by step.
 
+Before you begin trying to run the simulations - first make sure you have fired up a Terminal window (Unix) or a Command Prompt (Windows) and move into the 'the_cocktail_party_nightmare' repository.
 
-#### Step 1 : Setting up a simulations 
-The simulations parameter files define what kind of simulations are run and how many simulation runs will occur. 
-Within each simulation folder  - the 'make_<simulation_type>.py' modules create the parameter files for differenct simulation scenarios. 
+#### Step 0 : Generate the common parameter file
+The difference simulation scenarios rely on a common set of parameters that they then alter according to the situation. Generate the common parameter set first to allow the creation of more specific simulation parameter sets. Generate the common simulation parameter file by running the following command 
+```
+cd simulations/
+python create_and_save_common_simparameters.py
+```
+Running this will lead to the creation of a ```'common_simulation_parameters.paramset'``` file in the folder. The ```.paramset```  extension defines a parameter file. 
 
 ##### What is a parameter file?
 A parameter file consists of a dictionary with simulation parameters. 
 The file is created by saving the dictionary through the [dill](https://pypi.org/project/dill/) package. Having setup the parameters you can simply run the 'make.. .py' file and you should get a bunch of ```.paramset``` files in your folder. 
 The ```make_<simulation_type>.py``` modules in each simulations scenario ('effect_of_group_size, effect_of_position, multivariable_simualtions') are the reference examples. 
 
-#### Creating parameter files
-To start with if you want to recreate the simulations that have been run in the paper, you can directly run the ```make_<simulation_type>.py``` module directly through an IDE like Spyder or run it from the command line (Ctrl+Alt+T in Ubuntu or Command Prompt in Windows) with the following commands. 
+#### Step 1 : Setting up a simulation by creating specific parameter files
+To start with if you want to recreate the simulations that have been run in the paper, you can directly run the ```make_<simulation_type>.py``` module directly through an IDE like Spyder or run it from the command line with the following commands. 
+Alter parameters in the 'make_params' files through the text editor of your choice.
+
+For instance, at least in the beginning keep the group size small (all_group_sizes = [10, 50]), and run only a few simulation runs (number_of_simulation_runs = 1).
 ```
 # move into the directory where the make .py module is. 
 cd simulations/effect_of_group_size
@@ -51,14 +93,14 @@ python make_params_groupsize.py
 ```
 Note : The #'s are comments - please do not copy-paste them into your comm
 
-Here you should see multiple ```.paramset``` files, each of which has the parameters required to initiate simulations for the different group sizes. 
+You should now see multiple ```.paramset``` files in the folder, each of which has the parameters required to initiate simulations for the different group sizes. 
 
 #### Step 2 : Starting the simulations
 The simulations are initiated through the ``` run_simulations.py``` module in the simulations folder. The ```run_simulations``` module initiates the appropriate number of simulations runs as described by each parameter file in a folder, and saves the simulation outputs into the given destination folder. 
 
 #### Starting simulations runs 
 ```
-#Change directories to the 'simulations' folder. 
+#Change directories back to the 'simulations' folder. 
 cd the_cocktail_party_nightmare/simulations/
 # run effect of group size simulations 
 python run_simulations -name "groupsize_effect" -info "a trial run to see if things work okay" -param_file "effect_of_group_size/*.paramset" -dest_folder "effect_of_group_size/" -numCPUS 2
@@ -146,3 +188,8 @@ Here is an exmaple of the target_echoes DataFrame detailing the path the echo ('
 ![](docs_imgs/orientations.png)        
       positions : Nbats x 2 np.array with xy coordinates of the group of bats. The 0th row corresponds to the xy positions of the focal bat. 
 ![](docs_imgs/positions.png)
+
+#### Read till here and want to know more? 
+ Please do not hesitate to contact me if you 
+ a) have tried to replicate the results and are having issues
+ b) have ideas on how this project can be developed  

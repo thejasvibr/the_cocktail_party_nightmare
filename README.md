@@ -203,8 +203,11 @@ Beleyur T., Goerlitz, H.R. <*Insert final name of manuscript here*>
 
 #### Read till here and want to know more? 
  Please do not hesitate to contact us (thejasvib@gmail.com, hgoerlitz@orn.mpg.de) or raise an Issue on Github if you
+ 
  a) have tried to replicate the simulations and are having problems
+ 
  b) found bugs in code
+ 
  c) have ideas on how this project can be developed further
  
  

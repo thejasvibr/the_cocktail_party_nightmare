@@ -1,7 +1,7 @@
 # The Cocktail Party Nightmare
 ![](docs_imgs/theCPN_logo.jpg)
 #### Author : Thejasvi Beleyur, Max Planck Institute for Ornithology, Seewiesen.
-#### Last Updated : October 2019
+#### Last Updated : November 2019
 
 Code associated with the manuscript 'Active sensing in groups: (what) do bats hear in the sonar cocktail party nightmare' - Beleyur & Goerlitz 2019 <LINK TO PREPRINT HERE>
 

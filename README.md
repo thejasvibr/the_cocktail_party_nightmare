@@ -185,21 +185,31 @@ path to the focal bat, its time of arrival in the interpulse interval, the dista
 
  *  iii) group geometry : a dictionary with the heading directions and xy positions of all bats in a group. Headings refer to the direction a bat is flying in and aiming its sonar beam at. 
  
-          orientations : This object has the direction in which each bat was aiming its beam. The angles are between 0-360 degrees, with the 0 degrees being at 3 o'clock and increasing in counter-clockwise fashion. The orientations object is a Nbats x 1 np.array.The 0th index orientation corresponds to the focal bat. 
-    ![](docs_imgs/orientations.png)        
-          positions : Nbats x 2 np.array with xy coordinates of the group of bats. The 0th row corresponds to the xy positions of the focal bat. 
+       orientations : This object has the direction in which each bat was aiming its beam. The angles are between 0-360 degrees, with the 0 degrees being at 3 o'clock and increasing in counter-clockwise fashion. The orientations object is a Nbats x 1 np.array.The 0th index orientation corresponds to the focal bat. 
+          
+    ![](docs_imgs/orientations.png)
+    
+       positions : The xy co-ordinates of all bats. The 0th row corresponds to the xy positions of the focal bat.
+                      Nbats x 2 np.array with xy coordinates of the group of bats.
     ![](docs_imgs/positions.png)
 
-#### Performing further analyses of the already-run results:
+#### Performing further analyses of the already run results:
 The simulation results generated add upto a few hundred GB and a lot of individual files and so I have not yet been able to compress and upload them onto a public archive. If you are interested in analysing the raw data I would be happy to share the raw data through a suitable medium/channel! 
 
 ### Associated experimental data and code-base
 This repository by itself only has the code and basic associated simulation parameter data to get the simulations running. The simulation parameters are based on previously published literature and two experiments specifically performed to parametrise the simulations. The bistatic and monostatic target strengths of bats were measured along with how bats 'shadow' or block sound. Head to this [Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3469845.svg) repository to read about the experimental methodology, code, raw data and results involved in these experiments. 
 If you find the code/data or playback files useful in your work please consider citing the paper associated with the work.
 
+### License:
+All code in the_cocktail_party_nightmare is release under an MIT License. See [LICENSE](./LICENSE) for more detail. 
+
 ### Citing the cocktail party nightmare code-base
-If you find any of the code in this repository useful in your work please consider citing the associated paper:
+If you find any of the code in this repository useful in your research please cite the [associated paper]():
 Beleyur T., Goerlitz, H.R. <*Insert final name of manuscript here*>
+
+In addition, this is the link to the publicly available [preprint](https://www.biorxiv.org/content/10.1101/817734v1):
+
+```Beleyur, T., & Goerlitz, H. R. (2019). Active sensing in groups:(what) do bats hear in the sonar cocktail party nightmare?. BioRxiv, 817734 ```
 
 #### Read till here and want to know more? 
  Please do not hesitate to contact us (thejasvib@gmail.com, hgoerlitz@orn.mpg.de) or raise an Issue on Github if you

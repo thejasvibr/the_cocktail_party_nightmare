@@ -1,7 +1,7 @@
 # The Cocktail Party Nightmare
 ![](docs_imgs/theCPN_logo.jpg)
-#### Author : Thejasvi Beleyur, Max Planck Institute for Ornithology, Seewiesen.
-#### Last Updated : November 2019
+#### Author: Thejasvi Beleyur, Max Planck Institute for Ornithology, Seewiesen.
+#### Last Updated: November 2019
 
 #### Code associated with the paper:
 #### Modelling active sensing reveals echo detection even in large groups of bats, Beleyur & Goerlitz 2019, Proceedings of the National Academy of Sciences

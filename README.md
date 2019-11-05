@@ -1,4 +1,4 @@
-# The Cocktail Party Nightmare
+# The Cocktail Party Nightmare 
 ![](docs_imgs/theCPN_logo.jpg)
 #### Author : Thejasvi Beleyur, Max Planck Institute for Ornithology, Seewiesen.
 #### Last Updated : November 2019

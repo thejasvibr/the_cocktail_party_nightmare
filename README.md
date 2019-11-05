@@ -3,23 +3,22 @@
 #### Author : Thejasvi Beleyur, Max Planck Institute for Ornithology, Seewiesen.
 #### Last Updated : November 2019
 
-Code associated with the manuscript 'Active sensing in groups: (what) do bats hear in the sonar cocktail party nightmare' - Beleyur & Goerlitz 2019 <LINK TO PREPRINT HERE>
-
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3514156.svg)](https://doi.org/10.5281/zenodo.3514156)
+#### Code associated with the paper:
+#### Modelling active sensing reveals echo detection even in large groups of bats, Beleyur & Goerlitz 2019, Proceedings of the National Academy of Sciences
 
 ### What is the repository about?
 The code in this repository simulate what a bat flying in a group of other bats may be experiencing. Echolocating bats fly in the night and live in caves where they cannot 'see' objects with their eyes like we do. They emit loud calls and listen to the returning echoes to detect their surroundings. See [here](https://www.cell.com/current-biology/fulltext/S0960-9822(05)00686-X) for a quick review. 
 
 Echolocation works very well when individual bats are flying around alone while hunting or commuting. However, when there are  loud sounds, such as those from other bats - the faint returning echoes may not be heard. This means that when a bat flies close to many other bats - it may be flying metaphorically 'blind'. However, many bat species are very social, and live in large groups, fly around together in caves and even emerge in the millions - the Mexican Free-Tailed bat is a classic example. 
 
-The problem of listening to a target signal in the presence of louder sounds that affect signal detection has been called the 'cocktail party problem' by [Cherry 1953](https://asa.scitation.org/doi/10.1121/1.1907229), (also the [wikipedia article](cocktail party problem/effect](https://en.wikipedia.org/wiki/Cocktail_party_effect))). In the context of bat echolocation, given the orders of magnitude louder bat calls and the large number of calls and echoes that need to be dealt with when flying in a group - [Ulanovsky & Moss 2008](https://www.pnas.org/content/105/25/8491.short) termed group echolocation a 'cocktail party nightmare'. 
+The problem of listening to a target signal in the presence of louder sounds that affect signal detection has been called the 'cocktail party problem' by [Cherry 1953](https://asa.scitation.org/doi/10.1121/1.1907229), (also the [wikipedia article](https://en.wikipedia.org/wiki/Cocktail_party_effect)). In the context of bat echolocation, given the orders of magnitude louder bat calls and the large number of calls and echoes that need to be dealt with when flying in a group - [Ulanovsky & Moss 2008](https://www.pnas.org/content/105/25/8491.short) termed group echolocation a 'cocktail party nightmare'. 
 
 This repository simulates the auditory detection of echoes, sound propagation and other relevant phenomena that occur in the cocktail party nightmare and quantifies how many neighbours a bat may be detecting as it flies in a group. For more detail on the simulation implementation please refer to the associated paper <LINK TO PREPRINT HERE>. 
 
 
 ### Requirements:
 The code runs on a range of Python 2.7 versions. The code runs on Windows and Linux. 
-To replicate the development environment exactly - install the following versions in your conda/virtual environment. All simulation results generated for the paper were done on a Ubuntu 18.04.3 LTS virtual machine. The code was also tested and developed on a Windows 7 system too.
+To replicate the development environment exactly - install the following versions in your conda/virtual environment. All simulation results generated for the paper were done on a Ubuntu 18.04.3 LTS virtual machine. The code was also tested and developed on a Windows 7 system.
 
 Python 2.7.15
 
@@ -55,7 +54,7 @@ conda install pip
 # install all of the required dependency packages to run the simulations
 pip install -r requirements.txt
 ```
--- these steps worked on an Ubuntu 18.04. It should work on other operating systems too. However, I also faced an issue with the steps above on my Windows 7 with a 'RuntimeError: Python version >= 3.5 required.' message when I tried to ```pip install -r requirements.txt``` . The solution was to install numpy first, then pandas, and then the rest of the packages - so:
+-- these steps worked on an Ubuntu 18.04. It should work on other operating systems too. However, I also faced an issue with the steps above on my Windows 7 with a *RuntimeError: Python version >= 3.5 required.* message when I tried to ```pip install -r requirements.txt``` . The solution was to install numpy first, then pandas, and then the rest of the packages - so:
 ```
 pip install numpy==1.14.2
 pip install pandas==0.24.2
@@ -113,7 +112,7 @@ The ```-param_file``` argument refers to the folder and file format of the param
 
 The ```-dest_folder``` argument refers to the destination folder for all the simulation outputs. 
 
-The ```-numCPUS``` refers to the number of CPUs that are to be used to run the simulations in parallel. Simulations with larger group sizes (>50 bats) can be intensive and noticeable if other programs are running alongside the simulations. It may then be wise to limit the number of CPUs that are being used for the simulations. The number of CPUs defaults to the total number available on the device if not specified. 
+The ```-numCPUS``` refers to the number of CPUs that are to be used to run the simulations in parallel. Simulations with larger group sizes (>50 bats) can be intensive and noticeable if other programs are running alongside the simulations. It may then be wise to limit the number of CPUs that are being used for the simulations. If the ```-numCPUs``` parameter is not defined the value defaults to the total number available on the device if not specified (typically 4 for your average laptop/PC). 
 
 #### What a succesful simulation initiation looks like : 
 ![](docs_imgs/succesful_run.png)
@@ -163,7 +162,7 @@ The simulation data is a list with 3 objects in it:  the echoes heard, the sound
 echoes_heard, sounds_in_ipi, group_geometry = sim_data 
 ```
 
-* i) echoes heard : In each simulation run the focal bat could hear upto group size -1 echoes bouncing off each of its neighbours. The ```echoes_heard``` object is a numpy array with 0's and 1's. The 1's represent a neighbour detection, the 0's represent a neighbour that was not detected. 
+* i) echoes heard : In each simulation the focal bat could hear up to group size -1 echoes bouncing off each of its neighbours. The ```echoes_heard``` object is a numpy array with 0's and 1's. The 1's represent a neighbour detection, the 0's represent a neighbour that was not detected. 
 
     The ```echoes_heard``` object has group size -1 entries because the focal bat only hears echoes that reflect off *other* bats. The identity of un/detected neighbours is obtained by looking at the index of the ```echoes_heard``` array. 
 
@@ -173,7 +172,7 @@ echoes_heard, sounds_in_ipi, group_geometry = sim_data
     An example from a simulation run with 50 bats, and thus only 49 entries : 
     ![](docs_imgs/echoes_heard.png)
 
-* ii) sounds in the interpulse interval :  a dictionary with 3 Pandas DataFrames describing the details of each sounds 
+* ii) sounds in the interpulse interval :  a dictionary with 3 Pandas DataFrames describing the details of each sound's 
 path to the focal bat, its time of arrival in the interpulse interval, the distance it travelled, the angle at which it arrived etc. 
 
   * 1. target echoes :  the echoes generated by the focal bat that are reflected off its neighbours. 
@@ -185,7 +184,7 @@ path to the focal bat, its time of arrival in the interpulse interval, the dista
 
  *  iii) group geometry : a dictionary with the heading directions and xy positions of all bats in a group. Headings refer to the direction a bat is flying in and aiming its sonar beam at. 
  
-       orientations : This object has the direction in which each bat was aiming its beam. The angles are between 0-360 degrees, with the 0 degrees being at 3 o'clock and increasing in counter-clockwise fashion. The orientations object is a Nbats x 1 np.array.The 0th index orientation corresponds to the focal bat. 
+       orientations : This object has the direction in which each bat was aiming its beam. The angles are between 0-360 degrees, with the 0 degrees being at 3 o'clock and increasing in counter-clockwise fashion. The orientations object is a Nbats x 1 np.array. The 0th index orientation corresponds to the focal bat. 
           
     ![](docs_imgs/orientations.png)
     
@@ -194,7 +193,7 @@ path to the focal bat, its time of arrival in the interpulse interval, the dista
     ![](docs_imgs/positions.png)
 
 #### Performing further analyses of the already run results:
-The simulation results generated add upto a few hundred GB and a lot of individual files and so I have not yet been able to compress and upload them onto a public archive. If you are interested in analysing the raw data I would be happy to share the raw data through a suitable medium/channel! 
+The simulation results generated add up to a few hundred GB and a lot of individual files and so I have not yet been able to compress and upload them onto a public archive. If you are interested in analysing the raw data I would be happy to share the raw data through a suitable medium/channel! 
 
 ### Associated experimental data and code-base
 This repository by itself only has the code and basic associated simulation parameter data to get the simulations running. The simulation parameters are based on previously published literature and two experiments specifically performed to parametrise the simulations. The bistatic and monostatic target strengths of bats were measured along with how bats 'shadow' or block sound. Head to this [Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3469845.svg) repository to read about the experimental methodology, code, raw data and results involved in these experiments. 
@@ -205,7 +204,7 @@ All code in the_cocktail_party_nightmare is release under an MIT License. See [L
 
 ### Citing the cocktail party nightmare code-base
 If you find any of the code in this repository useful in your research please cite the [associated paper]():
-Beleyur T., Goerlitz, H.R. <*Insert final name of manuscript here*>
+Beleyur T., Goerlitz, H.R. Modelling active sensing reveals echo detection even in large groups of bats
 
 In addition, this is the link to the publicly available [preprint](https://www.biorxiv.org/content/10.1101/817734v1):
 

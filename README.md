@@ -17,8 +17,8 @@ This repository simulates the auditory detection of echoes, sound propagation an
 
 
 ### Requirements:
-The code runs on a range of Python 2.7 versions. The code runs on Windows and Linux. 
-To replicate the development environment exactly - install the following versions in your conda/virtual environment. All simulation results generated for the paper were done on a Ubuntu 18.04.3 LTS virtual machine. The code was also tested and developed on a Windows 7 system.
+The code runs on a range of Python 2.7 versions and should run on Linux and Windows systems. All simulation results generated for the paper were done on a Ubuntu 18.04.3 LTS virtual machine. The code was also tested and developed on a Windows 7 system.
+To replicate the development environment exactly - install the following versions in your conda/virtual environment.
 
 Python 2.7.15
 
@@ -121,7 +121,7 @@ You should see the initiation of many parallel simulation runs.
 #### Step 4 : The simulation outputs
 Every simulation run produces its own ```.simresults``` file. Each simresults file has two objects within it: 
 
-* *simulation_identifiers* : the parameters that were used to run the simulation and the random seed that can be used to re-run the exact same simulation run on any operating system if need be. These include the ```info``` tag, the [uuid](https://en.wikipedia.org/wiki/Universally_unique_identifier), parameter valyes 
+* *simulation_identifiers* : the parameters that were used to run the simulation and the random seed that can be used to re-run the exact same simulation run on any operating system if need be. These include the ```info``` tag, the [uuid](https://en.wikipedia.org/wiki/Universally_unique_identifier), parameter values. 
 
 * *simulation_data* : the results (data) of the simulation run
 

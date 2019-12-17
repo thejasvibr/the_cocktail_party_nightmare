@@ -203,7 +203,7 @@ If you find the code/data or playback files useful in your work please consider 
 All code in the_cocktail_party_nightmare is release under an MIT License. See [LICENSE](./LICENSE) for more detail. 
 
 ### Citing the cocktail party nightmare code-base
-If you find any of the code in this repository useful in your research please cite the [associated paper]():
+If you find any of the code in this repository useful in your research please cite the [associated paper](https://www.pnas.org/content/early/2019/12/09/1821722116):
 Beleyur T., Goerlitz, H.R. Modelling active sensing reveals echo detection even in large groups of bats
 
 In addition, this is the link to the publicly available [preprint](https://www.biorxiv.org/content/10.1101/817734v1):

@@ -1,5 +1,5 @@
 matplotlib==2.2.4
-setuptools==40.4.3
+setuptools==65.5.1
 tqdm==4.35.0
 pandas==0.24.2
 joblib==0.13.2
